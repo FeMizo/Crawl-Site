@@ -34,6 +34,7 @@ const L = {
     buttonNoLink: "Boton sin link",
     brokenButton: "Boton roto",
     brokenImages: "Imagen rota",
+    noImgSize: "Sin width/height",
     loadTimeTab: "Tiempo de carga",
     loadTimeLabel: "Tiempo de carga",
     slowLoad: "Carga lenta",
@@ -146,7 +147,8 @@ const L = {
     sgTipTitleIssues: "Cantidad de paginas con problemas en el titulo",
     sgTipDescIssues: "Cantidad de paginas con problemas en la descripcion",
     sgTipH1Issues: "Cantidad de paginas con problemas de H1 o jerarquia",
-    sgTipImageIssues: "Cantidad de paginas con imagenes sin alt o rotas",
+    sgTipImageIssues:
+      "Cantidad de paginas con imagenes sin alt, sin width/height o rotas",
     sgTipDuplicates: "Cantidad de titulos duplicados detectados",
   },
   en: {
@@ -181,6 +183,7 @@ const L = {
     buttonNoLink: "Button without link",
     brokenButton: "Broken button",
     brokenImages: "Broken image",
+    noImgSize: "No width/height",
     loadTimeTab: "Load time",
     loadTimeLabel: "Load time",
     slowLoad: "Slow load",
@@ -293,7 +296,8 @@ const L = {
     sgTipTitleIssues: "Number of pages with title issues",
     sgTipDescIssues: "Number of pages with description issues",
     sgTipH1Issues: "Number of pages with H1 or heading hierarchy issues",
-    sgTipImageIssues: "Number of pages with missing-alt or broken images",
+    sgTipImageIssues:
+      "Number of pages with missing-alt, missing width/height, or broken images",
     sgTipDuplicates: "Number of duplicate titles found",
   },
 };
@@ -762,6 +766,7 @@ function issueLabel(i) {
     multi_h1: T("multiH1"),
     heading_skip: T("headingSkip"),
     imgs_no_alt: T("noAlt"),
+    imgs_no_size: T("noImgSize"),
     button_no_link: T("buttonNoLink"),
     broken_button: T("brokenButton"),
     broken_image: T("brokenImages"),
@@ -1286,12 +1291,14 @@ function addPage(p) {
   }
 
   //  IMAGES tab
-  if (p.imgsNoAlt > 0 || (p.brokenImageLinks || []).length > 0) {
-    const tot = p.totalImgs || p.imgsNoAlt;
+  if (p.imgsNoAlt > 0 || (p.imgsNoSize || 0) > 0 || (p.brokenImageLinks || []).length > 0) {
+    const tot = p.totalImgs || p.imgsNoAlt || p.imgsNoSize || 0;
     const pct = tot ? Math.round((p.imgsNoAlt / tot) * 100) : 0;
+    const imgsNoSize = p.imgsNoSize || 0;
     const brokenImgs = (p.brokenImageLinks || []).length;
     const imgTypes = [];
     if (p.imgsNoAlt > 0) imgTypes.push("imgs_no_alt");
+    if (imgsNoSize > 0) imgTypes.push("imgs_no_size");
     if (brokenImgs > 0) imgTypes.push("broken_image");
     const trImages = mkTr(
       [
@@ -1299,6 +1306,7 @@ function addPage(p) {
         sbadge(p.statusCode),
         tot,
         `<span style="color:var(--warn);font-weight:700;">${p.imgsNoAlt}</span>`,
+        `<span style="color:${imgsNoSize > 0 ? "var(--warn)" : "var(--muted)"};font-weight:700;">${imgsNoSize}</span>`,
         brokenImgs > 0
           ? `<span style="color:var(--error);font-weight:700;">${brokenImgs}</span>`
           : `<span style="color:var(--muted);">0</span>`,
@@ -1444,4 +1452,20 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   setTheme(currentTheme);
   applyUrlSearchFilter();
   updateCrawlButtonLabel();
+
+  const params = new URLSearchParams(window.location.search || "");
+  const initialUrl = (params.get("url") || "").trim();
+  const autostart = params.get("autostart") === "1";
+  if (input && initialUrl) {
+    input.value = initialUrl;
+    updateCrawlButtonLabel();
+    if (autostart) {
+      setTimeout(() => {
+        startCrawl();
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete("autostart");
+        window.history.replaceState({}, "", clean.pathname + clean.search);
+      }, 0);
+    }
+  }
 };

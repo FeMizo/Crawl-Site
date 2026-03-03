@@ -616,6 +616,14 @@ function extractMeta(body, pageUrl) {
   const imgsNoAlt = imgMatches.filter(
     (m) => !/alt\s*=\s*["'][^"']+["']/i.test(m[0]),
   ).length;
+  const imgsNoSize = imgMatches.filter((m) => {
+    const tag = m[0];
+    const hasWidth =
+      /\bwidth\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(tag);
+    const hasHeight =
+      /\bheight\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(tag);
+    return !hasWidth || !hasHeight;
+  }).length;
   const totalImgs = imgMatches.length;
   const imageUrls = imgMatches
     .map((m) => {
@@ -730,6 +738,7 @@ function extractMeta(body, pageUrl) {
     headings,
     headingSkips,
     imgsNoAlt,
+    imgsNoSize,
     totalImgs,
     imageUrls: [...new Set(imageUrls)],
     allLinks,
@@ -1010,6 +1019,15 @@ function getIssues(page, crawlLang = "es") {
         label: T(
           `${m.imgsNoAlt} imagen(es) sin alt`,
           `${m.imgsNoAlt} image(s) without alt`,
+        ),
+        group: "images",
+      });
+    if (m.imgsNoSize > 0)
+      issues.push({
+        type: "imgs_no_size",
+        label: T(
+          `${m.imgsNoSize} imagen(es) sin width/height`,
+          `${m.imgsNoSize} image(s) without width/height`,
         ),
         group: "images",
       });
@@ -1296,6 +1314,7 @@ app.get("/api/crawl", async (req, res) => {
         totalH: meta?.headings?.length || 0,
         headingSkips: meta?.headingSkips || [],
         imgsNoAlt: meta?.imgsNoAlt || 0,
+        imgsNoSize: meta?.imgsNoSize || 0,
         totalImgs: meta?.totalImgs || 0,
         brokenImageLinks,
         loadTimeMs,
@@ -1729,8 +1748,14 @@ async function generateExcel(results, siteUrl, duplicates, crawlLang = "es") {
   return tmpFile;
 }
 
-app.get("*", (req, res) =>
+app.get("/", (req, res) =>
+  res.sendFile(path.join(__dirname, "../public/home.html")),
+);
+app.get("/dashboard", (req, res) =>
   res.sendFile(path.join(__dirname, "../public/index.html")),
+);
+app.get("*", (req, res) =>
+  res.sendFile(path.join(__dirname, "../public/home.html")),
 );
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
