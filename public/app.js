@@ -476,8 +476,10 @@ function startCrawl() {
   }
 
   resetState();
-  const show = (id, d) =>
-    (document.getElementById(id).style.display = d || "block");
+  const show = (id, d) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = d || "block";
+  };
   show("pw");
   show("sl");
   show("cw");
@@ -590,7 +592,9 @@ function renderChart(s) {
     { l: T("tabDup"), v: s.duplicates, c: "var(--purple)" },
   ];
   const mx = Math.max(...items.map((d) => d.v), 1);
-  document.getElementById("bars").innerHTML = items
+  const bars = document.getElementById("bars");
+  if (!bars) return;
+  bars.innerHTML = items
     .map(
       (d) => `
     <div class="bcol" title="${d.l}: ${d.v}">
