@@ -1,0 +1,451 @@
+﻿<div class="app">
+
+  <header>
+    <div>
+      <div class="logo">SEO<span>.</span>CRAWLER</div>
+      <div class="logo-sub" id="logoSub">Detector de errores SEO</div>
+    </div>
+    <div class="hdr-r">
+      <button class="hbtn on" id="btnEs" onclick="setLang('es')" title="Español">&#127466;&#127480;</button>
+      <button class="hbtn" id="btnEn" onclick="setLang('en')" title="English">&#127482;&#127480;</button>
+      <div class="hdiv"></div>
+      <button class="hbtn" id="btnThemeDark" onclick="setTheme('dark')" data-i18n-title="themeDarkTitle" title="Oscuro">&#127769;</button>
+      <button class="hbtn" id="btnThemeLight" onclick="setTheme('light')" data-i18n-title="themeLightTitle" title="Claro">&#9728;&#65039;</button>
+      <button class="hbtn" id="btnThemeHcDark" onclick="setTheme('hc-dark')" data-i18n-title="themeHcDarkTitle" title="Alto contraste oscuro">&#11035; HC</button>
+      <button class="hbtn" id="btnThemeHcLight" onclick="setTheme('hc-light')" data-i18n-title="themeHcLightTitle" title="Alto contraste claro">&#11036; HC</button>
+    </div>
+  </header>
+
+  <section class="iz">
+    <label class="ilbl" for="urlInput" data-i18n="inputLabel">URL del sitio a analizar</label>
+    <p class="input-help" data-i18n="inputHelp">Analiza SEO técnico, metadatos, encabezados, imágenes y funcionalidad.</p>
+    <div class="irow">
+      <input type="url" class="url-input" id="urlInput" placeholder="https://www.tu-sitio.com" autocomplete="off"
+        spellcheck="false" aria-label="URL del sitio a analizar" required>
+      <select class="csel" id="maxPg" aria-label="Maximo de paginas a analizar">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+      </select>
+      <button class="btn-go" id="btnCrawl" onclick="startCrawl()"><span data-i18n="startBtn">Iniciar
+          Crawl</span></button>
+    </div>
+    <div style="margin-top:8px;">
+      <span class="adv-tgl" onclick="toggleAdv()">&#9881;&#65039; <span data-i18n="advOpts">Opciones avanzadas</span></span>
+      <div class="adv-p" id="advPanel">
+        <span class="al" data-i18n="source">Fuente</span>
+        <div class="pill">
+          <button class="pbtn on" id="srcCrawl" onclick="setSrc('crawl')">&#128375; Crawl</button>
+          <button class="pbtn" id="srcSitemap" onclick="setSrc('sitemap')">&#128506; Sitemap</button>
+        </div>
+        <span class="al" style="margin-left:8px;" data-i18n="rateLimit">Rate limit</span>
+        <select class="csel" id="rateDelay" style="padding:6px 8px;font-size:12px;">
+          <option value="0" data-i18n="noDelay">Sin delay</option>
+          <option value="200">200ms</option>
+          <option value="500">500ms</option>
+          <option value="1000">1s</option>
+          <option value="2000">2s</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="checkExt"> <span data-i18n="checkExt">Verificar links
+            externos</span></label>
+      </div>
+    </div>
+    <div class="pw" id="pw">
+      <div class="pb"></div>
+    </div>
+    <div class="sl" id="sl">
+      <div class="sdot"></div><span id="stxt">...</span>
+    </div>
+  </section>
+
+  <div class="sg" id="sg">
+    <div class="sc">
+      <div class="sv" id="vT">0</div>
+      <div class="sm" data-i18n="analyzed">Analizadas</div>
+    </div>
+    <div class="sc e">
+      <div class="sv" id="vI">0</div>
+      <div class="sm" data-i18n="withIssues">Con problemas</div>
+    </div>
+    <div class="sc e">
+      <div class="sv" id="v4">0</div>
+      <div class="sm">404</div>
+    </div>
+    <div class="sc r">
+      <div class="sv" id="vR">0</div>
+      <div class="sm" data-i18n="redirects">Redirects</div>
+    </div>
+    <div class="sc w">
+      <div class="sv" id="vTi">0</div>
+      <div class="sm" data-i18n="titleIssues">Titulos</div>
+    </div>
+    <div class="sc w">
+      <div class="sv" id="vD">0</div>
+      <div class="sm" data-i18n="descIssues">Desc</div>
+    </div>
+    <div class="sc p">
+      <div class="sv" id="vH">0</div>
+      <div class="sm">H1</div>
+    </div>
+    <div class="sc b">
+      <div class="sv" id="vIm">0</div>
+      <div class="sm" data-i18n="images">Imagenes</div>
+    </div>
+    <div class="sc p">
+      <div class="sv" id="vDu">0</div>
+      <div class="sm" data-i18n="duplicates">Duplicados</div>
+    </div>
+  </div>
+
+  <div class="cw" id="cw">
+    <div class="ch" data-i18n="chartTitle">Distribucion de errores</div>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <div class="dlb" id="dlb">
+    <div style="font-size:20px;">&#128202;</div>
+    <div class="dlt" style="flex:1;">
+      <h3 data-i18n="reportReady">Reporte listo</h3>
+      <p id="dldesc"></p>
+    </div>
+    <a class="btn-dl" id="dllink" href="#" target="_blank" rel="noopener noreferrer" data-i18n="download">Descargar
+      .xlsx</a>
+  </div>
+
+  <div class="main-layout mode-seo" id="mainLayout" style="display:none;">
+    <div class="scope-tabs">
+      <button class="scope-btn on" id="scopeSeoBtn" onclick="setWorkspace('seo', this)">SEO</button>
+      <button class="scope-btn" id="scopeDomainBtn" onclick="setWorkspace('domain', this)" data-i18n="scopeDomain">Dominio</button>
+      <button class="scope-btn" id="scopeFuncBtn" onclick="setWorkspace('functionality', this)"
+        data-i18n="tabFunctionality">Funcionalidad</button>
+    </div>
+    <div class="workspace-row">
+      <aside class="sidebar">
+        <div class="sidebar-card" id="seoCard">
+          <div class="sidebar-head">
+            <div class="sidebar-head-icon">&#128269;</div>
+            <div class="sidebar-head-title">SEO</div>
+          </div>
+          <div class="sidebar-body">
+            <div class="seo-preview">
+              <img src="/assets/seo-illustration.svg" alt="SEO illustration">
+            </div>
+            <p style="font-size:12px;color:var(--muted);" data-i18n="clickPageSeo">Haz clic en una fila para ver el
+              analisis SEO</p>
+          </div>
+        </div>
+
+        <div class="sidebar-card" id="hostingCard">
+          <div class="sidebar-head">
+            <div class="sidebar-head-icon">&#127760;</div>
+            <div class="sidebar-head-title" data-i18n="hosting">Hosting &amp; DNS</div>
+          </div>
+          <div class="sidebar-body" id="hostingBody">
+            <p style="font-size:12px;color:var(--muted);" data-i18n="loadingHosting">Cargando informacion...</p>
+          </div>
+        </div>
+
+        <div class="sidebar-card" id="securityCard">
+          <div class="sidebar-head">
+            <div class="sidebar-head-icon">&#128274;</div>
+            <div class="sidebar-head-title" data-i18n="httpSecurity">HTTP Security</div>
+          </div>
+          <div class="sidebar-body" id="securityBody">
+            <p style="font-size:12px;color:var(--muted);" data-i18n="loadingSecurity">Analizando headers y SSL...</p>
+          </div>
+        </div>
+
+        <div class="sidebar-card" id="techCard">
+          <div class="sidebar-head">
+            <div class="sidebar-head-icon">&#9881;&#65039;</div>
+            <div class="sidebar-head-title" data-i18n="techStack">Tipo de sitio</div>
+          </div>
+          <div class="sidebar-body" id="techBody">
+            <p style="font-size:12px;color:var(--muted);" data-i18n="loadingTech">Detectando...</p>
+          </div>
+        </div>
+
+        <div class="sidebar-card" id="functionalityCard">
+          <div class="sidebar-head">
+            <div class="sidebar-head-icon">&#129514;</div>
+            <div class="sidebar-head-title" data-i18n="inlinksDetails">Inlinks y detalles</div>
+          </div>
+          <div class="sidebar-body" id="functionalityBody">
+            <p style="font-size:12px;color:var(--muted);" data-i18n="functionalityIntro">Detalla inlinks, botones sin link, botones rotos y tiempos de carga.</p>
+          </div>
+        </div>
+      </aside>
+
+      <div class="content-area">
+        <div class="tnav">
+          <button class="tbtn on" onclick="goTab('all',this)"><span data-i18n="tabAll">Todas</span> <span class="tc"
+              id="tc-all">0</span></button>
+          <button class="tbtn" onclick="goTab('seo',this)">&#128269; SEO <span class="tc" id="tc-seo">0</span></button>
+          <button class="tbtn" onclick="goTab('issues',this)">&#9888;&#65039; <span data-i18n="tabIssues">Problemas</span> <span
+              class="tc" id="tc-issues">0</span></button>
+          <button class="tbtn" onclick="goTab('titles',this)"><span data-i18n="tabTitles">Titulos</span> <span
+              class="tc" id="tc-titles">0</span></button>
+          <button class="tbtn" onclick="goTab('desc',this)"><span data-i18n="tabDesc">Descriptions</span> <span
+              class="tc" id="tc-desc">0</span></button>
+          <button class="tbtn" onclick="goTab('h1',this)">H1 <span class="tc" id="tc-h1">0</span></button>
+          <button class="tbtn" onclick="goTab('images',this)"><span data-i18n="tabImages">Imagenes</span> <span
+              class="tc" id="tc-images">0</span></button>
+          <button class="tbtn" onclick="goTab('errors',this)"><span data-i18n="tabErrors">Errores</span> <span
+              class="tc" id="tc-errors">0</span></button>
+          <button class="tbtn" onclick="goTab('dup',this)"><span data-i18n="tabDup">Duplicados</span> <span class="tc"
+              id="tc-dup">0</span></button>
+          <button class="tbtn" onclick="goTab('robots',this)" data-i18n="robotsTab">Robots.txt</button>
+        </div>
+
+        <div class="tpane on" id="tab-all">
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="title">Titulo</th>
+                  <th>Ch.</th>
+                  <th data-i18n="description">Desc</th>
+                  <th>Ch.</th>
+                  <th>H1</th>
+                  <th data-i18n="imgsNoAlt">Imgs s/alt</th>
+                  <th data-i18n="issues">Problemas</th>
+                </tr>
+              </thead>
+              <tbody id="tbAll"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-seo">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbSEO','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbSEO','heading_skip',this)" data-i18n="headingSkip">Saltos
+              heading</button>
+            <button class="sfbtn" onclick="sf('tbSEO','title_quality',this)" data-i18n="lowTitleScore">Score titulo
+              bajo</button>
+            <button class="sfbtn" onclick="sf('tbSEO','desc_quality',this)" data-i18n="lowDescScore">Score desc
+              bajo</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="titleScore">Score Titulo</th>
+                  <th data-i18n="descScore">Score Desc</th>
+                  <th data-i18n="tabIndexation">Indexacion</th>
+                  <th data-i18n="headings">Headings</th>
+                  <th data-i18n="headingIssues">Problemas heading</th>
+                </tr>
+              </thead>
+              <tbody id="tbSEO"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-issues">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbIssues','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbIssues','errors',this)" data-i18n="httpErrors">HTTP</button>
+            <button class="sfbtn" onclick="sf('tbIssues','titles',this)" data-i18n="tabTitles">Titulos</button>
+            <button class="sfbtn" onclick="sf('tbIssues','desc',this)" data-i18n="tabDesc">Desc</button>
+            <button class="sfbtn" onclick="sf('tbIssues','h1',this)">H1</button>
+            <button class="sfbtn" onclick="sf('tbIssues','images',this)" data-i18n="tabImages">Imagenes</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="group">Grupo</th>
+                  <th data-i18n="issues">Problemas</th>
+                  <th data-i18n="title">Titulo</th>
+                </tr>
+              </thead>
+              <tbody id="tbIssues"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-titles">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbTitles','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbTitles','no_title',this)" data-i18n="noTitle">Sin titulo</button>
+            <button class="sfbtn" onclick="sf('tbTitles','title_short',this)" data-i18n="titleShort">Corto
+              &lt;30</button>
+            <button class="sfbtn" onclick="sf('tbTitles','title_long',this)" data-i18n="titleLong">Largo
+              &gt;60</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="title">Titulo</th>
+                  <th>Chars</th>
+                  <th data-i18n="issue">Problema</th>
+                </tr>
+              </thead>
+              <tbody id="tbTitles"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-desc">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbDesc','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbDesc','no_desc',this)" data-i18n="noDesc">Sin desc</button>
+            <button class="sfbtn" onclick="sf('tbDesc','desc_short',this)" data-i18n="descShort">Corta &lt;70</button>
+            <button class="sfbtn" onclick="sf('tbDesc','desc_long',this)" data-i18n="descLong">Larga
+              &gt;160</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="description">Description</th>
+                  <th>Chars</th>
+                  <th data-i18n="issue">Problema</th>
+                </tr>
+              </thead>
+              <tbody id="tbDesc"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-h1">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbH1','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbH1','no_h1',this)" data-i18n="noH1">Sin H1</button>
+            <button class="sfbtn" onclick="sf('tbH1','multi_h1',this)" data-i18n="multiH1">Multiples H1</button>
+            <button class="sfbtn" onclick="sf('tbH1','heading_skip',this)" data-i18n="headingSkip">Saltos
+              heading</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th>H1</th>
+                  <th># H1</th>
+                  <th data-i18n="headingIssues">Heading issues</th>
+                </tr>
+              </thead>
+              <tbody id="tbH1"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-images">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbImages','all',this)" data-i18n="all">Todas</button>
+            <button class="sfbtn" onclick="sf('tbImages','imgs_no_alt',this)" data-i18n="noAlt">Sin alt</button>
+            <button class="sfbtn" onclick="sf('tbImages','broken_image',this)" data-i18n="brokenImages">Imagen rota</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="totalImgs">Total</th>
+                  <th data-i18n="noAlt">Sin alt</th>
+                  <th data-i18n="brokenImages">Imagen rota</th>
+                  <th>%</th>
+                </tr>
+              </thead>
+              <tbody id="tbImages"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-errors">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbErrors','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbErrors','404',this)">404</button>
+            <button class="sfbtn" onclick="sf('tbErrors','redirect',this)" data-i18n="redirects">Redirects</button>
+            <button class="sfbtn" onclick="sf('tbErrors','blocked',this)" data-i18n="blocked">Bloqueadas</button>
+            <button class="sfbtn" onclick="sf('tbErrors','noindex',this)">Noindex</button>
+            <button class="sfbtn" onclick="sf('tbErrors','http_error',this)" data-i18n="httpErrors">5xx</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="redirectTo">Redirect a</th>
+                  <th data-i18n="blocked">Bloqueada</th>
+                  <th data-i18n="detail">Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tbErrors"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-functionality">
+          <div class="sfbar">
+            <span class="sfl" data-i18n="filter">Filtro</span>
+            <button class="sfbtn on" onclick="sf('tbFunc','all',this)" data-i18n="all">Todos</button>
+            <button class="sfbtn" onclick="sf('tbFunc','button_no_link',this)" data-i18n="buttonNoLink">Boton sin
+              link</button>
+            <button class="sfbtn" onclick="sf('tbFunc','broken_button',this)" data-i18n="brokenButton">Boton
+              roto</button>
+            <button class="sfbtn" onclick="sf('tbFunc','slow_load',this)" data-i18n="loadTimeTab">Tiempo de carga</button>
+          </div>
+          <div class="tw">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="url">URL</th>
+                  <th>HTTP</th>
+                  <th data-i18n="buttonNoLink">Boton sin link</th>
+                  <th data-i18n="brokenButton">Boton roto</th>
+                  <th data-i18n="loadTimeTab">Tiempo de carga</th>
+                  <th data-i18n="detail">Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tbFunc"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-dup">
+          <div id="dupList">
+            <div class="empty">
+              <div class="ico">&#10024;</div>
+              <p data-i18n="noDups">Sin titulos duplicados</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="tpane" id="tab-robots">
+          <div class="rbox" id="robotsBox">
+            <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>SEO Crawler Node.js + Express + React</footer>
+</div>
+
