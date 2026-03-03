@@ -47,16 +47,15 @@
         <div class="page-kicker">Pages / Dashboard</div>
       </div>
       <div class="hdr-r">
-        <button class="hbtn on lang-btn" id="btnEs" onclick="setLang('es')" title="Espa&#241;ol">
+        <button class="hbtn lang-btn" id="btnEs" onclick="setLang('es')" title="Espa&#241;ol">
           <span class="lang-flag" aria-hidden="true">
             <svg viewBox="0 0 24 16" role="img">
               <rect width="24" height="16" fill="#c60b1e"></rect>
               <rect y="4" width="24" height="8" fill="#ffc400"></rect>
             </svg>
           </span>
-          <span class="lang-code">ES</span>
         </button>
-        <button class="hbtn lang-btn" id="btnEn" onclick="setLang('en')" title="English">
+        <button class="hbtn on lang-btn" id="btnEn" onclick="setLang('en')" title="English">
           <span class="lang-flag" aria-hidden="true">
             <svg viewBox="0 0 24 16" role="img">
               <rect width="24" height="16" fill="#b22234"></rect>
@@ -67,7 +66,6 @@
               <rect width="10" height="8" fill="#3c3b6e"></rect>
             </svg>
           </span>
-          <span class="lang-code">EN</span>
         </button>
         <div class="hdiv"></div>
         <button class="hbtn" id="btnThemeDark" onclick="setTheme('dark')" data-i18n-title="themeDarkTitle"
@@ -131,40 +129,111 @@
 
     <div class="sg" id="sg">
       <div class="sc">
+        <div class="sc-head">
+          <div class="sm" data-i18n="analyzed">Analizadas</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipTotalPages" title="Total pages analyzed in this crawl">
+            <svg viewBox="0 0 20 20">
+              <path d="M4 2h7l5 5v11H4z" fill="currentColor" opacity=".25"></path>
+              <path d="M11 2v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vT">0</div>
-        <div class="sm" data-i18n="analyzed">Analizadas</div>
       </div>
       <div class="sc e">
+        <div class="sc-head">
+          <div class="sm" data-i18n="withIssues">Con problemas</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipWithIssues" title="Pages that have at least one SEO or technical issue">
+            <svg viewBox="0 0 20 20">
+              <path d="M3 6l5 4 9-7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+              <path d="M3 14h14" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vI">0</div>
-        <div class="sm" data-i18n="withIssues">Con problemas</div>
       </div>
       <div class="sc e">
+        <div class="sc-head">
+          <div class="sm" data-i18n="seoScoreStat">SEO Score</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipSeoScore" title="Average SEO score across all crawled pages">
+            <svg viewBox="0 0 20 20">
+              <rect x="3" y="11" width="3" height="6" fill="currentColor"></rect>
+              <rect x="8.5" y="8" width="3" height="9" fill="currentColor" opacity=".8"></rect>
+              <rect x="14" y="5" width="3" height="12" fill="currentColor" opacity=".6"></rect>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="v4">0</div>
-        <div class="sm">404</div>
       </div>
       <div class="sc r">
+        <div class="sc-head">
+          <div class="sm" data-i18n="avgLoadTimeStat">Avg Load Time</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipAvgLoad" title="Average load time across all crawled pages">
+            <svg viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+              <path d="M10 10V6.5M10 10l2.8 2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vR">0</div>
-        <div class="sm" data-i18n="redirects">Redirects</div>
       </div>
       <div class="sc w">
+        <div class="sc-head">
+          <div class="sm" data-i18n="titleIssues">Titulos</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipTitleIssues" title="Number of pages with title issues">
+            <svg viewBox="0 0 20 20">
+              <path d="M4 5h12M4 9h8M4 13h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vTi">0</div>
-        <div class="sm" data-i18n="titleIssues">Titulos</div>
       </div>
       <div class="sc w">
+        <div class="sc-head">
+          <div class="sm" data-i18n="descIssues">Desc</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipDescIssues" title="Number of pages with description issues">
+            <svg viewBox="0 0 20 20">
+              <path d="M4 5h12M4 9h12M4 13h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vD">0</div>
-        <div class="sm" data-i18n="descIssues">Desc</div>
       </div>
       <div class="sc p">
+        <div class="sc-head">
+          <div class="sm">H1</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipH1Issues" title="Number of pages with H1 or heading hierarchy issues">
+            <svg viewBox="0 0 20 20">
+              <path d="M4 5v10M16 5v10M4 10h12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vH">0</div>
-        <div class="sm">H1</div>
       </div>
       <div class="sc b">
+        <div class="sc-head">
+          <div class="sm" data-i18n="images">Imagenes</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipImageIssues" title="Number of pages with missing-alt or broken images">
+            <svg viewBox="0 0 20 20">
+              <rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+              <circle cx="8" cy="8" r="1.2" fill="currentColor"></circle>
+              <path d="M5 14l3-3 2.5 2.5L13 11l2 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vIm">0</div>
-        <div class="sm" data-i18n="images">Imagenes</div>
       </div>
       <div class="sc p">
+        <div class="sc-head">
+          <div class="sm" data-i18n="duplicates">Duplicados</div>
+          <span class="sc-icon" aria-hidden="true" data-i18n-title="sgTipDuplicates" title="Number of duplicate titles found">
+            <svg viewBox="0 0 20 20">
+              <rect x="4" y="6" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+              <rect x="8" y="4" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".7"></rect>
+            </svg>
+          </span>
+        </div>
         <div class="sv" id="vDu">0</div>
-        <div class="sm" data-i18n="duplicates">Duplicados</div>
       </div>
     </div>
 
@@ -245,6 +314,9 @@
         </aside>
 
         <div class="content-area">
+          <div class="crawl-search-wrap">
+            <input type="search" id="crawlSearch" class="crawl-search-input" placeholder="Search by URL..." aria-label="Search by URL">
+          </div>
           <div class="tnav">
             <button class="tbtn on" onclick="goTab('all',this)"><span data-i18n="tabAll">Todas</span> <span class="tc"
                 id="tc-all">0</span></button>

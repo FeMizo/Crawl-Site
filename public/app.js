@@ -135,6 +135,19 @@ const L = {
     themeLightTitle: "Claro",
     themeHcDarkTitle: "Alto contraste oscuro",
     themeHcLightTitle: "Alto contraste claro",
+    recrawlBtn: "Re-crawl",
+    searchByUrl: "Buscar por URL...",
+    seoScoreStat: "SEO Score",
+    avgLoadTimeStat: "Tiempo promedio",
+    sgTipTotalPages: "Total de paginas analizadas en este crawl",
+    sgTipWithIssues: "Paginas que tienen al menos un problema SEO o tecnico",
+    sgTipSeoScore: "Promedio de score SEO entre todas las paginas",
+    sgTipAvgLoad: "Tiempo de carga promedio de todas las paginas analizadas",
+    sgTipTitleIssues: "Cantidad de paginas con problemas en el titulo",
+    sgTipDescIssues: "Cantidad de paginas con problemas en la descripcion",
+    sgTipH1Issues: "Cantidad de paginas con problemas de H1 o jerarquia",
+    sgTipImageIssues: "Cantidad de paginas con imagenes sin alt o rotas",
+    sgTipDuplicates: "Cantidad de titulos duplicados detectados",
   },
   en: {
     inputLabel: "Site URL to analyze",
@@ -269,13 +282,108 @@ const L = {
     themeLightTitle: "Light",
     themeHcDarkTitle: "High contrast dark",
     themeHcLightTitle: "High contrast light",
+    recrawlBtn: "Re-crawl",
+    searchByUrl: "Search by URL...",
+    seoScoreStat: "SEO Score",
+    avgLoadTimeStat: "Avg Load Time",
+    sgTipTotalPages: "Total pages analyzed in this crawl",
+    sgTipWithIssues: "Pages that have at least one SEO or technical issue",
+    sgTipSeoScore: "Average SEO score across all crawled pages",
+    sgTipAvgLoad: "Average load time across all crawled pages",
+    sgTipTitleIssues: "Number of pages with title issues",
+    sgTipDescIssues: "Number of pages with description issues",
+    sgTipH1Issues: "Number of pages with H1 or heading hierarchy issues",
+    sgTipImageIssues: "Number of pages with missing-alt or broken images",
+    sgTipDuplicates: "Number of duplicate titles found",
   },
 };
-let lang = "es";
+let lang = "en";
 const T = (k) => L[lang][k] || k;
 let currentTheme =
   document.documentElement.getAttribute("data-theme") || "dark";
 const crawlState = { pages: [], duplicates: [], robots: null, hosting: null };
+let crawlSearchTerm = "";
+const TABLE_BODIES = [
+  "tbAll",
+  "tbSEO",
+  "tbIssues",
+  "tbTitles",
+  "tbDesc",
+  "tbH1",
+  "tbImages",
+  "tbErrors",
+  "tbFunc",
+];
+
+function normalizeInputUrl(u) {
+  try {
+    const x = new URL(u.trim());
+    x.hash = "";
+    return x.toString();
+  } catch {
+    return "";
+  }
+}
+
+function hasCrawledUrl(inputUrl) {
+  const normalized = normalizeInputUrl(inputUrl);
+  if (!normalized) return false;
+  return crawlState.pages.some(
+    (p) => sameU(p.url, normalized) || sameU(p.finalUrl, normalized),
+  );
+}
+
+function updateCrawlButtonLabel() {
+  const btn = document.getElementById("btnCrawl");
+  const input = document.getElementById("urlInput");
+  if (!btn || !input) return;
+  const label = btn.querySelector("[data-i18n]");
+  if (!label) return;
+  label.textContent = hasCrawledUrl(input.value) ? T("recrawlBtn") : T("startBtn");
+}
+
+function applyUrlSearchFilter() {
+  const term = (crawlSearchTerm || "").trim().toLowerCase();
+  TABLE_BODIES.forEach((id) => {
+    const tbody = document.getElementById(id);
+    if (!tbody) return;
+    tbody.querySelectorAll("tr").forEach((tr) => {
+      if (!term) {
+        tr.classList.remove("search-hide");
+        return;
+      }
+      const urlText = (tr.querySelector("td")?.textContent || "").toLowerCase();
+      tr.classList.toggle("search-hide", !urlText.includes(term));
+    });
+  });
+}
+
+function pageSeoScore(page) {
+  const q = page?.seoQuality || {};
+  if (typeof q.score === "number") return q.score;
+  const t = Number(q.titleScore || 0);
+  const d = Number(q.descScore || 0);
+  if (t || d) return Math.round((t + d) / 2);
+  return 0;
+}
+
+function updateAggregateSgStats() {
+  const total = crawlState.pages.length;
+  if (!total) {
+    sv("v4", "0/100");
+    sv("vR", "0ms");
+    return;
+  }
+  const scoreSum = crawlState.pages.reduce((acc, p) => acc + pageSeoScore(p), 0);
+  const loadSum = crawlState.pages.reduce(
+    (acc, p) => acc + Number(p.loadTimeMs || 0),
+    0,
+  );
+  const avgScore = Math.round(scoreSum / total);
+  const avgLoad = Math.round(loadSum / total);
+  sv("v4", `${avgScore}/100`);
+  sv("vR", `${avgLoad}ms`);
+}
 
 function setLang(l) {
   lang = l;
@@ -292,6 +400,8 @@ function setLang(l) {
   document.getElementById("logoSub").textContent = T("logoSub");
   document.getElementById("urlInput").placeholder =
     l === "en" ? "https://www.your-site.com" : "https://www.tu-sitio.com";
+  const searchInput = document.getElementById("crawlSearch");
+  if (searchInput) searchInput.placeholder = T("searchByUrl");
   const fBody = document.getElementById("functionalityBody");
   if (fBody && !window.__selectedSeoPage && !crawlState.pages.length) {
     fBody.innerHTML = `<p style="font-size:12px;color:var(--muted);">${T("functionalityIntro")}</p>`;
@@ -306,6 +416,7 @@ function setLang(l) {
     showPageSEO(window.__selectedSeoPage);
     showFunctionalityInfo(window.__selectedSeoPage);
   }
+  updateCrawlButtonLabel();
 }
 
 //
@@ -391,6 +502,7 @@ function sf(tbodyId, filter, btn) {
       const types = JSON.parse(tr.dataset.types || "[]");
       tr.classList.toggle("hi", !types.includes(filter));
     });
+  applyUrlSearchFilter();
 }
 
 //
@@ -436,12 +548,16 @@ function resetState() {
   crawlState.hosting = null;
   window.__selectedSeoPage = null;
   document.querySelectorAll(".sv").forEach((el) => (el.textContent = "0"));
+  sv("v4", "0/100");
+  sv("vR", "0ms");
   document.querySelectorAll(".tc").forEach((el) => (el.textContent = "0"));
   document.querySelectorAll(".sfbar").forEach((bar) => {
     bar
       .querySelectorAll(".sfbtn")
       .forEach((b, i) => b.classList.toggle("on", i === 0));
   });
+  applyUrlSearchFilter();
+  updateCrawlButtonLabel();
 }
 
 function rerenderTablesFromState() {
@@ -460,6 +576,7 @@ function rerenderTablesFromState() {
     if (el) el.innerHTML = "";
   });
   crawlState.pages.forEach((p) => addPage(p));
+  applyUrlSearchFilter();
 }
 
 //
@@ -527,6 +644,7 @@ function startCrawl() {
       `${T("analyzing")}... ${p.total}  ${p.queued} ${T("queueLabel")}`,
     );
     sv("vT", p.total);
+    updateAggregateSgStats();
   });
   es.addEventListener("done", (e) => {
     const d = JSON.parse(e.data);
@@ -534,8 +652,7 @@ function startCrawl() {
     const s = d.stats;
     sv("vT", d.total);
     sv("vI", d.withIssues);
-    sv("v4", s["404"]);
-    sv("vR", s.redirects);
+    updateAggregateSgStats();
     sv("vTi", s.titleIssues);
     sv("vD", s.descIssues);
     sv("vH", s.h1Issues);
@@ -562,14 +679,14 @@ function startCrawl() {
     document.getElementById("pw").style.display = "none";
     document.getElementById("sl").style.display = "none";
     btn.disabled = false;
-    btn.querySelector("[data-i18n]").textContent = T("startBtn");
+    updateCrawlButtonLabel();
   });
   es.addEventListener("error", () => {
     es.close();
     document.getElementById("pw").style.display = "none";
     document.getElementById("sl").style.display = "none";
     btn.disabled = false;
-    btn.querySelector("[data-i18n]").textContent = T("startBtn");
+    updateCrawlButtonLabel();
   });
 }
 const sv = (id, v) => {
@@ -683,9 +800,17 @@ function lcls(n, min, max) {
 function urlA(p) {
   const d = p.finalUrl || p.url;
   const hasRR = p.redirectTo && !sameU(p.redirectTo, p.url);
+  const openUrlTitle = lang === "en" ? "Open URL" : "Abrir URL";
+  const openIcon = `<a class="url-open" href="${esc(d)}" target="_blank" rel="noopener noreferrer" title="${openUrlTitle}" onclick="event.stopPropagation()">
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M7 5h8v8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      <path d="M15 5l-9 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      <rect x="4" y="8" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".7"></rect>
+    </svg>
+  </a>`;
   return hasRR
-    ? `<a href="${esc(d)}" target="_blank" rel="noopener noreferrer">${esc(trunc(d, 48))}</a><br><small style="color:var(--orange);font-size:10px;">↳${esc(trunc(p.url, 44))}</small>`
-    : `<a href="${esc(d)}" target="_blank" rel="noopener noreferrer">${esc(trunc(d, 56))}</a>`;
+    ? `<div class="url-cell"><span class="url-text">${esc(trunc(d, 48))}</span>${openIcon}</div><br><small style="color:var(--orange);font-size:10px;">↳${esc(trunc(p.url, 44))}</small>`
+    : `<div class="url-cell"><span class="url-text">${esc(trunc(d, 56))}</span>${openIcon}</div>`;
 }
 function mkTr(cells, types) {
   const tr = document.createElement("tr");
@@ -769,6 +894,23 @@ function renderHeadingTree(headings, skips, pageUrl) {
 // SIDEBAR: SEO detail for clicked row
 //
 function buildSeoOptions(page) {
+  const clampWord = (text, max) => {
+    const clean = String(text || "").replace(/\s+/g, " ").trim();
+    if (clean.length <= max) return clean;
+    const cut = clean.slice(0, max + 1);
+    const lastSpace = cut.lastIndexOf(" ");
+    if (lastSpace > Math.floor(max * 0.6)) return cut.slice(0, lastSpace).trim();
+    return clean.slice(0, max).trim();
+  };
+  const composeWithin = (parts, max) => {
+    const out = [];
+    for (const p of parts) {
+      const next = [...out, p].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      if (next.length > max) break;
+      out.push(p);
+    }
+    return clampWord(out.join(" "), max);
+  };
   const hostname = (() => {
     try {
       return new URL(page.url || "").hostname.replace(/^www\./, "");
@@ -778,26 +920,28 @@ function buildSeoOptions(page) {
   })();
   const mainTopic =
     (page.h1s && page.h1s[0]) || page.title || hostname || "your page";
-  const titleBase = String(mainTopic).trim().slice(0, 45);
-  const descBase = String(page.description || mainTopic)
-    .trim()
-    .slice(0, 90);
+  const titleBase = clampWord(mainTopic, 42);
+  const descBase = clampWord(page.description || mainTopic, 96);
+  const year = String(new Date().getFullYear());
   if (lang === "en") {
     return {
       title: [
-        `${titleBase} | ${hostname || "Website"}`.slice(0, 60),
-        `${titleBase} - Complete Guide ${new Date().getFullYear()}`.slice(
-          0,
-          60,
-        ),
+        composeWithin([titleBase, "|", hostname || "Website"], 60),
+        composeWithin([titleBase, "-", "Complete Guide", year], 60),
       ],
       desc: [
-        `${descBase}. Discover key benefits, details, and how to get started today.`.slice(
-          0,
+        composeWithin(
+          [
+            descBase + ".",
+            "Discover key benefits, details, and how to get started today.",
+          ],
           160,
         ),
-        `Learn about ${titleBase.toLowerCase()} with practical tips and clear steps to improve results.`.slice(
-          0,
+        composeWithin(
+          [
+            `Learn about ${titleBase.toLowerCase()}`,
+            "with practical tips and clear steps to improve results.",
+          ],
           160,
         ),
       ],
@@ -805,16 +949,22 @@ function buildSeoOptions(page) {
   }
   return {
     title: [
-      `${titleBase} | ${hostname || "Website"}`.slice(0, 60),
-      `${titleBase} - Guia completa ${new Date().getFullYear()}`.slice(0, 60),
+      composeWithin([titleBase, "|", hostname || "Website"], 60),
+      composeWithin([titleBase, "-", "Guia completa", year], 60),
     ],
     desc: [
-      `${descBase}. Descubre beneficios, detalles y como empezar hoy.`.slice(
-        0,
+      composeWithin(
+        [
+          descBase + ".",
+          "Descubre beneficios, detalles y como empezar hoy.",
+        ],
         160,
       ),
-      `Conoce ${titleBase.toLowerCase()} con consejos practicos y pasos claros para mejorar resultados.`.slice(
-        0,
+      composeWithin(
+        [
+          `Conoce ${titleBase.toLowerCase()}`,
+          "con consejos practicos y pasos claros para mejorar resultados.",
+        ],
         160,
       ),
     ],
@@ -1227,6 +1377,8 @@ function addPage(p) {
       .getElementById("tbFunc")
       .appendChild(attachSeoRowBehavior(trFunc, p));
   }
+  applyUrlSearchFilter();
+  updateCrawlButtonLabel();
 }
 
 //
@@ -1273,6 +1425,14 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") startCrawl();
     });
+  if (input) input.addEventListener("input", updateCrawlButtonLabel);
+  const searchInput = document.getElementById("crawlSearch");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      crawlSearchTerm = e.target.value || "";
+      applyUrlSearchFilter();
+    });
+  }
   const mainHeader = document.querySelector("header");
   const syncHeaderScroll = () => {
     if (!mainHeader) return;
@@ -1282,4 +1442,6 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   syncHeaderScroll();
   setLang(lang);
   setTheme(currentTheme);
+  applyUrlSearchFilter();
+  updateCrawlButtonLabel();
 };
