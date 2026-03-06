@@ -301,12 +301,18 @@ const L = {
     sgTipDuplicates: "Number of duplicate titles found",
   },
 };
-let lang = "en";
+let lang =
+  (typeof window !== "undefined" && window.localStorage.getItem("seoCrawlerLang")) ||
+  "en";
 const T = (k) => L[lang][k] || k;
 let currentTheme =
-  document.documentElement.getAttribute("data-theme") || "dark";
+  (typeof window !== "undefined" &&
+    window.localStorage.getItem("seoCrawlerTheme")) ||
+  document.documentElement.getAttribute("data-theme") ||
+  "dark";
 const crawlState = { pages: [], duplicates: [], robots: null, hosting: null };
 let crawlSearchTerm = "";
+let currentProject = null;
 const TABLE_BODIES = [
   "tbAll",
   "tbSEO",
@@ -391,6 +397,10 @@ function updateAggregateSgStats() {
 
 function setLang(l) {
   lang = l;
+  try {
+    window.localStorage.setItem("seoCrawlerLang", l);
+    document.documentElement.lang = l;
+  } catch {}
   document.getElementById("btnEs").classList.toggle("on", l === "es");
   document.getElementById("btnEn").classList.toggle("on", l === "en");
   document.querySelectorAll("[data-i18n]").forEach((el) => {
@@ -429,6 +439,9 @@ function setLang(l) {
 function setTheme(t) {
   currentTheme = t;
   document.documentElement.setAttribute("data-theme", t);
+  try {
+    window.localStorage.setItem("seoCrawlerTheme", t);
+  } catch {}
   const m = {
     dark: "btnThemeDark",
     light: "btnThemeLight",
@@ -583,6 +596,60 @@ function rerenderTablesFromState() {
   applyUrlSearchFilter();
 }
 
+function applySavedRun(run) {
+  if (!run) return;
+  resetState();
+  const show = (id, d) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = d || "block";
+  };
+  show("pw");
+  show("sl");
+  show("cw");
+  show("sg", "grid");
+  show("mainLayout", "flex");
+  setWorkspace("seo");
+
+  const input = document.getElementById("urlInput");
+  if (input && run.sourceUrl) input.value = run.sourceUrl;
+  crawlState.pages = Array.isArray(run.pages) ? run.pages : [];
+  crawlState.duplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
+  rerenderTablesFromState();
+  if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
+  updateAggregateSgStats();
+
+  const stats = run.stats || {};
+  sv("stxt", `Historial cargado: ${new Date(run.createdAt).toLocaleString()}`);
+  sv("vT", run.total || crawlState.pages.length || 0);
+  sv("vI", run.withIssues || 0);
+  sv("vTi", stats.titleIssues || 0);
+  sv("vD", stats.descIssues || 0);
+  sv("vH", stats.h1Issues || 0);
+  sv("vIm", stats.imgIssues || 0);
+  sv("vDu", stats.duplicates || 0);
+  sv("tc-all", run.total || crawlState.pages.length || 0);
+  sv("tc-seo", run.total || crawlState.pages.length || 0);
+  sv("tc-issues", run.withIssues || 0);
+  sv("tc-titles", stats.titleIssues || 0);
+  sv("tc-desc", stats.descIssues || 0);
+  sv("tc-h1", stats.h1Issues || 0);
+  sv("tc-images", stats.imgIssues || 0);
+  sv("tc-errors", (stats["404"] || 0) + (stats.redirects || 0));
+  sv("tc-dup", stats.duplicates || 0);
+  renderChart({
+    "404": stats["404"] || 0,
+    redirects: stats.redirects || 0,
+    titleIssues: stats.titleIssues || 0,
+    descIssues: stats.descIssues || 0,
+    imgIssues: stats.imgIssues || 0,
+    duplicates: stats.duplicates || 0,
+  });
+
+  const dl = document.getElementById("dlb");
+  if (dl) dl.style.display = "none";
+  updateCrawlButtonLabel();
+}
+
 //
 // CRAWL
 //
@@ -591,8 +658,13 @@ function startCrawl() {
   const max = document.getElementById("maxPg").value;
   const rate = document.getElementById("rateDelay").value;
   const ext = document.getElementById("checkExt").checked ? "1" : "0";
+  const projectId = currentProject?.id || "";
   if (!url) {
     document.getElementById("urlInput").focus();
+    return;
+  }
+  if (!projectId) {
+    alert("No hay proyecto seleccionado.");
     return;
   }
 
@@ -628,6 +700,7 @@ function startCrawl() {
     rate,
     external: ext,
     lang,
+    projectId,
   });
   const es = new EventSource(`/api/crawl?${qs}`);
 
@@ -1425,9 +1498,11 @@ function renderRobots(d) {
 }
 
 let __seoCrawlerInited = false;
+window.loadSeoCrawlerRun = applySavedRun;
 window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   if (__seoCrawlerInited) return;
   __seoCrawlerInited = true;
+  currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
   const input = document.getElementById("urlInput");
   if (input)
     input.addEventListener("keydown", (e) => {
@@ -1456,8 +1531,10 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   const params = new URLSearchParams(window.location.search || "");
   const initialUrl = (params.get("url") || "").trim();
   const autostart = params.get("autostart") === "1";
-  if (input && initialUrl) {
-    input.value = initialUrl;
+  const projectUrl = currentProject?.targetUrl || "";
+  const resolvedInitialUrl = initialUrl || projectUrl;
+  if (input && resolvedInitialUrl) {
+    input.value = resolvedInitialUrl;
     updateCrawlButtonLabel();
     if (autostart) {
       setTimeout(() => {

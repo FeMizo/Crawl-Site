@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: seo_crawler_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: seo_user
+      POSTGRES_PASSWORD: seo_pass
+      POSTGRES_DB: seo_crawler
+    ports:
+      - "5433:5432"
+    volumes:
+      - seo_crawler_pgdata:/var/lib/postgresql/data
+
+volumes:
+  seo_crawler_pgdata:

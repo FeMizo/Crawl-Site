@@ -9,10 +9,89 @@ const { URL } = require("url");
 const ExcelJS = require("exceljs");
 const fs = require("fs");
 const os = require("os");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
+const { PrismaClient } = require("@prisma/client");
 
 const app = express();
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || "change-this-local-secret";
+const isProd = process.env.NODE_ENV === "production";
+
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "../public")));
+
+function getAuthCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    path: "/",
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  };
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function sanitizeUser(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    createdAt: user.createdAt,
+  };
+}
+
+function createAuthToken(user) {
+  return jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+}
+
+function writeAuthCookie(res, user) {
+  res.cookie("auth_token", createAuthToken(user), getAuthCookieOptions());
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie("auth_token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    path: "/",
+  });
+}
+
+async function requireAuth(req, res, next) {
+  try {
+    const token = req.cookies?.auth_token;
+    if (!token) return res.status(401).json({ error: "No autenticado" });
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user) {
+      clearAuthCookie(res);
+      return res.status(401).json({ error: "Sesion invalida" });
+    }
+    req.user = user;
+    next();
+  } catch {
+    clearAuthCookie(res);
+    return res.status(401).json({ error: "Sesion invalida" });
+  }
+}
+
+function normalizeProjectName(name, targetUrl) {
+  const raw = String(name || "").trim();
+  if (raw) return raw.slice(0, 120);
+  try {
+    const url = new URL(targetUrl);
+    return url.hostname;
+  } catch {
+    return "Proyecto";
+  }
+}
 
 //  URL utils
 function normalizeUrl(url) {
@@ -1110,8 +1189,263 @@ async function checkExternalLink(url) {
   return broken;
 }
 
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const name = String(req.body?.name || "").trim();
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y password son requeridos" });
+    }
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "La password debe tener al menos 8 caracteres" });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: "Ese email ya esta registrado" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: { name: name || null, email, passwordHash },
+    });
+
+    writeAuthCookie(res, user);
+    return res.status(201).json({ user: sanitizeUser(user) });
+  } catch (error) {
+    return res.status(500).json({ error: "No se pudo registrar el usuario" });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y password son requeridos" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ error: "Credenciales invalidas" });
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: "Credenciales invalidas" });
+    }
+
+    writeAuthCookie(res, user);
+    return res.json({ user: sanitizeUser(user) });
+  } catch {
+    return res.status(500).json({ error: "No se pudo iniciar sesion" });
+  }
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
+});
+
+app.get("/api/auth/me", requireAuth, async (req, res) => {
+  const [projectCount, crawlRunCount] = await Promise.all([
+    prisma.project.count({ where: { userId: req.user.id } }),
+    prisma.crawlRun.count({ where: { userId: req.user.id } }),
+  ]);
+  res.json({
+    user: sanitizeUser(req.user),
+    counts: { projects: projectCount, crawlRuns: crawlRunCount },
+  });
+});
+
+app.get("/api/projects", requireAuth, async (req, res) => {
+  const projects = await prisma.project.findMany({
+    where: { userId: req.user.id },
+    include: {
+      _count: { select: { crawlRuns: true } },
+      crawlRuns: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          createdAt: true,
+          total: true,
+          withIssues: true,
+          status: true,
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  res.json({
+    projects: projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      targetUrl: project.targetUrl,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      runCount: project._count.crawlRuns,
+      lastRun: project.crawlRuns[0] || null,
+    })),
+  });
+});
+
+app.get("/api/history", requireAuth, async (req, res) => {
+  const runs = await prisma.crawlRun.findMany({
+    where: { userId: req.user.id },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    include: {
+      project: {
+        select: {
+          id: true,
+          name: true,
+          targetUrl: true,
+        },
+      },
+    },
+  });
+
+  res.json({
+    runs: runs.map((run) => ({
+      id: run.id,
+      projectId: run.projectId,
+      sourceUrl: run.sourceUrl,
+      total: run.total,
+      withIssues: run.withIssues,
+      status: run.status,
+      createdAt: run.createdAt,
+      project: run.project,
+    })),
+  });
+});
+
+app.post("/api/projects", requireAuth, async (req, res) => {
+  const targetUrl = normalizeUrl(req.body?.targetUrl || "");
+  if (!targetUrl) {
+    return res.status(400).json({ error: "URL invalida" });
+  }
+
+  const project = await prisma.project.create({
+    data: {
+      userId: req.user.id,
+      name: normalizeProjectName(req.body?.name, targetUrl),
+      targetUrl,
+    },
+  });
+
+  res.status(201).json({ project });
+});
+
+app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
+  const project = await prisma.project.findFirst({
+    where: {
+      id: req.params.projectId,
+      userId: req.user.id,
+    },
+    include: {
+      crawlRuns: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          status: true,
+          sourceUrl: true,
+          source: true,
+          total: true,
+          withIssues: true,
+          downloadName: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+
+  if (!project) {
+    return res.status(404).json({ error: "Proyecto no encontrado" });
+  }
+
+  res.json({ project });
+});
+
+app.put("/api/projects/:projectId", requireAuth, async (req, res) => {
+  const existing = await prisma.project.findFirst({
+    where: { id: req.params.projectId, userId: req.user.id },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: "Proyecto no encontrado" });
+  }
+
+  const nextTargetUrl = req.body?.targetUrl
+    ? normalizeUrl(req.body.targetUrl)
+    : existing.targetUrl;
+  if (!nextTargetUrl) {
+    return res.status(400).json({ error: "URL invalida" });
+  }
+
+  const project = await prisma.project.update({
+    where: { id: existing.id },
+    data: {
+      name: normalizeProjectName(req.body?.name ?? existing.name, nextTargetUrl),
+      targetUrl: nextTargetUrl,
+    },
+  });
+
+  res.json({ project });
+});
+
+app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
+  const existing = await prisma.project.findFirst({
+    where: { id: req.params.projectId, userId: req.user.id },
+    select: { id: true },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: "Proyecto no encontrado" });
+  }
+
+  await prisma.project.delete({ where: { id: existing.id } });
+  res.json({ ok: true });
+});
+
+app.get("/api/projects/:projectId/runs/:runId", requireAuth, async (req, res) => {
+  const run = await prisma.crawlRun.findFirst({
+    where: {
+      id: req.params.runId,
+      projectId: req.params.projectId,
+      userId: req.user.id,
+    },
+    select: {
+      id: true,
+      sourceUrl: true,
+      source: true,
+      maxPages: true,
+      rateDelay: true,
+      checkExt: true,
+      total: true,
+      withIssues: true,
+      stats: true,
+      duplicates: true,
+      pages: true,
+      downloadName: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  if (!run) {
+    return res.status(404).json({ error: "Historial no encontrado" });
+  }
+
+  res.json({ run });
+});
+
 //  API: Site info
-app.get("/api/site-info", async (req, res) => {
+app.get("/api/site-info", requireAuth, async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).json({ error: "URL requerida" });
   try {
@@ -1123,20 +1457,36 @@ app.get("/api/site-info", async (req, res) => {
 });
 
 //  SSE: Crawl
-app.get("/api/crawl", async (req, res) => {
+app.get("/api/crawl", requireAuth, async (req, res) => {
   const startUrl = req.query.url;
   const maxPages = Math.min(parseInt(req.query.max) || 50, 500);
   const source = req.query.source || "crawl";
   const rateDelay = parseInt(req.query.rate) || 0;
   const checkExt = req.query.external === "1";
   const crawlLang = req.query.lang || "es";
+  const projectId = String(req.query.projectId || "");
 
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
+  if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
   let baseOrigin;
   try {
     baseOrigin = new URL(startUrl).origin;
   } catch {
     return res.status(400).json({ error: "URL invlida" });
+  }
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: req.user.id },
+  });
+  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+  if (!sameUrlLoose(project.targetUrl, startUrl)) {
+    await prisma.project.update({
+      where: { id: project.id },
+      data: {
+        targetUrl: normalizeUrl(startUrl),
+        name: normalizeProjectName(project.name, startUrl),
+      },
+    });
   }
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -1158,6 +1508,8 @@ app.get("/api/crawl", async (req, res) => {
     cancel: () => {
       cancelled = true;
     },
+    userId: req.user.id,
+    projectId: project.id,
   });
   send("session", { sessionId });
 
@@ -1394,13 +1746,40 @@ app.get("/api/crawl", async (req, res) => {
       headingSkips: results.filter((r) => r.meta?.headingSkips?.length > 0)
         .length,
     };
+    const withIssues = results.filter((r) => r.issues.length > 0).length;
+    const createdRun = await prisma.crawlRun.create({
+      data: {
+        userId: req.user.id,
+        projectId: project.id,
+        sourceUrl: startUrl,
+        source,
+        maxPages,
+        rateDelay,
+        checkExt,
+        total: results.length,
+        withIssues,
+        stats,
+        duplicates,
+        pages: results,
+        downloadName: path.basename(filePath),
+        status: "completed",
+      },
+      select: { id: true },
+    });
+    sessions.set(`file_${sessionId}`, {
+      filePath,
+      userId: req.user.id,
+      projectId: project.id,
+      runId: createdRun.id,
+    });
     send("done", {
       total: results.length,
-      withIssues: results.filter((r) => r.issues.length > 0).length,
+      withIssues,
       stats,
       duplicates,
       downloadUrl: `/api/download/${sessionId}`,
       fileName: path.basename(filePath),
+      runId: createdRun.id,
     });
   }
 
@@ -1408,12 +1787,16 @@ app.get("/api/crawl", async (req, res) => {
   res.end();
 });
 
-app.get("/api/download/:sessionId", (req, res) => {
-  const filePath = sessions.get(`file_${req.params.sessionId}`);
-  if (!filePath || !fs.existsSync(filePath))
+app.get("/api/download/:sessionId", requireAuth, (req, res) => {
+  const fileSession = sessions.get(`file_${req.params.sessionId}`);
+  if (
+    !fileSession ||
+    fileSession.userId !== req.user.id ||
+    !fs.existsSync(fileSession.filePath)
+  )
     return res.status(404).json({ error: "Archivo no encontrado" });
-  res.download(filePath, path.basename(filePath), () => {
-    fs.unlink(filePath, () => {});
+  res.download(fileSession.filePath, path.basename(fileSession.filePath), () => {
+    fs.unlink(fileSession.filePath, () => {});
     sessions.delete(`file_${req.params.sessionId}`);
   });
 });

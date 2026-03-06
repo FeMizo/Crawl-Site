@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async rewrites() {
     return [
       {
@@ -13,6 +14,18 @@ const nextConfig = {
       {
         source: "/api/download/:sessionId",
         destination: "http://localhost:3001/api/download/:sessionId",
+      },
+      {
+        source: "/api/auth/:path*",
+        destination: "http://localhost:3001/api/auth/:path*",
+      },
+      {
+        source: "/api/projects/:path*",
+        destination: "http://localhost:3001/api/projects/:path*",
+      },
+      {
+        source: "/api/history",
+        destination: "http://localhost:3001/api/history",
       },
     ];
   },
