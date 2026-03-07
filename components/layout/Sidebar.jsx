@@ -7,6 +7,7 @@ import Logo from "../ui/Logo";
 
 const privateNav = [
   { key: "dashboard", href: "/", label: "Panel", icon: "dashboard" },
+  { key: "roadmap", href: "/dashboard/roadmap", label: "Roadmap", icon: "roadmap" },
   { key: "projects", href: "/projects", label: "Proyectos", icon: "projects" },
   { key: "history", href: "/history", label: "Historial", icon: "history" },
   { key: "settings", href: "/settings", label: "Ajustes", icon: "settings" },

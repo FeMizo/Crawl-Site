@@ -53,3 +53,28 @@ model CrawlRun {
   @@index([userId, createdAt])
   @@index([projectId, createdAt])
 }
+
+model RoadmapPhase {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  position    Int           @default(0)
+  tasks       RoadmapTask[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([position, createdAt])
+}
+
+model RoadmapTask {
+  id        String       @id @default(cuid())
+  phaseId   String
+  title     String
+  completed Boolean      @default(false)
+  position  Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  phase     RoadmapPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+
+  @@index([phaseId, position, createdAt])
+}

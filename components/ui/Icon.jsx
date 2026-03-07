@@ -89,6 +89,21 @@ const ICONS = {
       <path d="M10 9.2 15 12l-5 2.8z" fill="currentColor" />
     </>
   ),
+  roadmap: (
+    <>
+      <circle cx="6" cy="6" r="2" fill="currentColor" />
+      <circle cx="18" cy="6" r="2" fill="currentColor" />
+      <circle cx="18" cy="18" r="2" fill="currentColor" />
+      <circle cx="6" cy="18" r="2" fill="currentColor" />
+      <path
+        d="M8 6h8M18 8v8M16 18H8M6 16V8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 18, className = "" }) {
