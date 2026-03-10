@@ -1,6 +1,6 @@
 {
   "name": "seo-crawler",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",

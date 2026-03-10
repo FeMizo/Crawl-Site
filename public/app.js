@@ -137,6 +137,12 @@ const L = {
     themeHcDarkTitle: "Alto contraste oscuro",
     themeHcLightTitle: "Alto contraste claro",
     recrawlBtn: "Re-crawl",
+    rowsPerPage: "Filas por pagina",
+    pagePrev: "Anterior",
+    pageNext: "Siguiente",
+    pageInfo: "Pagina",
+    runLoaded: "Historial cargado",
+    projectRequired: "No hay proyecto seleccionado.",
     searchByUrl: "Buscar por URL...",
     seoScoreStat: "SEO Score",
     avgLoadTimeStat: "Tiempo promedio",
@@ -286,6 +292,12 @@ const L = {
     themeHcDarkTitle: "High contrast dark",
     themeHcLightTitle: "High contrast light",
     recrawlBtn: "Re-crawl",
+    rowsPerPage: "Rows per page",
+    pagePrev: "Previous",
+    pageNext: "Next",
+    pageInfo: "Page",
+    runLoaded: "Loaded run",
+    projectRequired: "No project selected.",
     searchByUrl: "Search by URL...",
     seoScoreStat: "SEO Score",
     avgLoadTimeStat: "Avg Load Time",
@@ -303,7 +315,7 @@ const L = {
 };
 let lang =
   (typeof window !== "undefined" && window.localStorage.getItem("seoCrawlerLang")) ||
-  "en";
+  "es";
 const T = (k) => L[lang][k] || k;
 let currentTheme =
   (typeof window !== "undefined" &&
@@ -312,6 +324,8 @@ let currentTheme =
   "dark";
 const crawlState = { pages: [], duplicates: [], robots: null, hosting: null };
 let crawlSearchTerm = "";
+let allTablePageSize = 20;
+let allTablePage = 1;
 let currentProject = null;
 const TABLE_BODIES = [
   "tbAll",
@@ -352,6 +366,62 @@ function updateCrawlButtonLabel() {
   label.textContent = hasCrawledUrl(input.value) ? T("recrawlBtn") : T("startBtn");
 }
 
+function setAllTablePageSize(size) {
+  const nextSize = Number(size || 20);
+  if (![20, 30, 50, 100].includes(nextSize)) return;
+  allTablePageSize = nextSize;
+  allTablePage = 1;
+  updateAllTablePagination();
+}
+
+function setAllTablePage(direction) {
+  if (direction === "prev") {
+    allTablePage = Math.max(1, allTablePage - 1);
+  } else if (direction === "next") {
+    allTablePage += 1;
+  }
+  updateAllTablePagination();
+}
+
+function updateAllTablePagination(resetPage = false) {
+  const tbody = document.getElementById("tbAll");
+  if (!tbody) return;
+
+  if (resetPage) {
+    allTablePage = 1;
+  }
+
+  const pageSizeControl = document.getElementById("allPageSize");
+  if (pageSizeControl && Number(pageSizeControl.value) !== allTablePageSize) {
+    pageSizeControl.value = String(allTablePageSize);
+  }
+
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const visibleRows = rows.filter((tr) => !tr.classList.contains("search-hide"));
+  const totalRows = visibleRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / allTablePageSize));
+
+  if (allTablePage > totalPages) {
+    allTablePage = totalPages;
+  }
+
+  const start = (allTablePage - 1) * allTablePageSize;
+  const end = start + allTablePageSize;
+
+  rows.forEach((tr) => tr.classList.add("page-hide"));
+  visibleRows.slice(start, end).forEach((tr) => tr.classList.remove("page-hide"));
+
+  const info = document.getElementById("allPageInfo");
+  if (info) {
+    info.textContent = `${T("pageInfo")} ${allTablePage}/${totalPages}`;
+  }
+
+  const prev = document.getElementById("allPagePrev");
+  const next = document.getElementById("allPageNext");
+  if (prev) prev.disabled = allTablePage <= 1 || totalRows === 0;
+  if (next) next.disabled = allTablePage >= totalPages || totalRows === 0;
+}
+
 function applyUrlSearchFilter() {
   const term = (crawlSearchTerm || "").trim().toLowerCase();
   TABLE_BODIES.forEach((id) => {
@@ -366,6 +436,7 @@ function applyUrlSearchFilter() {
       tr.classList.toggle("search-hide", !urlText.includes(term));
     });
   });
+  updateAllTablePagination();
 }
 
 function pageSeoScore(page) {
@@ -430,6 +501,7 @@ function setLang(l) {
     showPageSEO(window.__selectedSeoPage);
     showFunctionalityInfo(window.__selectedSeoPage);
   }
+  updateAllTablePagination();
   updateCrawlButtonLabel();
 }
 
@@ -573,6 +645,9 @@ function resetState() {
       .querySelectorAll(".sfbtn")
       .forEach((b, i) => b.classList.toggle("on", i === 0));
   });
+  const allPageSize = document.getElementById("allPageSize");
+  allTablePageSize = Number(allPageSize?.value || 20);
+  allTablePage = 1;
   applyUrlSearchFilter();
   updateCrawlButtonLabel();
 }
@@ -596,6 +671,46 @@ function rerenderTablesFromState() {
   applyUrlSearchFilter();
 }
 
+function normalizeSavedPage(page) {
+  if (!page || typeof page !== "object") return page;
+
+  const meta = page.meta && typeof page.meta === "object" ? page.meta : {};
+  const title = typeof page.title === "string" ? page.title : String(meta.title || "");
+  const description =
+    typeof page.description === "string"
+      ? page.description
+      : String(meta.description || "");
+  const h1s = Array.isArray(page.h1s) ? page.h1s : Array.isArray(meta.h1s) ? meta.h1s : [];
+  const headings = Array.isArray(page.headings)
+    ? page.headings
+    : Array.isArray(meta.headings)
+      ? meta.headings
+      : [];
+  const headingSkips = Array.isArray(page.headingSkips)
+    ? page.headingSkips
+    : Array.isArray(meta.headingSkips)
+      ? meta.headingSkips
+      : [];
+
+  return {
+    ...page,
+    title,
+    titleLen: Number(page.titleLen ?? meta.titleLen ?? title.length ?? 0),
+    description,
+    descLen: Number(page.descLen ?? meta.descLen ?? description.length ?? 0),
+    h1s,
+    headings,
+    totalH: Number(page.totalH ?? headings.length ?? 0),
+    headingSkips,
+    imgsNoAlt: Number(page.imgsNoAlt ?? meta.imgsNoAlt ?? 0),
+    imgsNoSize: Number(page.imgsNoSize ?? meta.imgsNoSize ?? 0),
+    totalImgs: Number(page.totalImgs ?? meta.totalImgs ?? 0),
+    canonical: page.canonical ?? meta.canonical ?? "",
+    noindex: Boolean(page.noindex ?? meta.noindex ?? false),
+    pageLang: page.pageLang ?? meta.pageLang ?? "",
+  };
+}
+
 function applySavedRun(run) {
   if (!run) return;
   resetState();
@@ -612,14 +727,16 @@ function applySavedRun(run) {
 
   const input = document.getElementById("urlInput");
   if (input && run.sourceUrl) input.value = run.sourceUrl;
-  crawlState.pages = Array.isArray(run.pages) ? run.pages : [];
+  crawlState.pages = Array.isArray(run.pages)
+    ? run.pages.map(normalizeSavedPage)
+    : [];
   crawlState.duplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
   rerenderTablesFromState();
   if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
   updateAggregateSgStats();
 
   const stats = run.stats || {};
-  sv("stxt", `Historial cargado: ${new Date(run.createdAt).toLocaleString()}`);
+  sv("stxt", `${T("runLoaded")}: ${new Date(run.createdAt).toLocaleString()}`);
   sv("vT", run.total || crawlState.pages.length || 0);
   sv("vI", run.withIssues || 0);
   sv("vTi", stats.titleIssues || 0);
@@ -664,7 +781,7 @@ function startCrawl() {
     return;
   }
   if (!projectId) {
-    alert("No hay proyecto seleccionado.");
+    alert(T("projectRequired"));
     return;
   }
 
@@ -1510,9 +1627,12 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
     });
   if (input) input.addEventListener("input", updateCrawlButtonLabel);
   const searchInput = document.getElementById("crawlSearch");
+  const allPageSize = document.getElementById("allPageSize");
+  if (allPageSize) allTablePageSize = Number(allPageSize.value || 20);
   if (searchInput) {
     searchInput.addEventListener("input", (e) => {
       crawlSearchTerm = e.target.value || "";
+      allTablePage = 1;
       applyUrlSearchFilter();
     });
   }
@@ -1526,6 +1646,7 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   setLang(lang);
   setTheme(currentTheme);
   applyUrlSearchFilter();
+  updateAllTablePagination(true);
   updateCrawlButtonLabel();
 
   const params = new URLSearchParams(window.location.search || "");

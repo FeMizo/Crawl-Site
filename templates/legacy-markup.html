@@ -47,7 +47,7 @@
         <div class="page-kicker">Pages / Dashboard</div>
       </div>
       <div class="hdr-r">
-        <button class="hbtn lang-btn" id="btnEs" onclick="setLang('es')" title="Espa&#241;ol">
+        <button class="hbtn on lang-btn" id="btnEs" onclick="setLang('es')" title="Espa&#241;ol">
           <span class="lang-flag" aria-hidden="true">
             <svg viewBox="0 0 24 16" role="img">
               <rect width="24" height="16" fill="#c60b1e"></rect>
@@ -55,7 +55,7 @@
             </svg>
           </span>
         </button>
-        <button class="hbtn on lang-btn" id="btnEn" onclick="setLang('en')" title="English">
+        <button class="hbtn lang-btn" id="btnEn" onclick="setLang('en')" title="English">
           <span class="lang-flag" aria-hidden="true">
             <svg viewBox="0 0 24 16" role="img">
               <rect width="24" height="16" fill="#b22234"></rect>
@@ -339,6 +339,22 @@
           </div>
 
           <div class="tpane on" id="tab-all">
+            <div class="table-pagination" id="allPagination">
+              <div class="table-pagination-left">
+                <span data-i18n="rowsPerPage">Filas por pagina</span>
+                <select id="allPageSize" class="csel table-page-size" onchange="setAllTablePageSize(this.value)" aria-label="Filas por pagina">
+                  <option value="20" selected>20</option>
+                  <option value="30">30</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <div class="table-pagination-right">
+                <button class="hbtn" id="allPagePrev" type="button" onclick="setAllTablePage('prev')" data-i18n="pagePrev">Anterior</button>
+                <span id="allPageInfo">1 / 1</span>
+                <button class="hbtn" id="allPageNext" type="button" onclick="setAllTablePage('next')" data-i18n="pageNext">Siguiente</button>
+              </div>
+            </div>
             <div class="tw">
               <table>
                 <thead>

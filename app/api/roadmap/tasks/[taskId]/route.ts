@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   deleteRoadmapTask,
   getRoadmapData,
   updateRoadmapTaskCompletion,
 } from "../../../../../lib/roadmap-data";
-import { requireRoadmapAccess } from "../../../../../lib/roadmap-auth";
+import { requireRoadmapEditor } from "../../../../../lib/server/roadmap-access";
+import { routeError, runPrismaRoute } from "../../../../../lib/server/prisma-route";
 
 export const runtime = "nodejs";
 
@@ -15,61 +16,50 @@ type Params = {
 };
 
 export async function PATCH(request: NextRequest, context: Params) {
-  const { user, canEdit } = await requireRoadmapAccess();
+  return runPrismaRoute(
+    async () => {
+      await requireRoadmapEditor();
 
-  if (!user) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-  }
+      const taskId = String(context.params.taskId || "").trim();
+      if (!taskId) {
+        routeError(400, "taskId invalido");
+      }
 
-  if (!canEdit) {
-    return NextResponse.json(
-      { error: "Solo administradores pueden editar el roadmap" },
-      { status: 403 },
-    );
-  }
+      const payload = await request.json().catch(() => null);
+      if (typeof payload?.completed !== "boolean") {
+        routeError(400, "completed invalido");
+      }
 
-  const taskId = String(context.params.taskId || "").trim();
-  if (!taskId) {
-    return NextResponse.json({ error: "taskId invalido" }, { status: 400 });
-  }
+      const result = await updateRoadmapTaskCompletion(taskId, payload.completed);
+      if (result.notFound) {
+        routeError(404, "Tarea no encontrada");
+      }
 
-  const payload = await request.json().catch(() => null);
-  const completed = Boolean(payload?.completed);
-  const result = await updateRoadmapTaskCompletion(taskId, completed);
-
-  if (result.notFound) {
-    return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
-  }
-
-  const data = await getRoadmapData();
-  return NextResponse.json({ data });
+      const data = await getRoadmapData();
+      return { data };
+    },
+    { fallbackError: "No se pudo actualizar la tarea" },
+  );
 }
 
 export async function DELETE(_request: NextRequest, context: Params) {
-  const { user, canEdit } = await requireRoadmapAccess();
+  return runPrismaRoute(
+    async () => {
+      await requireRoadmapEditor();
 
-  if (!user) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-  }
+      const taskId = String(context.params.taskId || "").trim();
+      if (!taskId) {
+        routeError(400, "taskId invalido");
+      }
 
-  if (!canEdit) {
-    return NextResponse.json(
-      { error: "Solo administradores pueden editar el roadmap" },
-      { status: 403 },
-    );
-  }
+      const result = await deleteRoadmapTask(taskId);
+      if (result.notFound) {
+        routeError(404, "Tarea no encontrada");
+      }
 
-  const taskId = String(context.params.taskId || "").trim();
-  if (!taskId) {
-    return NextResponse.json({ error: "taskId invalido" }, { status: 400 });
-  }
-
-  const result = await deleteRoadmapTask(taskId);
-
-  if (result.notFound) {
-    return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
-  }
-
-  const data = await getRoadmapData();
-  return NextResponse.json({ data });
+      const data = await getRoadmapData();
+      return { data };
+    },
+    { fallbackError: "No se pudo eliminar la tarea" },
+  );
 }

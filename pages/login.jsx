@@ -62,7 +62,7 @@ export default function LoginPage() {
         user={sessionUser}
         kicker="Acceso / Iniciar sesion"
         title="Iniciar sesion"
-        description="Accede al mismo sistema visual del panel para gestionar proyectos, historial y corridas guardadas."
+        description="Accede al mismo sistema visual del panel para gestionar proyectos, historial y rastreos guardados."
         actions={
           sessionUser ? (
             <Button href="/projects" variant="solid" tone="primary" iconLeft={<Icon name="projects" size={15} />}>
@@ -80,8 +80,8 @@ export default function LoginPage() {
             <div className="eyebrow"><Icon name="workspace" size={12} /> Espacio de trabajo</div>
             <h2>Tu acceso abre el panel privado</h2>
             <p>
-              Una vez dentro, cada corrida queda ligada a un proyecto y podras volver a
-              cargar cualquier corrida desde el panel.
+              Una vez dentro, cada rastreo queda ligado a un proyecto y podras volver a
+              cargar cualquier rastreo desde el panel.
             </p>
           </Card>
 

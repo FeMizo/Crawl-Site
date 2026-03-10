@@ -1,49 +1,59 @@
-# 🕷️ SEO Crawler
+# SEO Crawler
 
-Herramienta web para detectar errores SEO. Interfaz en el browser + reporte Excel descargable.
+Aplicacion para ejecutar rastreos SEO, guardar historial por proyecto y revisar hallazgos desde dashboard web.
+
+## Pasos rapidos
+
+1. Crea tu cuenta para habilitar persistencia de proyectos y corridas.
+2. Registra la URL principal del sitio a auditar.
+3. Ejecuta el rastreo y revisa los errores SEO priorizados en el dashboard.
 
 ## Errores detectados
 
-| Error | Descripción |
+| Error | Descripcion |
 |-------|-------------|
-| **404 Not Found** | Páginas rotas |
-| **Sin `<title>`** | Páginas sin título |
-| **Sin meta description** | Sin descripción para buscadores |
-| **Noindex activo** | Páginas bloqueadas con `noindex` |
+| **404 Not Found** | Paginas rotas |
+| **Sin `<title>`** | Paginas sin titulo |
+| **Sin meta description** | Sin descripcion para buscadores |
+| **Noindex activo** | Paginas bloqueadas con `noindex` |
 | **Redirects internos** | URLs con redirecciones 301/302 |
-| **Timeouts** | Páginas inaccesibles |
+| **Timeouts** | Paginas inaccesibles |
 
-## Instalación
+## Requerimientos
+
+- Node.js 18.17+
+- Docker (opcional para Postgres local)
+
+## Instalacion
 
 ```bash
 npm install
 ```
 
-## Uso
+## Desarrollo
 
 ```bash
-# Producción
-npm start
-
-# Desarrollo (auto-reload)
 npm run dev
 ```
 
-Abre el navegador en **http://localhost:3000**
+- Web: `http://localhost:3000`
+- API crawler: `http://localhost:3001`
 
-## Estructura
+## Produccion local
 
-```
-seo-crawler/
-├── src/
-│   └── server.js       ← Backend Express + crawler + generador Excel
-├── public/
-│   └── index.html      ← Interfaz web completa
-├── package.json
-└── README.md
+```bash
+npm run build
+npm start
 ```
 
-## Requerimientos
+## Base de datos (Prisma)
 
-- Node.js 14+
-- Puerto 3000 disponible (o cambia con `PORT=xxxx npm start`)
+```bash
+npm run db:up
+npm run db:push
+npm run db:seed
+```
+
+## Arquitectura App Router
+
+Guia para nuevos modulos: `docs/app-router-architecture.md`

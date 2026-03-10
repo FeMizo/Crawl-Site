@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Button from "../ui/Button";
 import Icon from "../ui/Icon";
 
@@ -14,6 +14,23 @@ export default function AddTaskForm({ phaseId, canEdit, onSubmit }: AddTaskFormP
   const [title, setTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isVertical, setIsVertical] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(max-width: 560px)");
+    const sync = () => setIsVertical(media.matches);
+    sync();
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", sync);
+      return () => media.removeEventListener("change", sync);
+    }
+
+    media.addListener(sync);
+    return () => media.removeListener(sync);
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -49,7 +66,7 @@ export default function AddTaskForm({ phaseId, canEdit, onSubmit }: AddTaskFormP
         type="submit"
         variant="solid"
         tone="primary"
-        size="sm"
+        size={isVertical ? "sm" : "md"}
         loading={submitting}
         disabled={!canEdit}
         iconLeft={<Icon name="plus" size={14} />}

@@ -190,7 +190,7 @@ export default function DashboardPage() {
         }
         aside={
           <div className="dashboard-aside">
-            <StatCard label="Corridas" value={project?.crawlRuns?.length || 0} hint="Recientes" tone="primary" icon={<Icon name="run" size={14} />} />
+            <StatCard label="Rastreos" value={project?.crawlRuns?.length || 0} hint="Recientes" tone="primary" icon={<Icon name="run" size={14} />} />
             <StatCard label="Proyecto" value={project?.name || "--"} hint="Activo" tone="secondary" icon={<Icon name="projects" size={14} />} />
           </div>
         }

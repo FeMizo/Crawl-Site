@@ -61,8 +61,8 @@ export default function HistoryPage() {
         activeKey="history"
         user={me}
         kicker="Espacio de trabajo / Historial"
-        title="Historial de corridas"
-        description="Registro reciente de corridas guardadas por usuario y proyecto dentro del mismo sistema del panel."
+        title="Historial de rastreos"
+        description="Registro reciente de rastreos guardados por usuario y proyecto dentro del mismo sistema del panel."
       >
         {loading ? <p className="feedback">Cargando historial...</p> : null}
         {error ? <p className="feedback error">{error}</p> : null}
@@ -83,15 +83,15 @@ export default function HistoryPage() {
                 size="sm"
                 iconLeft={<Icon name="external" size={14} />}
               >
-                Abrir corrida
+                Abrir rastreo
               </Button>
             </Card>
           ))}
           {!loading && !runs.length ? (
             <Card className="history-card empty">
               <div className="eyebrow">Sin historial</div>
-              <h2>Todavia no hay corridas guardadas</h2>
-              <p>Cuando ejecutes corridas desde un proyecto apareceran aqui.</p>
+              <h2>Todavia no hay rastreos guardados</h2>
+              <p>Cuando ejecutes rastreos desde un proyecto apareceran aqui.</p>
             </Card>
           ) : null}
         </div>

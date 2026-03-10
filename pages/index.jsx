@@ -1,12 +1,11 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "../components/layout/AppShell";
+import LandingSectionRenderer from "../components/landing/LandingSectionRenderer";
 import Button from "../components/ui/Button";
-import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
-import Input from "../components/ui/Input";
-import StatCard from "../components/ui/StatCard";
+import { getLandingSections } from "../lib/landing-sections";
 
 function normalizeUrl(value) {
   const raw = (value || "").trim();
@@ -34,6 +33,7 @@ export default function HomePage() {
   const [loadingUser, setLoadingUser] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [sections] = useState(getLandingSections());
 
   useEffect(() => {
     let active = true;
@@ -93,6 +93,11 @@ export default function HomePage() {
     }
   };
 
+  const orderedSections = useMemo(
+    () => [...sections].sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [sections],
+  );
+
   return (
     <>
       <Head>
@@ -108,9 +113,9 @@ export default function HomePage() {
       <AppShell
         activeKey="dashboard"
         user={user}
-        kicker="Paginas / Panel"
+        kicker="Landing / Publica"
         title="Nuevo rastreo"
-        description="Analiza SEO tecnico, metadatos, headings, imagenes y funcionalidad usando el mismo lenguaje visual del panel principal."
+        description="Inicia una auditoria SEO con una URL, crea el proyecto y entra al dashboard en un solo flujo."
         actions={
           loadingUser ? (
             <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">Cargando sesion...</span>
@@ -133,136 +138,54 @@ export default function HomePage() {
           )
         }
         aside={
-          <div className="steps">
-            <div className="step-item"><strong>1</strong><span>Registrar usuario</span></div>
-            <div className="step-item"><strong>2</strong><span>Crear proyecto</span></div>
-            <div className="step-item"><strong>3</strong><span>Guardar historial</span></div>
+          <div className="landing-aside">
+            <div className="sidebar-kicker with-icon">
+              <Icon name="roadmap" size={12} />
+              Flujo recomendado
+            </div>
+            <p>1. Captura la URL principal.</p>
+            <p>2. Crea el proyecto.</p>
+            <p>3. Revisa y prioriza hallazgos SEO.</p>
           </div>
         }
       >
-        <div className="hero-grid">
-          <Card className="hero-card">
-            <div className="hero-copy">
-              <div className="eyebrow">URL inicial</div>
-              <h2>Define la URL inicial y entra al panel operativo</h2>
-              <p>
-                Esta vista ya usa el mismo sistema visual del panel. El proyecto se crea
-                y entra directo a la experiencia principal.
-              </p>
-            </div>
-            <div className="hero-form">
-              <Input
-                label="URL del sitio a analizar"
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.tu-sitio.com"
-              />
-              <Button
-                type="button"
-                variant="solid"
-                tone="primary"
-                size="lg"
-                onClick={goToDashboard}
-                loading={submitting}
-                iconLeft={<Icon name="dashboard" size={16} />}
-              >
-                Crear y analizar
-              </Button>
-            </div>
-            {error ? <p className="feedback error">{error}</p> : null}
-          </Card>
-
-          <div className="stat-grid">
-            <StatCard label="Persistencia" value="Docker" hint="Postgres local" tone="primary" icon={<Icon name="database" size={14} />} />
-            <StatCard label="Autenticacion" value="JWT" hint="Cookie segura" tone="secondary" icon={<Icon name="shield" size={14} />} />
-            <StatCard label="Historial" value="Corridas" hint="Por usuario y proyecto" tone="primary" icon={<Icon name="history" size={14} />} />
-          </div>
+        <div className="landing-sections">
+          {orderedSections.map((section) => (
+            <LandingSectionRenderer
+              key={section.id}
+              section={section}
+              heroRuntime={{
+                url,
+                submitting,
+                onUrlChange: setUrl,
+                onSubmit: goToDashboard,
+              }}
+            />
+          ))}
         </div>
 
+        {error ? <p className="feedback error">{error}</p> : null}
+
         <style jsx>{`
-          .steps {
+          .landing-aside {
             display: grid;
-            gap: 10px;
+            gap: 8px;
           }
-          .step-item {
-            display: grid;
-            grid-template-columns: 26px 1fr;
-            gap: 10px;
-            align-items: center;
+          .landing-aside p {
+            margin: 0;
             color: var(--text2);
           }
-          .step-item strong {
-            width: 26px;
-            height: 26px;
+          .landing-sections {
             display: grid;
-            place-items: center;
-            border-radius: 999px;
-            background: rgba(77, 141, 255, 0.14);
-            color: #77abff;
-          }
-          .hero-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
-            gap: 18px;
-            min-width: 0;
-          }
-          .hero-card {
-            background: linear-gradient(180deg, rgba(18, 36, 66, 0.95), rgba(12, 25, 48, 0.95));
-            gap: 18px;
-          }
-          .hero-copy {
-            min-width: 0;
-          }
-          .hero-copy h2 {
-            font-family: "Syne", "Manrope", sans-serif;
-            font-weight: 700;
-            font-size: clamp(1.45rem, 2.2vw, 2.05rem);
-            line-height: 1.04;
-            margin: 0 0 12px;
-            overflow-wrap: anywhere;
-          }
-          .hero-copy p {
-            margin: 0 0 18px;
-            color: var(--text2);
-            overflow-wrap: anywhere;
-          }
-          .eyebrow {
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-          }
-          .hero-form {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 14px;
-            align-items: end;
-            min-width: 0;
-          }
-          .stat-grid {
-            display: grid;
-            gap: 14px;
-            align-content: start;
+            gap: 16px;
             min-width: 0;
           }
           .feedback {
-            margin: 2px 0 0;
+            margin: 0;
             color: var(--text2);
           }
           .feedback.error {
             color: var(--error);
-          }
-          @media (max-width: 960px) {
-            .hero-grid {
-              grid-template-columns: 1fr;
-            }
-          }
-          @media (max-width: 680px) {
-            .hero-form {
-              grid-template-columns: 1fr;
-            }
           }
         `}</style>
       </AppShell>

@@ -95,7 +95,7 @@ export default function ProjectsPage() {
           <div className="aside-stats">
             <StatCard label="Proyectos" value={projects.length} hint="Espacios activos" tone="primary" icon={<Icon name="projects" size={14} />} />
             <StatCard
-              label="Corridas"
+              label="Rastreos"
               value={projects.reduce((acc, project) => acc + (project.runCount || 0), 0)}
               hint="Historial total"
               tone="secondary"
@@ -127,12 +127,12 @@ export default function ProjectsPage() {
               </div>
 
               <div className="metrics">
-                <StatCard label="Corridas" value={project.runCount} hint="Guardadas" tone="primary" icon={<Icon name="run" size={14} />} />
+                <StatCard label="Rastreos" value={project.runCount} hint="Guardados" tone="primary" icon={<Icon name="run" size={14} />} />
                 <StatCard label="Creado" value={formatDate(project.createdAt)} hint="Fecha de alta" tone="secondary" icon={<Icon name="history" size={14} />} />
               </div>
 
               <Card className="last-run" padding="sm">
-                <div className="eyebrow">Ultima corrida</div>
+                <div className="eyebrow">Ultimo rastreo</div>
                 <strong>
                   {project.lastRun
                     ? `${formatDate(project.lastRun.createdAt)} - ${project.lastRun.withIssues}/${project.lastRun.total}`
@@ -171,6 +171,7 @@ export default function ProjectsPage() {
             display: grid;
             gap: 18px;
             min-width: 0;
+            margin-top: 10px;
           }
           .card-top {
             display: flex;

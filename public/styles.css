@@ -1095,6 +1095,32 @@ header.is-scrolled {
   border-radius: 8px;
 }
 
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+
+.table-pagination-left,
+.table-pagination-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-page-size {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .tw a,
 .itags a,
 .host-val a {
@@ -2722,6 +2748,10 @@ header {
 }
 
 tbody tr.search-hide {
+  display: none !important;
+}
+
+tbody tr.page-hide {
   display: none !important;
 }
 

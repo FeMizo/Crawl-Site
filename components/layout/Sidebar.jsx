@@ -6,7 +6,7 @@ import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 
 const privateNav = [
-  { key: "dashboard", href: "/", label: "Panel", icon: "dashboard" },
+  { key: "dashboard", href: "/", label: "Inicio", icon: "dashboard" },
   { key: "roadmap", href: "/dashboard/roadmap", label: "Roadmap", icon: "roadmap" },
   { key: "projects", href: "/projects", label: "Proyectos", icon: "projects" },
   { key: "history", href: "/history", label: "Historial", icon: "history" },
@@ -29,7 +29,7 @@ export default function Sidebar({ activeKey, user, aside }) {
         </div>
         <div>
           <Logo className="sidebar-logo" />
-          <div className="logo-sub">Sistema del panel</div>
+          <div className="logo-sub">SEO Crawler</div>
         </div>
       </div>
 

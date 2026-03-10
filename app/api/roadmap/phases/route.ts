@@ -1,40 +1,35 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   createRoadmapPhase,
   getRoadmapData,
   normalizePhaseDescription,
   normalizePhaseTitle,
 } from "../../../../lib/roadmap-data";
-import { requireRoadmapAccess } from "../../../../lib/roadmap-auth";
+import { requireRoadmapEditor } from "../../../../lib/server/roadmap-access";
+import { routeError, runPrismaRoute } from "../../../../lib/server/prisma-route";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const { user, canEdit } = await requireRoadmapAccess();
+  return runPrismaRoute(
+    async () => {
+      await requireRoadmapEditor();
 
-  if (!user) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-  }
+      const payload = await request.json().catch(() => null);
+      const title = normalizePhaseTitle(payload?.title);
+      const description = normalizePhaseDescription(payload?.description);
 
-  if (!canEdit) {
-    return NextResponse.json(
-      { error: "Solo administradores pueden editar el roadmap" },
-      { status: 403 },
-    );
-  }
+      if (!title) {
+        routeError(400, "El titulo de la fase es obligatorio");
+      }
 
-  const payload = await request.json().catch(() => null);
-  const title = normalizePhaseTitle(payload?.title);
-  const description = normalizePhaseDescription(payload?.description);
-
-  if (!title) {
-    return NextResponse.json(
-      { error: "El titulo de la fase es obligatorio" },
-      { status: 400 },
-    );
-  }
-
-  await createRoadmapPhase({ title, description });
-  const data = await getRoadmapData();
-  return NextResponse.json({ data }, { status: 201 });
+      await createRoadmapPhase({ title, description });
+      const data = await getRoadmapData();
+      return { data };
+    },
+    {
+      successStatus: 201,
+      fallbackError: "No se pudo crear la fase",
+    },
+  );
 }
