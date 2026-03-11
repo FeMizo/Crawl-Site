@@ -29,7 +29,7 @@ function getAdminEmails(): Set<string> {
 export function canEditRoadmap(actor: RoadmapActor | null): boolean {
   if (!actor) return false;
   const admins = getAdminEmails();
-  if (!admins.size) return true;
+  if (!admins.size) return false;
   return admins.has(actor.email.toLowerCase());
 }
 

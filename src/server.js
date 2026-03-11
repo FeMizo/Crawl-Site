@@ -301,6 +301,137 @@ function parseSecurityHeaders(headers) {
   };
 }
 
+function inferHostingType(info) {
+  const hint = String(info.hostingHint || "").toLowerCase();
+  const server = String(info.serverSoftware || "").toLowerCase();
+  const dnsProvider = String(info.dnsProvider || "").toLowerCase();
+
+  if (
+    hint.includes("cloudflare") ||
+    server.includes("cloudflare") ||
+    dnsProvider.includes("cloudflare")
+  ) {
+    return "CDN / Edge proxy";
+  }
+
+  if (
+    hint.includes("vercel") ||
+    hint.includes("netlify") ||
+    hint.includes("github pages")
+  ) {
+    return "Static / Jamstack";
+  }
+
+  if (
+    hint.includes("node") ||
+    server.includes("node") ||
+    server.includes("express")
+  ) {
+    return "Application server (Node.js)";
+  }
+
+  if (
+    hint.includes("nginx") ||
+    hint.includes("apache") ||
+    hint.includes("litespeed") ||
+    hint.includes("iis")
+  ) {
+    return "Traditional web server";
+  }
+
+  if (info.cms === "Shopify") return "Managed ecommerce";
+  if (info.cms) return "Managed CMS";
+
+  return "Custom / unknown";
+}
+
+function inferSiteType(info, body = "") {
+  const text = String(body || "").toLowerCase();
+  const signals = [];
+
+  if (info.cms) signals.push(`CMS: ${info.cms}`);
+  if (info.framework) signals.push(`Framework: ${info.framework}`);
+  if (info.hostingHint) signals.push(`Hosting: ${info.hostingHint}`);
+  if (/(checkout|cart|product|shop now|add to cart)/i.test(text)) {
+    signals.push("Commerce keywords");
+  }
+  if (/(dashboard|app|workspace|sign in|login)/i.test(text)) {
+    signals.push("App flow keywords");
+  }
+  if (/(blog|article|post|author|read more)/i.test(text)) {
+    signals.push("Editorial content keywords");
+  }
+  if (/(docs|documentation|api reference|developer)/i.test(text)) {
+    signals.push("Documentation keywords");
+  }
+
+  let primary = "Business / marketing";
+  let confidence = 45;
+  let purpose = "Presentacion comercial y captacion";
+
+  if (info.cms === "Shopify" || signals.includes("Commerce keywords")) {
+    primary = "Ecommerce";
+    confidence = info.cms === "Shopify" ? 92 : 78;
+    purpose = "Venta en linea y conversion";
+  } else if (signals.includes("App flow keywords")) {
+    primary = "Web app";
+    confidence = info.framework ? 82 : 70;
+    purpose = "Flujo de producto y autoservicio";
+  } else if (signals.includes("Documentation keywords")) {
+    primary = "Documentation";
+    confidence = 76;
+    purpose = "Soporte tecnico y autoservicio";
+  } else if (signals.includes("Editorial content keywords")) {
+    primary = "Content / blog";
+    confidence = 72;
+    purpose = "Publicacion de contenido";
+  } else if (info.cms) {
+    primary = "CMS site";
+    confidence = 68;
+    purpose = "Gestion de contenido";
+  }
+
+  return {
+    primary,
+    confidence,
+    purpose,
+    signals: signals.slice(0, 6),
+  };
+}
+
+function buildDomainObservations(info) {
+  const notes = [];
+
+  if (!info.ip && !info.ipv6) {
+    notes.push("No se pudo resolver IP publica del dominio.");
+  }
+
+  if (!info.nameservers?.length) {
+    notes.push("No se detectaron nameservers; revisa configuracion DNS.");
+  }
+
+  if (!info.security) {
+    notes.push("No fue posible analizar headers HTTP de seguridad.");
+  } else {
+    if (Array.isArray(info.security.criticalMissingHeaders) && info.security.criticalMissingHeaders.length) {
+      notes.push(
+        `Faltan headers criticos: ${info.security.criticalMissingHeaders.join(", ")}`,
+      );
+    }
+    if (Number(info.security.score || 0) < 40) {
+      notes.push("Nivel de seguridad HTTP bajo; priorizar hardening de headers.");
+    }
+  }
+
+  if (info.ssl && Number(info.ssl.validDaysRemaining || 0) <= 15) {
+    notes.push(`Certificado SSL cercano a vencer (${info.ssl.validDaysRemaining} dias).`);
+  } else if (!info.ssl) {
+    notes.push("Sin certificado SSL detectado para HTTPS.");
+  }
+
+  return notes.slice(0, 5);
+}
+
 function fetchJson(url) {
   return new Promise((resolve) => {
     try {
@@ -537,8 +668,10 @@ async function fetchSiteInfo(siteUrl) {
   const info = {
     ip: null,
     ipv6: null,
+    aRecords: [],
     dnsProvider: null,
     hostingHint: null,
+    hostingType: null,
     hostingLocation: null,
     ipOrganization: null,
     cms: null,
@@ -546,6 +679,11 @@ async function fetchSiteInfo(siteUrl) {
     serverSoftware: null,
     nameservers: [],
     mxRecords: [],
+    cnameRecords: [],
+    txtRecords: [],
+    dmarcRecords: [],
+    siteType: null,
+    observations: [],
     security: null,
     ssl: null,
   };
@@ -558,7 +696,10 @@ async function fetchSiteInfo(siteUrl) {
         dns.resolve4(hostname),
         dns.resolve6(hostname),
       ]);
-      if (v4.status === "fulfilled") info.ip = v4.value[0];
+      if (v4.status === "fulfilled") {
+        info.aRecords = v4.value.slice(0, 4);
+        info.ip = v4.value[0] || null;
+      }
       if (v6.status === "fulfilled") info.ipv6 = v6.value[0];
     } catch {}
 
@@ -589,6 +730,23 @@ async function fetchSiteInfo(siteUrl) {
     try {
       const mx = await dns.resolveMx(hostname).catch(() => []);
       info.mxRecords = mx.slice(0, 4).map((r) => r.exchange);
+    } catch {}
+
+    // CNAME
+    try {
+      info.cnameRecords = await dns.resolveCname(hostname).catch(() => []);
+    } catch {}
+
+    // TXT + DMARC
+    try {
+      const txt = await dns.resolveTxt(hostname).catch(() => []);
+      const dmarc = await dns.resolveTxt(`_dmarc.${hostname}`).catch(() => []);
+      const flatten = (rows) =>
+        rows
+          .map((parts) => (Array.isArray(parts) ? parts.join("") : String(parts || "")))
+          .filter(Boolean);
+      info.txtRecords = flatten(txt).slice(0, 6);
+      info.dmarcRecords = flatten(dmarc).slice(0, 2);
     } catch {}
 
     // Fetch homepage for tech detection
@@ -689,8 +847,15 @@ async function fetchSiteInfo(siteUrl) {
         else if (lbody.includes("wpengine")) info.hostingHint = "WP Engine";
         else if (lbody.includes("kinsta")) info.hostingHint = "Kinsta";
       }
+
+      info.siteType = inferSiteType(info, body);
     }
   } catch {}
+  info.hostingType = inferHostingType(info);
+  if (!info.siteType) {
+    info.siteType = inferSiteType(info, "");
+  }
+  info.observations = buildDomainObservations(info);
   return info;
 }
 
@@ -946,6 +1111,74 @@ function extractMeta(body, pageUrl) {
     }
   }
 
+  // Placeholder links that look interactive but do not navigate anywhere.
+  let placeholderLinks = 0;
+  const placeholderLinkDetails = [];
+  for (const m of anchorTags) {
+    const attrs = m[1] || "";
+    const inner = m[2] || "";
+    const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
+    const href = (hrefMatch?.[1] || "").trim().toLowerCase();
+    const hasOnClick = /\bonclick\s*=/i.test(attrs);
+    const isPlaceholder =
+      href === "#" ||
+      href === "" ||
+      href.startsWith("javascript:") ||
+      href.startsWith("void(");
+    if (!isPlaceholder) continue;
+    placeholderLinks++;
+    placeholderLinkDetails.push({
+      text: inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() || "(sin texto)",
+      source: hasOnClick ? "a[onclick]" : "a[href=#]",
+      href: href || "#",
+    });
+  }
+
+  // Form checks (action + submit controls).
+  const forms = [...body.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)];
+  let formsNoAction = 0;
+  const formsNoActionDetails = [];
+  let formsNoSubmit = 0;
+  const formsNoSubmitDetails = [];
+
+  for (const [idx, formMatch] of forms.entries()) {
+    const attrs = formMatch[1] || "";
+    const inner = formMatch[2] || "";
+    const actionMatch = attrs.match(/\baction=["']([^"']*)["']/i);
+    const action = (actionMatch?.[1] || "").trim();
+    const hasAction =
+      action &&
+      action !== "#" &&
+      !action.toLowerCase().startsWith("javascript:");
+    if (!hasAction) {
+      formsNoAction++;
+      formsNoActionDetails.push({
+        source: `form#${idx + 1}`,
+        action: action || "(sin action)",
+      });
+    }
+
+    const hasSubmitControl =
+      /<button\b[^>]*type=["']submit["'][^>]*>/i.test(inner) ||
+      /<button\b(?![^>]*type=)[^>]*>/i.test(inner) ||
+      /<input\b[^>]*type=["']submit["'][^>]*>/i.test(inner);
+    if (!hasSubmitControl) {
+      formsNoSubmit++;
+      formsNoSubmitDetails.push({
+        source: `form#${idx + 1}`,
+      });
+    }
+  }
+
+  // Main navigation health check.
+  const navBlocks = [...body.matchAll(/<nav\b[^>]*>([\s\S]*?)<\/nav>/gi)];
+  const navLinkCounts = navBlocks.map((m) => {
+    const links = [...m[1].matchAll(/<a\b[^>]*href=["'][^"']+["'][^>]*>/gi)];
+    return links.length;
+  });
+  const mainNavLinks = navLinkCounts.length ? Math.max(...navLinkCounts) : 0;
+  const weakNavigation = mainNavLinks > 0 && mainNavLinks < 3;
+
   const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
   const description = descMatch ? descMatch[1].trim() : "";
   const canonical = canonMatch
@@ -972,6 +1205,14 @@ function extractMeta(body, pageUrl) {
     buttonLikeItems,
     buttonsNoLink,
     buttonsNoLinkDetails,
+    placeholderLinks,
+    placeholderLinkDetails,
+    formsNoAction,
+    formsNoActionDetails,
+    formsNoSubmit,
+    formsNoSubmitDetails,
+    mainNavLinks,
+    weakNavigation,
     pageLang,
     titleLen: title.length,
     descLen: description.length,
@@ -1284,6 +1525,42 @@ function getIssues(page, crawlLang = "es") {
         label: T(
           `${page.brokenButtonLinks.length} botón(es) rotos`,
           `${page.brokenButtonLinks.length} broken button(s)`,
+        ),
+        group: "functionality",
+      });
+    if ((m.placeholderLinks || 0) > 0)
+      issues.push({
+        type: "placeholder_link",
+        label: T(
+          `${m.placeholderLinks} enlace(s) placeholder`,
+          `${m.placeholderLinks} placeholder link(s)`,
+        ),
+        group: "functionality",
+      });
+    if ((m.formsNoAction || 0) > 0)
+      issues.push({
+        type: "form_no_action",
+        label: T(
+          `${m.formsNoAction} formulario(s) sin action`,
+          `${m.formsNoAction} form(s) missing action`,
+        ),
+        group: "functionality",
+      });
+    if ((m.formsNoSubmit || 0) > 0)
+      issues.push({
+        type: "form_no_submit",
+        label: T(
+          `${m.formsNoSubmit} formulario(s) sin submit`,
+          `${m.formsNoSubmit} form(s) missing submit`,
+        ),
+        group: "functionality",
+      });
+    if (m.weakNavigation)
+      issues.push({
+        type: "weak_navigation",
+        label: T(
+          `Navegacion principal limitada (${m.mainNavLinks || 0} links)`,
+          `Weak primary navigation (${m.mainNavLinks || 0} links)`,
         ),
         group: "functionality",
       });
@@ -1874,6 +2151,14 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
         noindex: meta?.noindex || false,
         buttonsNoLink: meta?.buttonsNoLink || 0,
         buttonsNoLinkDetails: meta?.buttonsNoLinkDetails || [],
+        placeholderLinks: meta?.placeholderLinks || 0,
+        placeholderLinkDetails: meta?.placeholderLinkDetails || [],
+        formsNoAction: meta?.formsNoAction || 0,
+        formsNoActionDetails: meta?.formsNoActionDetails || [],
+        formsNoSubmit: meta?.formsNoSubmit || 0,
+        formsNoSubmitDetails: meta?.formsNoSubmitDetails || [],
+        mainNavLinks: meta?.mainNavLinks || 0,
+        weakNavigation: meta?.weakNavigation || false,
         pageLang: meta?.pageLang || "",
         meta,
         timeout: raw.timeout || false,
@@ -1919,6 +2204,14 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
         noindex: meta?.noindex || false,
         buttonsNoLink: meta?.buttonsNoLink || 0,
         buttonsNoLinkDetails: meta?.buttonsNoLinkDetails || [],
+        placeholderLinks: meta?.placeholderLinks || 0,
+        placeholderLinkDetails: meta?.placeholderLinkDetails || [],
+        formsNoAction: meta?.formsNoAction || 0,
+        formsNoActionDetails: meta?.formsNoActionDetails || [],
+        formsNoSubmit: meta?.formsNoSubmit || 0,
+        formsNoSubmitDetails: meta?.formsNoSubmitDetails || [],
+        mainNavLinks: meta?.mainNavLinks || 0,
+        weakNavigation: meta?.weakNavigation || false,
         brokenButtonLinks,
         brokenButtonDetails,
         pageLang: meta?.pageLang || "",
@@ -1984,6 +2277,13 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
         .length,
       brokenButtons: results.filter((r) => (r.brokenButtonLinks || []).length)
         .length,
+      placeholderLinks: results.filter((r) => (r.meta?.placeholderLinks || 0) > 0)
+        .length,
+      formsNoAction: results.filter((r) => (r.meta?.formsNoAction || 0) > 0)
+        .length,
+      formsNoSubmit: results.filter((r) => (r.meta?.formsNoSubmit || 0) > 0)
+        .length,
+      weakNavigation: results.filter((r) => r.meta?.weakNavigation).length,
       slowLoad: results.filter((r) => (r.loadTimeMs || 0) >= 3000).length,
       noindex: results.filter((r) => r.meta && r.meta.noindex).length,
       blocked: results.filter((r) => r.blocked).length,

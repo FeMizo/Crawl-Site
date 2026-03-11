@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 
 function formatDate(value) {
@@ -69,7 +70,7 @@ export default function HistoryPage() {
         <div className="history-grid">
           {runs.map((run) => (
             <Card key={run.id} className="history-card">
-              <div className="eyebrow"><Icon name="history" size={12} /> {run.project?.name || "Proyecto"}</div>
+              <Eyebrow icon={<Icon name="history" size={12} />}>{run.project?.name || "Proyecto"}</Eyebrow>
               <h2>{run.project?.targetUrl || run.sourceUrl}</h2>
               <p>{formatDate(run.createdAt)}</p>
               <div className="history-meta">
@@ -89,7 +90,7 @@ export default function HistoryPage() {
           ))}
           {!loading && !runs.length ? (
             <Card className="history-card empty">
-              <div className="eyebrow">Sin historial</div>
+              <Eyebrow>Sin historial</Eyebrow>
               <h2>Todavia no hay rastreos guardados</h2>
               <p>Cuando ejecutes rastreos desde un proyecto apareceran aqui.</p>
             </Card>
@@ -107,20 +108,12 @@ export default function HistoryPage() {
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 18px;
             min-width: 0;
+            align-items: start;
           }
           .history-card {
             display: grid;
             gap: 14px;
             min-width: 0;
-          }
-          .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
           }
           h2 {
             margin: 0;

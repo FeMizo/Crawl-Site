@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
 import { tUi, useUiLanguage } from "../lib/ui-language";
@@ -215,7 +216,7 @@ export default function DashboardPage() {
         {project ? (
           <div className="dashboard-grid">
             <Card className="history-panel">
-              <div className="eyebrow"><Icon name="history" size={12} /> {t("historyTitle")}</div>
+              <Eyebrow icon={<Icon name="history" size={12} />}>{t("historyTitle")}</Eyebrow>
               <div className="history-list">
                 {project.crawlRuns?.map((run) => (
                   <button
@@ -279,20 +280,12 @@ export default function DashboardPage() {
             gap: 16px;
             min-width: 0;
           }
-          .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-          }
           .history-list {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 12px;
             min-width: 0;
+            align-items: start;
           }
           .history-item,
           .history-empty {
@@ -311,8 +304,11 @@ export default function DashboardPage() {
             gap: 6px;
           }
           .history-item.active {
-            border-color: rgba(77, 141, 255, 0.4);
-            box-shadow: 0 0 0 1px rgba(77, 141, 255, 0.3) inset;
+            border-color: rgba(77, 141, 255, 0.62);
+            background: rgba(77, 141, 255, 0.15);
+            box-shadow:
+              0 0 0 1px rgba(77, 141, 255, 0.5) inset,
+              0 12px 24px rgba(32, 92, 179, 0.2);
           }
           .history-item span,
           .history-item small,

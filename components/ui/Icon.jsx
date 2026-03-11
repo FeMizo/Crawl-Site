@@ -104,6 +104,22 @@ const ICONS = {
       />
     </>
   ),
+  filter: (
+    <path
+      d="M4 6h16l-6.3 7v5.2l-3.4 1.8V13z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      strokeLinecap="round"
+    />
+  ),
+  tasks: (
+    <>
+      <path d="M5 6.7h2.8v2.8H5zM5 11.6h2.8v2.8H5zM5 16.5h2.8v2.8H5z" fill="currentColor" />
+      <path d="M10.5 8.1h8.2M10.5 13h8.2M10.5 17.9h8.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 18, className = "" }) {

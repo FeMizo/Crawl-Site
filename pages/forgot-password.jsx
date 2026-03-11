@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 
@@ -95,7 +96,7 @@ export default function ForgotPasswordPage() {
       >
         <div className="forgot-grid">
           <Card as="form" className="forgot-form" onSubmit={handleSubmit}>
-            <div className="eyebrow"><Icon name="settings" size={12} /> Recuperacion</div>
+            <Eyebrow icon={<Icon name="settings" size={12} />}>Recuperacion</Eyebrow>
             <Input
               label="Email"
               type="email"
@@ -139,14 +140,7 @@ export default function ForgotPasswordPage() {
             display: grid;
             gap: 14px;
           }
-          .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
+          :global(.ui-eyebrow) {
             margin-bottom: 8px;
           }
           .feedback {

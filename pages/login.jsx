@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
@@ -78,7 +79,7 @@ export default function LoginPage() {
       >
         <div className="auth-grid">
           <Card className="info-card">
-            <div className="eyebrow"><Icon name="workspace" size={12} /> Espacio de trabajo</div>
+            <Eyebrow icon={<Icon name="workspace" size={12} />}>Espacio de trabajo</Eyebrow>
             <h2>Acceso rapido al trabajo diario</h2>
             <QuickStepsModule
               compact
@@ -100,7 +101,7 @@ export default function LoginPage() {
           </Card>
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
-            <div className="eyebrow"><Icon name="login" size={12} /> Credenciales</div>
+            <Eyebrow icon={<Icon name="login" size={12} />}>Credenciales</Eyebrow>
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input
               label="Contrasena"
@@ -132,14 +133,7 @@ export default function LoginPage() {
           .form-card {
             gap: 16px;
           }
-          .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
+          :global(.ui-eyebrow) {
             margin-bottom: 12px;
           }
           h2 {

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
@@ -79,7 +80,7 @@ export default function RegisterPage() {
       >
         <div className="auth-grid">
           <Card className="info-card">
-            <div className="eyebrow"><Icon name="register" size={12} /> Registro</div>
+            <Eyebrow icon={<Icon name="register" size={12} />}>Registro</Eyebrow>
             <h2>Comienza en minutos</h2>
             <QuickStepsModule
               compact
@@ -101,7 +102,7 @@ export default function RegisterPage() {
           </Card>
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
-            <div className="eyebrow"><Icon name="register" size={12} /> Nuevo usuario</div>
+            <Eyebrow icon={<Icon name="register" size={12} />}>Nuevo usuario</Eyebrow>
             <Input label="Nombre" type="text" value={name} onChange={(e) => setName(e.target.value)} />
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input
@@ -132,14 +133,7 @@ export default function RegisterPage() {
           .form-card {
             gap: 16px;
           }
-          .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
+          :global(.ui-eyebrow) {
             margin-bottom: 12px;
           }
           h2 {

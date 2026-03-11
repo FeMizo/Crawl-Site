@@ -51,8 +51,8 @@ Fecha de auditoria: 2026-03-10
 | Fundacion del producto | Definir arquitectura de App Router para modulos nuevos | done | `true` | `docs/app-router-architecture.md`, `app/dashboard/roadmap/page.tsx`, `app/api/roadmap/route.ts` | Estructura por modulo y convenciones App Router ya documentadas y aplicadas en roadmap. |
 | Fundacion del producto | Crear capa Prisma reutilizable para server routes | done | `true` | `lib/server/prisma-route.ts`, `app/api/roadmap/phases/route.ts`, `app/api/roadmap/tasks/route.ts` | `runPrismaRoute` + `routeError` centralizan respuestas y manejo de errores Prisma. |
 | Fundacion del producto | Configurar roadmap persistente con progreso global | done | `true` | `prisma/schema.prisma`, `lib/roadmap-data.ts`, `components/roadmap/RoadmapBoard.tsx` | Persistencia en `RoadmapPhase/RoadmapTask` y calculo de progreso global/fase implementado. |
-| Crecimiento y calidad | Restringir edicion por administradores | partial | `false` | `lib/roadmap-auth.ts`, `lib/server/roadmap-access.ts`, `app/api/roadmap/tasks/[taskId]/route.ts` | Ya hay control editor, pero falta endurecer default para que no edite cualquier usuario cuando `ROADMAP_ADMIN_EMAILS` no esta configurado. Paso siguiente: negar edicion por defecto y habilitar solo allowlist/rol explicito. |
-| Crecimiento y calidad | Agregar filtros por estado y busqueda de tareas | pending | `false` | `components/roadmap/RoadmapBoard.tsx`, `lib/roadmap-data.ts`, `app/api/roadmap/route.ts` | No existen filtros/search en UI ni query params en API. Paso siguiente: `status=all|done|pending`, `q=texto`, filtrado server-side + controles en UI. |
+| Crecimiento y calidad | Restringir edicion por administradores | done | `true` | `lib/roadmap-auth.ts`, `lib/server/roadmap-access.ts`, `app/api/roadmap/tasks/[taskId]/route.ts` | Control endurecido: sin allowlist valida en `ROADMAP_ADMIN_EMAILS` no se permite edicion (solo lectura). |
+| Crecimiento y calidad | Agregar filtros por estado y busqueda de tareas | done | `true` | `components/roadmap/RoadmapBoard.tsx`, `lib/roadmap-data.ts`, `app/api/roadmap/route.ts` | Filtros completos por estado/fase + busqueda por texto, con filtrado server-side y actualizacion visual del board. |
 | Crecimiento y calidad | Agregar pruebas de integracion para endpoints roadmap | pending | `false` | `app/api/roadmap/*`, `lib/server/prisma-route.ts` | No hay suite de integracion para roadmap. Paso siguiente: agregar runner (Vitest/Jest) + pruebas para GET/POST/PATCH/DELETE y casos 401/403/404/400. |
 
 ## 3) Actualizacion automatica aplicada
@@ -60,5 +60,5 @@ Fecha de auditoria: 2026-03-10
 - Se actualizo `prisma/seed.js` para que tareas `done` se creen con `completed: true`.
 - Si la BD ya tiene fases creadas, el seed ahora sincroniza `completed` por titulo de tarea.
 - Mapeo aplicado en seed:
-  - `done`: 3 tareas.
-  - `partial/pending`: 3 tareas (se mantienen `completed: false` hasta cierre real).
+  - `done`: 5 tareas.
+  - `pending`: 1 tarea (pruebas de integracion).

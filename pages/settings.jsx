@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
@@ -111,7 +112,9 @@ export default function SettingsPage() {
       setName(data.user?.name || normalizedName);
       setProfileMessage("Nombre de usuario actualizado.");
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : "No se pudo actualizar el perfil.");
+      setProfileError(
+        err instanceof Error ? err.message : "No se pudo actualizar el perfil.",
+      );
     } finally {
       setProfileSubmitting(false);
     }
@@ -151,7 +154,11 @@ export default function SettingsPage() {
       setConfirmPassword("");
       setPasswordMessage("Contrasena actualizada correctamente.");
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : "No se pudo actualizar la contrasena.");
+      setPasswordError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo actualizar la contrasena.",
+      );
     } finally {
       setPasswordSubmitting(false);
     }
@@ -171,8 +178,12 @@ export default function SettingsPage() {
         description="Administra nombre de usuario, contrasena y preferencias de idioma/tema."
       >
         <div className="settings-grid">
-          <Card as="form" className="settings-card" onSubmit={handleProfileSubmit}>
-            <div className="eyebrow"><Icon name="user" size={12} /> Perfil</div>
+          <Card
+            as="form"
+            className="settings-card"
+            onSubmit={handleProfileSubmit}
+          >
+            <Eyebrow icon={<Icon name="user" size={12} />}>Perfil</Eyebrow>
             <Input label="Email" value={me?.email || ""} disabled readOnly />
             <Input
               label="Nombre de usuario"
@@ -181,8 +192,12 @@ export default function SettingsPage() {
               required
               maxLength={80}
             />
-            {profileError ? <p className="feedback error">{profileError}</p> : null}
-            {profileMessage ? <p className="feedback ok">{profileMessage}</p> : null}
+            {profileError ? (
+              <p className="feedback error">{profileError}</p>
+            ) : null}
+            {profileMessage ? (
+              <p className="feedback ok">{profileMessage}</p>
+            ) : null}
             <Button
               type="submit"
               variant="solid"
@@ -195,14 +210,18 @@ export default function SettingsPage() {
           </Card>
 
           <Card className="settings-card">
-            <div className="eyebrow"><Icon name="settings" size={12} /> Preferencias</div>
+            <Eyebrow icon={<Icon name="settings" size={12} />}>
+              Preferencias
+            </Eyebrow>
             <Select
               label="Idioma por defecto"
               value={language}
               onChange={(event) => applyLanguage(event.target.value)}
             >
               {LANG_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </Select>
             <Select
@@ -211,17 +230,29 @@ export default function SettingsPage() {
               onChange={(event) => applyTheme(event.target.value)}
             >
               {THEME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </Select>
             <div className="meta-grid">
-              <div><strong>{counts.projects || 0}</strong><span>Proyectos</span></div>
-              <div><strong>{counts.crawlRuns || 0}</strong><span>Rastreos</span></div>
+              <div>
+                <strong>{counts.projects || 0}</strong>
+                <span>Proyectos</span>
+              </div>
+              <div>
+                <strong>{counts.crawlRuns || 0}</strong>
+                <span>Rastreos</span>
+              </div>
             </div>
           </Card>
 
-          <Card as="form" className="settings-card" onSubmit={handlePasswordSubmit}>
-            <div className="eyebrow"><Icon name="shield" size={12} /> Seguridad</div>
+          <Card
+            as="form"
+            className="settings-card"
+            onSubmit={handlePasswordSubmit}
+          >
+            <Eyebrow icon={<Icon name="shield" size={12} />}>Seguridad</Eyebrow>
             <Input
               label="Contrasena actual"
               type="password"
@@ -245,8 +276,12 @@ export default function SettingsPage() {
               minLength={8}
               required
             />
-            {passwordError ? <p className="feedback error">{passwordError}</p> : null}
-            {passwordMessage ? <p className="feedback ok">{passwordMessage}</p> : null}
+            {passwordError ? (
+              <p className="feedback error">{passwordError}</p>
+            ) : null}
+            {passwordMessage ? (
+              <p className="feedback ok">{passwordMessage}</p>
+            ) : null}
             <Button
               type="submit"
               variant="solid"
@@ -265,20 +300,13 @@ export default function SettingsPage() {
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 18px;
             min-width: 0;
+            align-items: stretch;
+            align-content: start;
           }
           .settings-card {
             display: grid;
             gap: 14px;
             min-width: 0;
-          }
-          .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
           }
           .feedback {
             margin: 0;

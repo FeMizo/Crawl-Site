@@ -27,11 +27,11 @@ const ROADMAP_PHASES = [
     tasks: [
       {
         title: "Restringir edicion por administradores",
-        completed: false,
+        completed: true,
       },
       {
         title: "Agregar filtros por estado y busqueda de tareas",
-        completed: false,
+        completed: true,
       },
       {
         title: "Agregar pruebas de integracion para endpoints roadmap",

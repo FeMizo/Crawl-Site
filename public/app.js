@@ -94,7 +94,7 @@ const L = {
     loadingTech: "Detectando...",
     clickPageSeo: "Haz clic en una fila para ver el analisis SEO",
     functionalityIntro:
-      "Detalla inlinks, botones sin link, botones rotos y tiempos de carga.",
+      "Detalla botones sin link, botones rotos, formularios incompletos, navegacion debil y tiempos de carga.",
     ip: "IP",
     ipv6: "IPv6",
     dns: "DNS provider",
@@ -145,6 +145,33 @@ const L = {
     funcNoText: "(sin texto)",
     funcNoLink: "(sin link)",
     funcNoData: "(sin datos)",
+    formNoAction: "Formulario sin action",
+    formNoSubmit: "Formulario sin submit",
+    placeholderLink: "Enlace placeholder",
+    weakNavigation: "Navegacion principal debil",
+    navLinks: "Links de navegacion",
+    securityRecommendations: "Recomendaciones de seguridad",
+    securityUrgencyHigh: "Urgencia alta",
+    securityUrgencyMedium: "Urgencia media",
+    securityUrgencyLow: "Urgencia baja",
+    secFixCsp: "Define una politica CSP estricta con default-src y sin unsafe-inline/unsafe-eval.",
+    secFixHsts: "Activa HSTS con max-age >= 31536000 e includeSubDomains.",
+    secFixXfo: "Configura X-Frame-Options en DENY o SAMEORIGIN.",
+    secFixXcto: "Agrega X-Content-Type-Options: nosniff.",
+    secFixReferrer: "Define Referrer-Policy (recomendado strict-origin-when-cross-origin).",
+    secFixPermissions: "Define Permissions-Policy para limitar APIs del navegador no usadas.",
+    secFixCoop: "Configura COOP para aislar el contexto de navegacion (same-origin).",
+    secFixCorp: "Configura CORP para controlar el uso cross-origin de recursos.",
+    secFixCoep: "Configura COEP cuando el sitio requiera aislamiento cross-origin avanzado.",
+    hostingType: "Tipo de hosting",
+    cname: "CNAME",
+    txtRecords: "TXT",
+    dmarc: "DMARC",
+    observations: "Observaciones",
+    siteTypePrimary: "Tipo principal",
+    siteTypeConfidence: "Confianza",
+    siteTypePurpose: "Objetivo",
+    detectedSignals: "Senales detectadas",
     themeDarkTitle: "Oscuro",
     themeLightTitle: "Claro",
     themeHcDarkTitle: "Alto contraste oscuro",
@@ -264,7 +291,7 @@ const L = {
     loadingTech: "Detecting...",
     clickPageSeo: "Click a row to see SEO analysis",
     functionalityIntro:
-      "Shows inlinks, buttons without links, broken buttons, and load times per page.",
+      "Shows buttons without links, broken buttons, incomplete forms, weak navigation, and load time per page.",
     ip: "IP",
     ipv6: "IPv6",
     dns: "DNS provider",
@@ -315,6 +342,33 @@ const L = {
     funcNoText: "(no text)",
     funcNoLink: "(no link)",
     funcNoData: "(no data)",
+    formNoAction: "Form without action",
+    formNoSubmit: "Form without submit",
+    placeholderLink: "Placeholder link",
+    weakNavigation: "Weak primary navigation",
+    navLinks: "Navigation links",
+    securityRecommendations: "Security recommendations",
+    securityUrgencyHigh: "High urgency",
+    securityUrgencyMedium: "Medium urgency",
+    securityUrgencyLow: "Low urgency",
+    secFixCsp: "Define a strict CSP policy with default-src and no unsafe-inline/unsafe-eval.",
+    secFixHsts: "Enable HSTS with max-age >= 31536000 and includeSubDomains.",
+    secFixXfo: "Set X-Frame-Options to DENY or SAMEORIGIN.",
+    secFixXcto: "Add X-Content-Type-Options: nosniff.",
+    secFixReferrer: "Set Referrer-Policy (recommended strict-origin-when-cross-origin).",
+    secFixPermissions: "Set Permissions-Policy to restrict unused browser APIs.",
+    secFixCoop: "Set COOP to isolate browsing context (same-origin).",
+    secFixCorp: "Set CORP to control cross-origin resource usage.",
+    secFixCoep: "Set COEP when advanced cross-origin isolation is required.",
+    hostingType: "Hosting type",
+    cname: "CNAME",
+    txtRecords: "TXT",
+    dmarc: "DMARC",
+    observations: "Observations",
+    siteTypePrimary: "Primary type",
+    siteTypeConfidence: "Confidence",
+    siteTypePurpose: "Purpose",
+    detectedSignals: "Detected signals",
     themeDarkTitle: "Dark",
     themeLightTitle: "Light",
     themeHcDarkTitle: "High contrast dark",
@@ -763,6 +817,26 @@ function normalizeSavedPage(page) {
       : Array.isArray(meta.buttonsNoLinkDetails)
         ? meta.buttonsNoLinkDetails
         : [],
+    placeholderLinks: Number(page.placeholderLinks ?? meta.placeholderLinks ?? 0),
+    placeholderLinkDetails: Array.isArray(page.placeholderLinkDetails)
+      ? page.placeholderLinkDetails
+      : Array.isArray(meta.placeholderLinkDetails)
+        ? meta.placeholderLinkDetails
+        : [],
+    formsNoAction: Number(page.formsNoAction ?? meta.formsNoAction ?? 0),
+    formsNoActionDetails: Array.isArray(page.formsNoActionDetails)
+      ? page.formsNoActionDetails
+      : Array.isArray(meta.formsNoActionDetails)
+        ? meta.formsNoActionDetails
+        : [],
+    formsNoSubmit: Number(page.formsNoSubmit ?? meta.formsNoSubmit ?? 0),
+    formsNoSubmitDetails: Array.isArray(page.formsNoSubmitDetails)
+      ? page.formsNoSubmitDetails
+      : Array.isArray(meta.formsNoSubmitDetails)
+        ? meta.formsNoSubmitDetails
+        : [],
+    mainNavLinks: Number(page.mainNavLinks ?? meta.mainNavLinks ?? 0),
+    weakNavigation: Boolean(page.weakNavigation ?? meta.weakNavigation ?? false),
     brokenButtonLinks: Array.isArray(page.brokenButtonLinks)
       ? page.brokenButtonLinks
       : [],
@@ -1065,6 +1139,10 @@ function issueLabel(i) {
     imgs_no_size: T("noImgSize"),
     button_no_link: T("buttonNoLink"),
     broken_button: T("brokenButton"),
+    placeholder_link: T("placeholderLink"),
+    form_no_action: T("formNoAction"),
+    form_no_submit: T("formNoSubmit"),
+    weak_navigation: T("weakNavigation"),
     broken_image: T("brokenImages"),
     slow_load: T("slowLoad"),
     canonical: T("canonicalIssue"),
@@ -1167,6 +1245,43 @@ function updateSecurityLevelStat(security) {
   const score = Number(security?.score || 0);
   const level = security?.level || securityLevelFromScore(score);
   sv("vSec", securityLevelLabel(level));
+}
+
+function securityFixKey(header) {
+  const map = {
+    "Content-Security-Policy": "secFixCsp",
+    "Strict-Transport-Security": "secFixHsts",
+    "X-Frame-Options": "secFixXfo",
+    "X-Content-Type-Options": "secFixXcto",
+    "Referrer-Policy": "secFixReferrer",
+    "Permissions-Policy": "secFixPermissions",
+    "Cross-Origin-Opener-Policy": "secFixCoop",
+    "Cross-Origin-Resource-Policy": "secFixCorp",
+    "Cross-Origin-Embedder-Policy": "secFixCoep",
+  };
+  return map[header] || "secFixPermissions";
+}
+
+function securityUrgency(header, criticalMissing) {
+  if ((criticalMissing || []).includes(header)) return "high";
+  if (
+    [
+      "Referrer-Policy",
+      "Permissions-Policy",
+      "Cross-Origin-Opener-Policy",
+      "Cross-Origin-Resource-Policy",
+      "Cross-Origin-Embedder-Policy",
+    ].includes(header)
+  ) {
+    return "medium";
+  }
+  return "low";
+}
+
+function urgencyLabel(level) {
+  if (level === "high") return T("securityUrgencyHigh");
+  if (level === "medium") return T("securityUrgencyMedium");
+  return T("securityUrgencyLow");
 }
 
 // Score ring SVG
@@ -1358,8 +1473,13 @@ function showFunctionalityInfo(p) {
   if (!body || !p) return;
   const noLink = p.buttonsNoLinkDetails || [];
   const broken = p.brokenButtonDetails || [];
+  const placeholder = p.placeholderLinkDetails || [];
+  const formsNoAction = p.formsNoActionDetails || [];
+  const formsNoSubmit = p.formsNoSubmitDetails || [];
   const url = p.finalUrl || p.url || "";
   const loadTime = Number(p.loadTimeMs || 0);
+  const navLinks = Number(p.mainNavLinks || 0);
+  const weakNavigation = Boolean(p.weakNavigation);
   const loadHtml = `<div class="func-item">
       <div class="func-k">${T("loadTimeLabel")}</div>
       <div class="func-v">${loadTime > 0 ? `${loadTime} ms` : T("funcNoData")}</div>
@@ -1390,12 +1510,42 @@ function showFunctionalityInfo(p) {
           )
         .join("")
     : `<p style="font-size:12px;color:var(--muted);">${T("brokenButton")}: 0</p>`;
+  const placeholderHtml = placeholder.length
+    ? placeholder
+        .slice(0, 5)
+        .map(
+          (item, idx) => `
+          <div class="func-item">
+            <div class="func-k">#${idx + 1} · ${T("placeholderLink")}</div>
+            <div class="func-v"><strong>${T("funcTextLabel")}:</strong> ${esc(item.text || T("funcNoText"))}</div>
+            <div class="func-v"><strong>${T("funcHrefLabel")}:</strong> ${esc(item.href || T("funcNoLink"))}</div>
+            <div class="func-v"><strong>${T("funcLocationLabel")}:</strong> ${esc(item.source || "a")}</div>
+          </div>`,
+        )
+        .join("")
+    : `<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">${T("placeholderLink")}: 0</p>`;
+  const formsHtml = `
+    <div class="func-item">
+      <div class="func-k">${T("formNoAction")}</div>
+      <div class="func-v">${formsNoAction.length || Number(p.formsNoAction || 0)}</div>
+    </div>
+    <div class="func-item">
+      <div class="func-k">${T("formNoSubmit")}</div>
+      <div class="func-v">${formsNoSubmit.length || Number(p.formsNoSubmit || 0)}</div>
+    </div>
+    <div class="func-item">
+      <div class="func-k">${T("navLinks")}</div>
+      <div class="func-v">${navLinks}${weakNavigation ? ` · ${T("weakNavigation")}` : ""}</div>
+    </div>
+  `;
 
   body.innerHTML = `
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(url)}">${esc(trunc(url, 36))}</div>
         ${loadHtml}
         ${noLinkHtml}
         ${brokenHtml}
+        ${placeholderHtml}
+        ${formsHtml}
       `;
 }
 
@@ -1407,28 +1557,60 @@ function renderHosting(info) {
     val
       ? `<div class="host-row"><div class="host-lbl">${lbl}</div><div class="host-val">${esc(String(val))}</div></div>`
       : "";
+  const rowHtml = (lbl, html) =>
+    html
+      ? `<div class="host-row"><div class="host-lbl">${lbl}</div><div class="host-val">${html}</div></div>`
+      : "";
+  const listHtml = (items, max = 6) =>
+    (items || [])
+      .slice(0, max)
+      .map((item) => esc(String(item)))
+      .join("<br>");
 
   document.getElementById("hostingBody").innerHTML = `
-    ${row(T("ip"), info.ip)}
+    ${row(T("ip"), info.aRecords?.length ? info.aRecords.join(", ") : info.ip)}
     ${info.ipv6 ? row(T("ipv6"), info.ipv6) : ""}
     ${row(T("dns"), info.dnsProvider)}
+    ${row(T("hostingType"), info.hostingType)}
     ${row(T("server"), info.serverSoftware || info.hostingHint)}
     ${row(T("hostingLocation"), info.hostingLocation)}
     ${row(T("ipOrg"), info.ipOrganization)}
-    ${info.nameservers?.length ? `<div class="host-row"><div class="host-lbl">${T("nameservers")}</div><div class="host-val" style="font-size:10px;">${info.nameservers.map((n) => esc(n)).join("<br>")}</div></div>` : ""}
-    ${info.mxRecords?.length ? `<div class="host-row"><div class="host-lbl">${T("mx")}</div><div class="host-val" style="font-size:10px;">${info.mxRecords.map((n) => esc(n)).join("<br>")}</div></div>` : ""}
+    ${info.nameservers?.length ? rowHtml(T("nameservers"), `<span style="font-size:10px;">${listHtml(info.nameservers)}</span>`) : ""}
+    ${info.mxRecords?.length ? rowHtml(T("mx"), `<span style="font-size:10px;">${listHtml(info.mxRecords)}</span>`) : ""}
+    ${info.cnameRecords?.length ? rowHtml(T("cname"), `<span style="font-size:10px;">${listHtml(info.cnameRecords)}</span>`) : ""}
+    ${info.txtRecords?.length ? rowHtml(T("txtRecords"), `<span style="font-size:10px;">${listHtml(info.txtRecords, 4)}</span>`) : ""}
+    ${info.dmarcRecords?.length ? rowHtml(T("dmarc"), `<span style="font-size:10px;">${listHtml(info.dmarcRecords, 2)}</span>`) : ""}
+    ${
+      info.observations?.length
+        ? `<div class="host-row"><div class="host-lbl">${T("observations")}</div><div class="host-val">${info.observations.map((note) => `<div class="host-note">${esc(note)}</div>`).join("")}</div></div>`
+        : ""
+    }
     ${!info.ip && !info.dnsProvider ? `<p style="font-size:10px;color:var(--muted);">${T("dnsError")}</p>` : ""}
   `;
 
   const cms = info.cms || null;
   const framework = info.framework || null;
-  const hosting = info.hostingHint || info.serverSoftware || null;
+  const hosting = info.hostingHint || info.serverSoftware || info.hostingType || null;
   const custom = !cms && !framework;
+  const siteType = info.siteType || null;
 
   document.getElementById("techBody").innerHTML = `
-    <div class="host-row"><div class="host-lbl">${T("cms")}</div><div class="host-val">${cms ? `<span class="host-badge">${esc(cms)}</span>` : `<span style="color:var(--muted);font-size:10px;">${custom ? T("customUnknown") : "—"}</span>`}</div></div>
-    ${framework ? `<div class="host-row"><div class="host-lbl">${T("framework")}</div><div class="host-val"><span class="host-badge">${esc(framework)}</span></div></div>` : ""}
-    ${hosting ? `<div class="host-row"><div class="host-lbl">${T("server")}</div><div class="host-val"><span class="host-badge">${esc(hosting)}</span></div></div>` : ""}
+    ${rowHtml(T("cms"), cms ? `<span class="host-badge">${esc(cms)}</span>` : `<span style="color:var(--muted);font-size:10px;">${custom ? T("customUnknown") : "—"}</span>`)}
+    ${framework ? rowHtml(T("framework"), `<span class="host-badge">${esc(framework)}</span>`) : ""}
+    ${hosting ? rowHtml(T("server"), `<span class="host-badge">${esc(hosting)}</span>`) : ""}
+    ${siteType?.primary ? rowHtml(T("siteTypePrimary"), `<span class="host-badge">${esc(siteType.primary)}</span>`) : ""}
+    ${Number.isFinite(Number(siteType?.confidence)) ? row(T("siteTypeConfidence"), `${Number(siteType.confidence)}%`) : ""}
+    ${siteType?.purpose ? row(T("siteTypePurpose"), siteType.purpose) : ""}
+    ${
+      siteType?.signals?.length
+        ? rowHtml(
+            T("detectedSignals"),
+            `<span style="font-size:10px;">${siteType.signals
+              .map((signal) => esc(signal))
+              .join("<br>")}</span>`,
+          )
+        : ""
+    }
   `;
 
   const sec = info.security || {};
@@ -1462,6 +1644,21 @@ function renderHosting(info) {
         ]
           .filter(([, value]) => !value)
           .map(([name]) => name);
+  const missingHeaders =
+    Array.isArray(sec.missingHeaders) && sec.missingHeaders.length
+      ? sec.missingHeaders
+      : securityHeaders
+          .filter(([, value]) => !value)
+          .map(([name]) => name);
+  const securityRecommendations = missingHeaders.slice(0, 6).map((header) => {
+    const urgency = securityUrgency(header, criticalMissing);
+    return {
+      header,
+      urgency,
+      label: urgencyLabel(urgency),
+      fix: T(securityFixKey(header)),
+    };
+  });
   const secRow = (lbl, val) =>
     `<div class="host-row"><div class="host-lbl">${lbl}</div><div class="host-val">${val ? "✅" : "⚠️"}</div></div>`;
   const ssl = info.ssl || null;
@@ -1474,6 +1671,19 @@ function renderHosting(info) {
       criticalMissing.length
         ? `<div class="security-missing">${T("securityCriticalMissing")}: ${criticalMissing.map((header) => esc(header)).join(", ")}</div>`
         : `<div class="security-ok">${T("securityCriticalOk")}</div>`
+    }
+    ${
+      securityRecommendations.length
+        ? `<div class="security-rec-title">${T("securityRecommendations")}</div>
+           <div class="security-rec-list">${securityRecommendations
+             .map(
+               (rec) => `<div class="security-rec-item ${rec.urgency}">
+                 <div class="security-rec-head">${esc(rec.header)} · ${esc(rec.label)}</div>
+                 <div class="security-rec-body">${esc(rec.fix)}</div>
+               </div>`,
+             )
+             .join("")}</div>`
+        : ""
     }
     <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:2px 0 8px;">${T("securityHeaders")}</div>
     ${securityHeaders.map(([label, value]) => secRow(label, value)).join("")}
@@ -1705,6 +1915,10 @@ function addPage(p) {
   const funcTypes = [];
   if ((p.buttonsNoLink || 0) > 0) funcTypes.push("button_no_link");
   if ((p.brokenButtonLinks || []).length > 0) funcTypes.push("broken_button");
+  if ((p.placeholderLinks || 0) > 0) funcTypes.push("placeholder_link");
+  if ((p.formsNoAction || 0) > 0) funcTypes.push("form_no_action");
+  if ((p.formsNoSubmit || 0) > 0) funcTypes.push("form_no_submit");
+  if (p.weakNavigation) funcTypes.push("weak_navigation");
   if ((p.loadTimeMs || 0) >= 3000) funcTypes.push("slow_load");
   if (funcTypes.length) {
     const brokenPreview = (p.brokenButtonDetails || [])
@@ -1720,6 +1934,24 @@ function addPage(p) {
       loadTime > 0
         ? `<span class="badge ${loadTime >= 3000 ? "b4" : "b2"}">${loadTime}ms</span>`
         : `<span style="color:var(--muted);">—</span>`;
+    const extraSignals = [];
+    if ((p.placeholderLinks || 0) > 0) {
+      extraSignals.push(`${T("placeholderLink")}: ${p.placeholderLinks}`);
+    }
+    if ((p.formsNoAction || 0) > 0) {
+      extraSignals.push(`${T("formNoAction")}: ${p.formsNoAction}`);
+    }
+    if ((p.formsNoSubmit || 0) > 0) {
+      extraSignals.push(`${T("formNoSubmit")}: ${p.formsNoSubmit}`);
+    }
+    if (p.weakNavigation) {
+      extraSignals.push(`${T("weakNavigation")} (${Number(p.mainNavLinks || 0)})`);
+    }
+    const detailSignals = extraSignals.length
+      ? `<div style="margin-top:4px;color:var(--muted);font-size:10px;">${extraSignals
+          .map((text) => esc(text))
+          .join("<br>")}</div>`
+      : "";
     const trFunc = mkTr(
       [
         urlA(p),
@@ -1731,7 +1963,7 @@ function addPage(p) {
           ? `<span class="badge b4">${(p.brokenButtonLinks || []).length}</span>`
           : `<span style="color:var(--muted);">0</span>`,
         loadBadge,
-        `${brokenPreview}${moreBroken}`,
+        `${brokenPreview}${moreBroken}${detailSignals}`,
       ],
       funcTypes,
     );

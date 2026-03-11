@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
 
@@ -112,7 +113,7 @@ export default function ProjectsPage() {
             <Card key={project.id} className="project-card">
               <div className="card-top">
                 <div>
-                  <div className="eyebrow">Proyecto</div>
+                  <Eyebrow>Proyecto</Eyebrow>
                   <h2>{project.name}</h2>
                   <p>{project.targetUrl}</p>
                 </div>
@@ -132,7 +133,7 @@ export default function ProjectsPage() {
               </div>
 
               <Card className="last-run" padding="sm">
-                <div className="eyebrow">Ultimo rastreo</div>
+                <Eyebrow>Ultimo rastreo</Eyebrow>
                 <strong>
                   {project.lastRun
                     ? `${formatDate(project.lastRun.createdAt)} - ${project.lastRun.withIssues}/${project.lastRun.total}`
@@ -143,7 +144,7 @@ export default function ProjectsPage() {
           ))}
           {!loading && !projects.length ? (
             <Card className="project-card empty">
-              <div className="eyebrow">Sin datos</div>
+              <Eyebrow>Sin datos</Eyebrow>
               <h2>Aun no hay proyectos</h2>
               <p>Crea el primero desde la pantalla inicial y entrara directo al panel.</p>
             </Card>
@@ -171,7 +172,6 @@ export default function ProjectsPage() {
             display: grid;
             gap: 18px;
             min-width: 0;
-            margin-top: 10px;
           }
           .card-top {
             display: flex;
@@ -182,19 +182,15 @@ export default function ProjectsPage() {
           .card-top > div:first-child {
             min-width: 0;
           }
+          .card-top :global(.ui-eyebrow) {
+            margin-bottom: 12px;
+          }
           .card-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
             align-items: flex-start;
             justify-content: flex-end;
-          }
-          .eyebrow {
-            color: var(--muted);
-            font-size: 11px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            margin-bottom: 12px;
           }
           h2 {
             font-family: "Syne", "Manrope", sans-serif;
@@ -219,9 +215,6 @@ export default function ProjectsPage() {
             color: var(--text);
             font-size: 14px;
             overflow-wrap: anywhere;
-          }
-          .last-run {
-            margin-top: 16px;
           }
           .empty {
             align-content: center;

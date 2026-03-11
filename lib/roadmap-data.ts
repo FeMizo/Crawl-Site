@@ -1,13 +1,19 @@
 import { prisma } from "./prisma";
-import type { RoadmapDataDto, RoadmapPhaseDto, RoadmapTaskDto } from "../types/roadmap";
+import type {
+  RoadmapDataDto,
+  RoadmapPhaseDto,
+  RoadmapTaskDto,
+  RoadmapTaskStatus,
+} from "../types/roadmap";
+import { analyzeRoadmapPhases } from "./roadmap-analysis";
 
 const MAX_PHASE_TITLE_LENGTH = 120;
 const MAX_PHASE_DESCRIPTION_LENGTH = 240;
 const MAX_TASK_TITLE_LENGTH = 160;
 
-function clampPercent(completed: number, total: number): number {
+function clampPercent(value: number, total: number): number {
   if (total <= 0) return 0;
-  return Math.round((completed / total) * 100);
+  return Math.round((value / total) * 100);
 }
 
 function normalizeTitle(value: unknown, maxLength: number): string {
@@ -30,6 +36,126 @@ export function normalizeTaskTitle(value: unknown): string {
   return normalizeTitle(value, MAX_TASK_TITLE_LENGTH);
 }
 
+const ROADMAP_STATUS_OPTIONS = new Set<RoadmapTaskStatus | "all">([
+  "all",
+  "done",
+  "partial",
+  "pending",
+]);
+
+export type RoadmapTaskFilterInput = {
+  status?: RoadmapTaskStatus | "all";
+  query?: string;
+  phaseId?: string;
+};
+
+function normalizeRoadmapStatus(value: unknown): RoadmapTaskStatus | "all" {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase() as RoadmapTaskStatus | "all";
+  if (ROADMAP_STATUS_OPTIONS.has(normalized)) {
+    return normalized;
+  }
+  return "all";
+}
+
+function normalizeRoadmapQuery(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .slice(0, 120);
+}
+
+function normalizeRoadmapPhaseId(value: unknown): string {
+  return String(value || "").trim().slice(0, 80);
+}
+
+function mapTaskSearchText(task: RoadmapTaskDto): string {
+  const evidenceText = task.evidence
+    .map((item) => `${item.file} ${item.note || ""}`)
+    .join(" ");
+  return `${task.title} ${task.note || ""} ${evidenceText}`.toLowerCase();
+}
+
+function computeTaskProgress(tasks: RoadmapTaskDto[]) {
+  const completed = tasks.filter((task) => task.status === "done").length;
+  const partial = tasks.filter((task) => task.status === "partial").length;
+  const total = tasks.length;
+  const pending = Math.max(0, total - completed - partial);
+  const weighted = completed + partial * 0.5;
+  return {
+    completed,
+    partial,
+    pending,
+    total,
+    percent: clampPercent(weighted, total),
+  };
+}
+
+function computeGlobalProgress(phases: RoadmapPhaseDto[]) {
+  let completed = 0;
+  let partial = 0;
+  let total = 0;
+
+  for (const phase of phases) {
+    completed += phase.progress.completed;
+    partial += phase.progress.partial;
+    total += phase.progress.total;
+  }
+
+  const pending = Math.max(0, total - completed - partial);
+  const weighted = completed + partial * 0.5;
+
+  return {
+    completed,
+    partial,
+    pending,
+    total,
+    percent: clampPercent(weighted, total),
+  };
+}
+
+function applyRoadmapTaskFilters(
+  roadmap: RoadmapDataDto,
+  filters?: RoadmapTaskFilterInput,
+): RoadmapDataDto {
+  const status = normalizeRoadmapStatus(filters?.status);
+  const query = normalizeRoadmapQuery(filters?.query);
+  const phaseId = normalizeRoadmapPhaseId(filters?.phaseId);
+  const hasTaskFilters = status !== "all" || Boolean(query);
+
+  const phaseScoped = phaseId
+    ? roadmap.phases.filter((phase) => phase.id === phaseId)
+    : roadmap.phases;
+
+  const phases = phaseScoped
+    .map((phase) => {
+      const filteredTasks = phase.tasks.filter((task) => {
+        if (status !== "all" && task.status !== status) return false;
+        if (query && !mapTaskSearchText(task).includes(query)) return false;
+        return true;
+      });
+
+      return {
+        ...phase,
+        tasks: filteredTasks,
+        progress: computeTaskProgress(filteredTasks),
+      };
+    })
+    .filter((phase) => {
+      if (!hasTaskFilters) return true;
+      if (phaseId) return true;
+      return phase.tasks.length > 0;
+    });
+
+  return {
+    ...roadmap,
+    phases,
+    progress: computeGlobalProgress(phases),
+  };
+}
+
 function mapTask(task: {
   id: string;
   phaseId: string;
@@ -44,6 +170,10 @@ function mapTask(task: {
     phaseId: task.phaseId,
     title: task.title,
     completed: task.completed,
+    status: task.completed ? "done" : "pending",
+    statusSource: "manual",
+    evidence: [],
+    note: null,
     position: task.position,
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
@@ -69,6 +199,7 @@ function mapPhase(phase: {
 }): RoadmapPhaseDto {
   const tasks = phase.tasks.map(mapTask);
   const completed = tasks.filter((task) => task.completed).length;
+  const partial = 0;
   const total = tasks.length;
 
   return {
@@ -80,6 +211,8 @@ function mapPhase(phase: {
     updatedAt: phase.updatedAt.toISOString(),
     progress: {
       completed,
+      partial,
+      pending: total - completed - partial,
       total,
       percent: clampPercent(completed, total),
     },
@@ -87,7 +220,7 @@ function mapPhase(phase: {
   };
 }
 
-export async function getRoadmapData(): Promise<RoadmapDataDto> {
+export async function getRoadmapData(filters?: RoadmapTaskFilterInput): Promise<RoadmapDataDto> {
   const phases = await prisma.roadmapPhase.findMany({
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     include: {
@@ -98,17 +231,8 @@ export async function getRoadmapData(): Promise<RoadmapDataDto> {
   });
 
   const mappedPhases = phases.map(mapPhase);
-  const total = mappedPhases.reduce((acc, phase) => acc + phase.progress.total, 0);
-  const completed = mappedPhases.reduce((acc, phase) => acc + phase.progress.completed, 0);
-
-  return {
-    phases: mappedPhases,
-    progress: {
-      completed,
-      total,
-      percent: clampPercent(completed, total),
-    },
-  };
+  const analyzed = await analyzeRoadmapPhases(mappedPhases);
+  return applyRoadmapTaskFilters(analyzed, filters);
 }
 
 export async function createRoadmapPhase(input: { title: string; description?: string | null }) {

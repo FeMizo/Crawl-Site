@@ -979,6 +979,63 @@ header.is-scrolled {
   background: var(--adim);
 }
 
+.host-note {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.host-note:last-child {
+  margin-bottom: 0;
+}
+
+.security-rec-title {
+  margin: 10px 0 8px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.security-rec-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.security-rec-item {
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: var(--bg3);
+  padding: 8px;
+}
+
+.security-rec-item.high {
+  border-color: rgba(255, 82, 82, 0.45);
+}
+
+.security-rec-item.medium {
+  border-color: rgba(255, 193, 92, 0.45);
+}
+
+.security-rec-item.low {
+  border-color: rgba(63, 140, 255, 0.35);
+}
+
+.security-rec-head {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.security-rec-body {
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.4;
+}
+
 .func-item {
   border: 1px solid var(--border);
   background: var(--bg3);

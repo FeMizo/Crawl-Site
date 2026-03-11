@@ -84,8 +84,16 @@ export default function AppShell({
           --radius-control: 14px;
           min-height: 100vh;
           background:
-            radial-gradient(1200px 680px at 0% -10%, rgba(100, 181, 246, 0.14), transparent 55%),
-            radial-gradient(900px 620px at 100% 0%, rgba(0, 255, 136, 0.08), transparent 50%),
+            radial-gradient(
+              1200px 680px at 0% -10%,
+              rgba(100, 181, 246, 0.14),
+              transparent 55%
+            ),
+            radial-gradient(
+              900px 620px at 100% 0%,
+              rgba(0, 255, 136, 0.08),
+              transparent 50%
+            ),
             var(--bg);
           color: var(--text);
           overflow-x: hidden;
@@ -104,7 +112,11 @@ export default function AppShell({
           display: grid;
           align-content: start;
           gap: var(--space-3);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent);
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.015),
+            transparent
+          );
           min-width: 0;
         }
         .dashboard-main {
@@ -119,7 +131,7 @@ export default function AppShell({
           position: sticky;
           top: 0;
           z-index: 40;
-          padding: var(--space-4) 0;
+          padding: var(--space-4) var(--space-3);
           margin: 0 0 var(--space-4);
           border-bottom: 1px solid var(--border);
           display: flex;
@@ -128,8 +140,8 @@ export default function AppShell({
           align-items: flex-start;
           flex-wrap: wrap;
           min-width: 0;
-          background: var(--bg);
-          backdrop-filter: blur(10px);
+          background: transparent;
+          backdrop-filter: none;
         }
         .header-copy {
           min-width: 0;
@@ -240,6 +252,9 @@ export default function AppShell({
         }
         .ui-card {
           --ui-card-top-space: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3);
           border: 1px solid var(--border);
           background: var(--bg2);
           border-radius: var(--radius-card);
@@ -247,6 +262,9 @@ export default function AppShell({
           max-width: 100%;
           overflow: hidden;
           margin-top: var(--ui-card-top-space);
+        }
+        .ui-card > * {
+          margin-top: 0;
         }
         .ui-card.last-run {
           --ui-card-top-space: 16px;
@@ -277,10 +295,11 @@ export default function AppShell({
         }
         .dashboard-user-card {
           display: flex;
-          align-items: center;
+          align-items: start;
           gap: 12px;
           flex-wrap: wrap;
           min-width: 0;
+          align-self: start;
         }
         .user-dot {
           width: 28px;
@@ -423,9 +442,6 @@ export default function AppShell({
           transform: none;
           box-shadow: none;
         }
-        .ui-btn[type="submit"] {
-          margin-top: var(--space-2);
-        }
         .ui-btn-sm {
           min-height: 34px;
           padding: 0 12px;
@@ -493,7 +509,30 @@ export default function AppShell({
           min-width: 0;
         }
         .ui-field + .ui-field {
-          margin-top: 6px;
+          margin-top: 10px;
+        }
+        .ui-eyebrow {
+          display: inline-flex;
+          width: fit-content;
+          align-items: center;
+          gap: 6px;
+          min-height: 24px;
+          padding: 0 10px;
+          border-radius: 999px;
+          border: 1px solid var(--border2);
+          background: var(--bg3);
+          color: var(--text2);
+          font-size: 11px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          white-space: nowrap;
+          max-width: 100%;
+        }
+        .ui-eyebrow-icon {
+          display: inline-flex;
+          align-items: center;
+          color: var(--accent);
+          flex: 0 0 auto;
         }
         .ui-field-label {
           color: var(--text2);
@@ -602,7 +641,7 @@ export default function AppShell({
             padding: 0 var(--space-3) var(--space-5);
           }
           .dashboard-top-header {
-            padding: var(--space-3) 0;
+            padding: var(--space-3) var(--space-2);
           }
           .dashboard-top-header,
           .hdr-r,
