@@ -1,6 +1,6 @@
 {
   "name": "seo-crawler",
-  "version": "2.6.0",
+  "version": "2.8.0",
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
@@ -16,7 +16,7 @@
     "start:web": "next start -p 3000"
   },
   "dependencies": {
-    "@prisma/client": "^6.5.0",
+    "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.2",
     "concurrently": "^9.2.1",
     "cookie-parser": "^1.4.7",
@@ -33,7 +33,7 @@
     "@types/node": "^24.5.2",
     "@types/react": "19.2.14",
     "nodemon": "^3.0.2",
-    "prisma": "^6.5.0",
+    "prisma": "^6.19.2",
     "typescript": "5.9.3"
   },
   "prisma": {

@@ -11,7 +11,7 @@ export default function PreferenceToggles({
     <>
       <LanguageSwitcher lang={lang} onChange={onLangChange} />
       <div className="hdiv" />
-      <ThemeSwitcher theme={theme} onChange={onThemeChange} />
+      <ThemeSwitcher lang={lang} theme={theme} onChange={onThemeChange} />
     </>
   );
 }

@@ -3,6 +3,7 @@
 //
 const L = {
   es: {
+    heroTitle: "Nuevo rastreo",
     inputLabel: "URL del sitio a analizar",
     startBtn: "Iniciar Crawl",
     advOpts: "Opciones avanzadas",
@@ -84,6 +85,9 @@ const L = {
     noPaths: "✅ Sin rutas bloqueadas",
     rawTitle: "Ver robots.txt completo",
     logoSub: "Detector de errores SEO",
+    navDashboard: "Dashboard",
+    navHistory: "Historial",
+    navSettings: "Ajustes",
     hosting: "Hosting y DNS",
     techStack: "Tipo de sitio",
     loadingHosting: "Cargando informacion...",
@@ -111,7 +115,16 @@ const L = {
     httpSecurity: "HTTP Security",
     loadingSecurity: "Analizando headers y SSL...",
     securityScore: "Score de seguridad",
+    securityLevel: "Nivel de seguridad",
+    securityLevelLow: "Bajo",
+    securityLevelMedium: "Medio",
+    securityLevelGood: "Bueno",
+    securityLevelHigh: "Alto",
+    securityLevelStat: "Seguridad HTTP",
     securityHeaders: "Headers de seguridad",
+    securityHeadersDetected: "headers detectados",
+    securityCriticalMissing: "Faltan headers criticos",
+    securityCriticalOk: "Headers criticos presentes",
     ssl: "Certificado SSL",
     sslIssuer: "Emisor",
     sslSubject: "Dominio",
@@ -144,7 +157,7 @@ const L = {
     runLoaded: "Historial cargado",
     projectRequired: "No hay proyecto seleccionado.",
     searchByUrl: "Buscar por URL...",
-    seoScoreStat: "SEO Score",
+    seoScoreStat: "Puntaje SEO",
     avgLoadTimeStat: "Tiempo promedio",
     sgTipTotalPages: "Total de paginas analizadas en este crawl",
     sgTipWithIssues: "Paginas que tienen al menos un problema SEO o tecnico",
@@ -152,12 +165,15 @@ const L = {
     sgTipAvgLoad: "Tiempo de carga promedio de todas las paginas analizadas",
     sgTipTitleIssues: "Cantidad de paginas con problemas en el titulo",
     sgTipDescIssues: "Cantidad de paginas con problemas en la descripcion",
+    sgTipSecurityLevel:
+      "Nivel de seguridad HTTP basado en headers de seguridad detectados",
     sgTipH1Issues: "Cantidad de paginas con problemas de H1 o jerarquia",
     sgTipImageIssues:
       "Cantidad de paginas con imagenes sin alt, sin width/height o rotas",
     sgTipDuplicates: "Cantidad de titulos duplicados detectados",
   },
   en: {
+    heroTitle: "New crawl",
     inputLabel: "Site URL to analyze",
     startBtn: "Start Crawl",
     advOpts: "Advanced options",
@@ -239,6 +255,9 @@ const L = {
     noPaths: "✅ No blocked paths",
     rawTitle: "View full robots.txt",
     logoSub: "SEO Error Detector",
+    navDashboard: "Dashboard",
+    navHistory: "History",
+    navSettings: "Settings",
     hosting: "Hosting & DNS",
     techStack: "Site type",
     loadingHosting: "Loading info...",
@@ -266,7 +285,16 @@ const L = {
     httpSecurity: "HTTP Security",
     loadingSecurity: "Analyzing headers and SSL...",
     securityScore: "Security score",
+    securityLevel: "Security level",
+    securityLevelLow: "Low",
+    securityLevelMedium: "Medium",
+    securityLevelGood: "Good",
+    securityLevelHigh: "High",
+    securityLevelStat: "HTTP Security",
     securityHeaders: "Security headers",
+    securityHeadersDetected: "headers detected",
+    securityCriticalMissing: "Critical headers missing",
+    securityCriticalOk: "Critical headers present",
     ssl: "SSL certificate",
     sslIssuer: "Issuer",
     sslSubject: "Subject",
@@ -307,6 +335,8 @@ const L = {
     sgTipAvgLoad: "Average load time across all crawled pages",
     sgTipTitleIssues: "Number of pages with title issues",
     sgTipDescIssues: "Number of pages with description issues",
+    sgTipSecurityLevel:
+      "HTTP security level based on detected security headers",
     sgTipH1Issues: "Number of pages with H1 or heading hierarchy issues",
     sgTipImageIssues:
       "Number of pages with missing-alt, missing width/height, or broken images",
@@ -338,6 +368,12 @@ const TABLE_BODIES = [
   "tbErrors",
   "tbFunc",
 ];
+const SELECT_SIZE_CLASSES = [
+  "select-size-sm",
+  "select-size-normal",
+  "select-size-md",
+  "select-size-lg",
+];
 
 function normalizeInputUrl(u) {
   try {
@@ -364,6 +400,18 @@ function updateCrawlButtonLabel() {
   const label = btn.querySelector("[data-i18n]");
   if (!label) return;
   label.textContent = hasCrawledUrl(input.value) ? T("recrawlBtn") : T("startBtn");
+}
+
+function setSelectSize(target, size = "md") {
+  const el =
+    typeof target === "string"
+      ? document.getElementById(target)
+      : target;
+  if (!el) return;
+  const normalized = ["sm", "normal", "md", "lg"].includes(size) ? size : "normal";
+  el.classList.add("select-size-module");
+  SELECT_SIZE_CLASSES.forEach((c) => el.classList.remove(c));
+  el.classList.add(`select-size-${normalized}`);
 }
 
 function setAllTablePageSize(size) {
@@ -639,6 +687,7 @@ function resetState() {
   document.querySelectorAll(".sv").forEach((el) => (el.textContent = "0"));
   sv("v4", "0/100");
   sv("vR", "0ms");
+  sv("vSec", "—");
   document.querySelectorAll(".tc").forEach((el) => (el.textContent = "0"));
   document.querySelectorAll(".sfbar").forEach((bar) => {
     bar
@@ -708,6 +757,22 @@ function normalizeSavedPage(page) {
     canonical: page.canonical ?? meta.canonical ?? "",
     noindex: Boolean(page.noindex ?? meta.noindex ?? false),
     pageLang: page.pageLang ?? meta.pageLang ?? "",
+    buttonsNoLink: Number(page.buttonsNoLink ?? meta.buttonsNoLink ?? 0),
+    buttonsNoLinkDetails: Array.isArray(page.buttonsNoLinkDetails)
+      ? page.buttonsNoLinkDetails
+      : Array.isArray(meta.buttonsNoLinkDetails)
+        ? meta.buttonsNoLinkDetails
+        : [],
+    brokenButtonLinks: Array.isArray(page.brokenButtonLinks)
+      ? page.brokenButtonLinks
+      : [],
+    brokenButtonDetails: Array.isArray(page.brokenButtonDetails)
+      ? page.brokenButtonDetails
+      : [],
+    brokenImageLinks: Array.isArray(page.brokenImageLinks)
+      ? page.brokenImageLinks
+      : [],
+    loadTimeMs: Number(page.loadTimeMs ?? 0),
   };
 }
 
@@ -718,8 +783,6 @@ function applySavedRun(run) {
     const el = document.getElementById(id);
     if (el) el.style.display = d || "block";
   };
-  show("pw");
-  show("sl");
   show("cw");
   show("sg", "grid");
   show("mainLayout", "flex");
@@ -736,11 +799,28 @@ function applySavedRun(run) {
   updateAggregateSgStats();
 
   const stats = run.stats || {};
+  if (stats.domainInfo) {
+    crawlState.hosting = stats.domainInfo;
+    renderHosting(stats.domainInfo);
+  } else if (run.sourceUrl) {
+    fetch(`/api/site-info?url=${encodeURIComponent(run.sourceUrl)}`)
+      .then((r) => r.json())
+      .then((info) => {
+        crawlState.hosting = info;
+        renderHosting(info);
+      })
+      .catch(() => {});
+  }
+
+  if (stats.robots) {
+    crawlState.robots = stats.robots;
+    renderRobots(stats.robots);
+  }
+
   sv("stxt", `${T("runLoaded")}: ${new Date(run.createdAt).toLocaleString()}`);
   sv("vT", run.total || crawlState.pages.length || 0);
   sv("vI", run.withIssues || 0);
   sv("vTi", stats.titleIssues || 0);
-  sv("vD", stats.descIssues || 0);
   sv("vH", stats.h1Issues || 0);
   sv("vIm", stats.imgIssues || 0);
   sv("vDu", stats.duplicates || 0);
@@ -764,6 +844,13 @@ function applySavedRun(run) {
 
   const dl = document.getElementById("dlb");
   if (dl) dl.style.display = "none";
+  const pw = document.getElementById("pw");
+  if (pw) {
+    pw.classList.remove("is-active", "is-complete");
+    pw.style.display = "none";
+  }
+  const sl = document.getElementById("sl");
+  if (sl) sl.style.display = "none";
   updateCrawlButtonLabel();
 }
 
@@ -792,6 +879,12 @@ function startCrawl() {
   };
   show("pw");
   show("sl");
+  const progressWrap = document.getElementById("pw");
+  const statusWrap = document.getElementById("sl");
+  if (progressWrap) {
+    progressWrap.classList.add("is-active");
+    progressWrap.classList.remove("is-complete");
+  }
   show("cw");
   show("sg", "grid");
   show("mainLayout", "flex");
@@ -820,6 +913,22 @@ function startCrawl() {
     projectId,
   });
   const es = new EventSource(`/api/crawl?${qs}`);
+  const hideProgress = (complete = false) => {
+    if (progressWrap) {
+      progressWrap.classList.remove("is-active");
+      if (complete) {
+        progressWrap.classList.add("is-complete");
+        setTimeout(() => {
+          progressWrap.style.display = "none";
+          progressWrap.classList.remove("is-complete");
+        }, 260);
+      } else {
+        progressWrap.classList.remove("is-complete");
+        progressWrap.style.display = "none";
+      }
+    }
+    if (statusWrap) statusWrap.style.display = "none";
+  };
 
   es.addEventListener("robots", (e) => {
     const robots = JSON.parse(e.data);
@@ -848,7 +957,6 @@ function startCrawl() {
     sv("vI", d.withIssues);
     updateAggregateSgStats();
     sv("vTi", s.titleIssues);
-    sv("vD", s.descIssues);
     sv("vH", s.h1Issues);
     sv("vIm", s.imgIssues);
     sv("vDu", s.duplicates);
@@ -870,15 +978,13 @@ function startCrawl() {
       `${d.total}  ${d.withIssues} ${T("withIssues")}  ${d.fileName}`,
     );
     show("dlb", "flex");
-    document.getElementById("pw").style.display = "none";
-    document.getElementById("sl").style.display = "none";
+    hideProgress(true);
     btn.disabled = false;
     updateCrawlButtonLabel();
   });
   es.addEventListener("error", () => {
     es.close();
-    document.getElementById("pw").style.display = "none";
-    document.getElementById("sl").style.display = "none";
+    hideProgress(false);
     btn.disabled = false;
     updateCrawlButtonLabel();
   });
@@ -1034,6 +1140,33 @@ function scoreColor(n) {
   if (n >= 80) return "var(--ok)";
   if (n >= 50) return "var(--warn)";
   return "var(--error)";
+}
+
+function securityLevelFromScore(score) {
+  const n = Number(score || 0);
+  if (n >= 90) return "high";
+  if (n >= 70) return "good";
+  if (n >= 40) return "medium";
+  return "low";
+}
+
+function securityLevelLabel(level) {
+  if (level === "high") return T("securityLevelHigh");
+  if (level === "good") return T("securityLevelGood");
+  if (level === "medium") return T("securityLevelMedium");
+  return T("securityLevelLow");
+}
+
+function securityLevelClass(level) {
+  if (level === "high" || level === "good") return "good";
+  if (level === "medium") return "mid";
+  return "bad";
+}
+
+function updateSecurityLevelStat(security) {
+  const score = Number(security?.score || 0);
+  const level = security?.level || securityLevelFromScore(score);
+  sv("vSec", securityLevelLabel(level));
 }
 
 // Score ring SVG
@@ -1300,19 +1433,50 @@ function renderHosting(info) {
 
   const sec = info.security || {};
   const sScore = Number(sec.score || 0);
-  const sCls = sScore >= 80 ? "good" : sScore >= 50 ? "mid" : "bad";
+  const sLevel = sec.level || securityLevelFromScore(sScore);
+  const sCls = securityLevelClass(sLevel);
+  const levelLabel = securityLevelLabel(sLevel);
+  const securityHeaders = [
+    ["CSP", sec.contentSecurityPolicy],
+    ["HSTS", sec.strictTransportSecurity],
+    ["X-Frame-Options", sec.xFrameOptions],
+    ["X-Content-Type-Options", sec.xContentTypeOptions],
+    ["Referrer-Policy", sec.referrerPolicy],
+    ["Permissions-Policy", sec.permissionsPolicy],
+    ["COOP", sec.crossOriginOpenerPolicy],
+    ["CORP", sec.crossOriginResourcePolicy],
+    ["COEP", sec.crossOriginEmbedderPolicy],
+  ];
+  const presentHeaders =
+    Number(sec.presentHeaders || 0) ||
+    securityHeaders.filter(([, value]) => Boolean(value)).length;
+  const totalHeaders = Number(sec.totalHeaders || securityHeaders.length);
+  const criticalMissing =
+    Array.isArray(sec.criticalMissingHeaders) && sec.criticalMissingHeaders.length
+      ? sec.criticalMissingHeaders
+      : [
+          ["Content-Security-Policy", sec.contentSecurityPolicy],
+          ["Strict-Transport-Security", sec.strictTransportSecurity],
+          ["X-Frame-Options", sec.xFrameOptions],
+          ["X-Content-Type-Options", sec.xContentTypeOptions],
+        ]
+          .filter(([, value]) => !value)
+          .map(([name]) => name);
   const secRow = (lbl, val) =>
-    `<div class="host-row"><div class="host-lbl">${lbl}</div><div class="host-val">${val ? "✅" : "—"}</div></div>`;
+    `<div class="host-row"><div class="host-lbl">${lbl}</div><div class="host-val">${val ? "✅" : "⚠️"}</div></div>`;
   const ssl = info.ssl || null;
+  updateSecurityLevelStat(sec);
   document.getElementById("securityBody").innerHTML = `
-    <div class="security-score ${sCls}">${T("securityScore")}: ${sScore}</div>
+    <div class="security-score ${sCls}">${T("securityScore")}: ${sScore}/100</div>
+    <div class="security-level-pill ${sCls}">${T("securityLevel")}: ${levelLabel}</div>
+    <div class="security-meta">${presentHeaders}/${totalHeaders} ${T("securityHeadersDetected")}</div>
+    ${
+      criticalMissing.length
+        ? `<div class="security-missing">${T("securityCriticalMissing")}: ${criticalMissing.map((header) => esc(header)).join(", ")}</div>`
+        : `<div class="security-ok">${T("securityCriticalOk")}</div>`
+    }
     <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:2px 0 8px;">${T("securityHeaders")}</div>
-    ${secRow("HSTS", sec.strictTransportSecurity)}
-    ${secRow("CSP", sec.contentSecurityPolicy)}
-    ${secRow("X-Frame-Options", sec.xFrameOptions)}
-    ${secRow("X-Content-Type-Options", sec.xContentTypeOptions)}
-    ${secRow("Referrer-Policy", sec.referrerPolicy)}
-    ${secRow("Permissions-Policy", sec.permissionsPolicy)}
+    ${securityHeaders.map(([label, value]) => secRow(label, value)).join("")}
     <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:10px 0 8px;">${T("ssl")}</div>
     ${
       ssl
@@ -1628,7 +1792,10 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   if (input) input.addEventListener("input", updateCrawlButtonLabel);
   const searchInput = document.getElementById("crawlSearch");
   const allPageSize = document.getElementById("allPageSize");
-  if (allPageSize) allTablePageSize = Number(allPageSize.value || 20);
+  if (allPageSize) {
+    allTablePageSize = Number(allPageSize.value || 20);
+    setSelectSize(allPageSize, "sm");
+  }
   if (searchInput) {
     searchInput.addEventListener("input", (e) => {
       crawlSearchTerm = e.target.value || "";

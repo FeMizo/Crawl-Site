@@ -37,6 +37,13 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function normalizeDisplayName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 80);
+}
+
 function sanitizeUser(user) {
   if (!user) return null;
   return {
@@ -134,6 +141,11 @@ function getHeader(headers, name) {
   return key ? String(headers[key] || "") : "";
 }
 
+function parseHstsMaxAge(value) {
+  const match = String(value || "").match(/max-age\s*=\s*(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
 function parseSecurityHeaders(headers) {
   const hsts = getHeader(headers, "strict-transport-security");
   const csp = getHeader(headers, "content-security-policy");
@@ -141,15 +153,151 @@ function parseSecurityHeaders(headers) {
   const xcto = getHeader(headers, "x-content-type-options");
   const rp = getHeader(headers, "referrer-policy");
   const pp = getHeader(headers, "permissions-policy");
-  const present = [hsts, csp, xfo, xcto, rp, pp].filter(Boolean).length;
+  const coop = getHeader(headers, "cross-origin-opener-policy");
+  const corp = getHeader(headers, "cross-origin-resource-policy");
+  const coep = getHeader(headers, "cross-origin-embedder-policy");
+
+  let score = 0;
+  const breakdown = {};
+  const addScore = (key, value) => {
+    const numeric = Number(value || 0);
+    breakdown[key] = numeric;
+    score += numeric;
+  };
+
+  if (!csp) {
+    addScore("contentSecurityPolicy", 0);
+  } else {
+    const hasDirective = /(default-src|script-src|object-src|base-uri|frame-ancestors)/i.test(csp);
+    const hasUnsafe = /unsafe-inline|unsafe-eval/i.test(csp);
+    addScore(
+      "contentSecurityPolicy",
+      hasDirective && !hasUnsafe ? 22 : hasDirective ? 16 : 10,
+    );
+  }
+
+  if (!hsts) {
+    addScore("strictTransportSecurity", 0);
+  } else {
+    const maxAge = parseHstsMaxAge(hsts);
+    const hasSubdomains = /includesubdomains/i.test(hsts);
+    addScore(
+      "strictTransportSecurity",
+      maxAge >= 15552000 && hasSubdomains
+        ? 18
+        : maxAge >= 31536000
+          ? 14
+          : 9,
+    );
+  }
+
+  if (!xfo) {
+    addScore("xFrameOptions", 0);
+  } else {
+    addScore("xFrameOptions", /^(deny|sameorigin)$/i.test(xfo.trim()) ? 10 : 5);
+  }
+
+  if (!xcto) {
+    addScore("xContentTypeOptions", 0);
+  } else {
+    addScore("xContentTypeOptions", /nosniff/i.test(xcto) ? 8 : 4);
+  }
+
+  if (!rp) {
+    addScore("referrerPolicy", 0);
+  } else {
+    addScore(
+      "referrerPolicy",
+      /^(no-referrer|same-origin|strict-origin|strict-origin-when-cross-origin)$/i.test(
+        rp.trim(),
+      )
+        ? 8
+        : 4,
+    );
+  }
+
+  addScore("permissionsPolicy", pp ? 8 : 0);
+
+  if (!coop) {
+    addScore("crossOriginOpenerPolicy", 0);
+  } else {
+    addScore(
+      "crossOriginOpenerPolicy",
+      /^(same-origin)$/i.test(coop.trim())
+        ? 8
+        : /^(same-origin-allow-popups)$/i.test(coop.trim())
+          ? 6
+          : 3,
+    );
+  }
+
+  if (!corp) {
+    addScore("crossOriginResourcePolicy", 0);
+  } else {
+    addScore(
+      "crossOriginResourcePolicy",
+      /^(same-origin|same-site|cross-origin)$/i.test(corp.trim()) ? 8 : 4,
+    );
+  }
+
+  if (!coep) {
+    addScore("crossOriginEmbedderPolicy", 0);
+  } else {
+    addScore(
+      "crossOriginEmbedderPolicy",
+      /^(require-corp|credentialless)$/i.test(coep.trim()) ? 10 : 5,
+    );
+  }
+
+  const headerMap = [
+    ["Strict-Transport-Security", hsts],
+    ["Content-Security-Policy", csp],
+    ["X-Frame-Options", xfo],
+    ["X-Content-Type-Options", xcto],
+    ["Referrer-Policy", rp],
+    ["Permissions-Policy", pp],
+    ["Cross-Origin-Opener-Policy", coop],
+    ["Cross-Origin-Resource-Policy", corp],
+    ["Cross-Origin-Embedder-Policy", coep],
+  ];
+  const present = headerMap.filter(([, value]) => Boolean(value)).length;
+  const missingHeaders = headerMap
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  const criticalMissingHeaders = [
+    "Content-Security-Policy",
+    "Strict-Transport-Security",
+    "X-Frame-Options",
+    "X-Content-Type-Options",
+  ].filter((name) => missingHeaders.includes(name));
+
+  const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
+  const level =
+    normalizedScore >= 90
+      ? "high"
+      : normalizedScore >= 70
+        ? "good"
+        : normalizedScore >= 40
+          ? "medium"
+          : "low";
+
   return {
-    score: Math.round((present / 6) * 100),
+    score: normalizedScore,
+    level,
+    presentHeaders: present,
+    totalHeaders: headerMap.length,
+    missingHeaders,
+    criticalMissingHeaders,
+    breakdown,
     strictTransportSecurity: hsts || null,
     contentSecurityPolicy: csp || null,
     xFrameOptions: xfo || null,
     xContentTypeOptions: xcto || null,
     referrerPolicy: rp || null,
     permissionsPolicy: pp || null,
+    crossOriginOpenerPolicy: coop || null,
+    crossOriginResourcePolicy: corp || null,
+    crossOriginEmbedderPolicy: coep || null,
   };
 }
 
@@ -1191,17 +1339,17 @@ async function checkExternalLink(url) {
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const name = String(req.body?.name || "").trim();
+    const name = normalizeDisplayName(req.body?.name);
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
 
     if (!email || !password) {
-      return res.status(400).json({ error: "Email y password son requeridos" });
+      return res.status(400).json({ error: "Email y contrasena son requeridos" });
     }
     if (password.length < 8) {
       return res
         .status(400)
-        .json({ error: "La password debe tener al menos 8 caracteres" });
+        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -1226,7 +1374,7 @@ app.post("/api/auth/login", async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
     if (!email || !password) {
-      return res.status(400).json({ error: "Email y password son requeridos" });
+      return res.status(400).json({ error: "Email y contrasena son requeridos" });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -1246,6 +1394,36 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y contrasena son requeridos" });
+    }
+
+    if (password.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+    }
+
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "No se pudo actualizar la contrasena" });
+  }
+});
+
 app.post("/api/auth/logout", (req, res) => {
   clearAuthCookie(res);
   res.json({ ok: true });
@@ -1260,6 +1438,51 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
     user: sanitizeUser(req.user),
     counts: { projects: projectCount, crawlRuns: crawlRunCount },
   });
+});
+
+app.put("/api/auth/profile", requireAuth, async (req, res) => {
+  try {
+    const name = normalizeDisplayName(req.body?.name);
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { name: name || null },
+    });
+    return res.json({ user: sanitizeUser(user) });
+  } catch {
+    return res.status(500).json({ error: "No se pudo actualizar el perfil" });
+  }
+});
+
+app.put("/api/auth/password", requireAuth, async (req, res) => {
+  try {
+    const currentPassword = String(req.body?.currentPassword || "");
+    const newPassword = String(req.body?.newPassword || "");
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Completa contrasena actual y nueva" });
+    }
+
+    if (newPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "La nueva contrasena debe tener al menos 8 caracteres" });
+    }
+
+    const valid = await bcrypt.compare(currentPassword, req.user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: "Contrasena actual incorrecta" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { passwordHash },
+    });
+
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "No se pudo actualizar la contrasena" });
+  }
 });
 
 app.get("/api/projects", requireAuth, async (req, res) => {
@@ -1518,6 +1741,12 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
     await fetchRobots(startUrl);
   send("robots", { disallowed, hasSitemap, sitemapUrls, rawContent });
 
+  // Domain info snapshot for persistence and replay on historical runs
+  const domainInfo = await fetchSiteInfo(startUrl).catch(() => null);
+  if (domainInfo) {
+    send("siteinfo", domainInfo);
+  }
+
   // Seed queue
   if (source === "sitemap") {
     const smUrls = await fetchSitemap(startUrl);
@@ -1638,6 +1867,14 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
         headings: meta?.headings || [],
         totalH: meta?.headings?.length || 0,
         headingSkips: meta?.headingSkips || [],
+        imgsNoAlt: meta?.imgsNoAlt || 0,
+        imgsNoSize: meta?.imgsNoSize || 0,
+        totalImgs: meta?.totalImgs || 0,
+        canonical: meta?.canonical || "",
+        noindex: meta?.noindex || false,
+        buttonsNoLink: meta?.buttonsNoLink || 0,
+        buttonsNoLinkDetails: meta?.buttonsNoLinkDetails || [],
+        pageLang: meta?.pageLang || "",
         meta,
         timeout: raw.timeout || false,
         error: raw.error || "",
@@ -1753,6 +1990,8 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
       duplicates: duplicates.length,
       headingSkips: results.filter((r) => r.meta?.headingSkips?.length > 0)
         .length,
+      domainInfo: domainInfo || null,
+      robots: { disallowed, hasSitemap, sitemapUrls, rawContent },
     };
     const withIssues = results.filter((r) => r.issues.length > 0).length;
     const createdRun = await prisma.crawlRun.create({

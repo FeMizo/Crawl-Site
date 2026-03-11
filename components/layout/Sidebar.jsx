@@ -4,22 +4,22 @@ import Card from "../ui/Card";
 import FaviconMark from "../ui/FaviconMark";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
+import { tUi } from "../../lib/ui-language";
 
-const privateNav = [
-  { key: "dashboard", href: "/", label: "Inicio", icon: "dashboard" },
-  { key: "roadmap", href: "/dashboard/roadmap", label: "Roadmap", icon: "roadmap" },
-  { key: "projects", href: "/projects", label: "Proyectos", icon: "projects" },
-  { key: "history", href: "/history", label: "Historial", icon: "history" },
-  { key: "settings", href: "/settings", label: "Ajustes", icon: "settings" },
-];
-
-const publicNav = [
-  { key: "login", href: "/login", label: "Iniciar sesion", icon: "login" },
-  { key: "register", href: "/register", label: "Registro", icon: "register" },
-];
-
-export default function Sidebar({ activeKey, user, aside }) {
+export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
+  const privateNav = [
+    { key: "dashboard", href: "/", label: tUi(lang, "navDashboard"), icon: "dashboard" },
+    { key: "roadmap", href: "/dashboard/roadmap", label: tUi(lang, "navRoadmap"), icon: "roadmap" },
+    { key: "projects", href: "/projects", label: tUi(lang, "navProjects"), icon: "projects" },
+    { key: "history", href: "/history", label: tUi(lang, "navHistory"), icon: "history" },
+    { key: "settings", href: "/settings", label: tUi(lang, "navSettings"), icon: "settings" },
+  ];
+  const publicNav = [
+    { key: "login", href: "/login", label: tUi(lang, "navLogin"), icon: "login" },
+    { key: "register", href: "/register", label: tUi(lang, "navRegister"), icon: "register" },
+  ];
   const navItems = user ? privateNav : publicNav;
+  const userDisplay = user?.name || user?.email || tUi(lang, "statusGuest");
 
   return (
     <aside className="dashboard-sidebar">
@@ -45,10 +45,10 @@ export default function Sidebar({ activeKey, user, aside }) {
       <Card className="dashboard-user-card" padding="sm">
         <div className="user-dot"><Icon name="user" size={13} /></div>
         <div>
-          <div className="user-name">{user?.email || "Sesion no iniciada"}</div>
-          <div className="user-plan">{user ? "Espacio activo" : "Acceso publico"}</div>
+          <div className="user-name">{userDisplay}</div>
+          <div className="user-plan">{user ? user.email : tUi(lang, "statusPublicAccess")}</div>
         </div>
-        {user ? <Badge tone="primary">Activo</Badge> : <Badge tone="secondary">Invitado</Badge>}
+        {user ? <Badge tone="primary">{tUi(lang, "statusActive")}</Badge> : <Badge tone="secondary">{tUi(lang, "statusGuest")}</Badge>}
       </Card>
 
       {aside ? <Card className="dashboard-side-card" padding="sm">{aside}</Card> : null}

@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
+import QuickStepsModule from "../components/shared/QuickStepsModule";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -78,11 +79,24 @@ export default function LoginPage() {
         <div className="auth-grid">
           <Card className="info-card">
             <div className="eyebrow"><Icon name="workspace" size={12} /> Espacio de trabajo</div>
-            <h2>Tu acceso abre el panel privado</h2>
-            <p>
-              Una vez dentro, cada rastreo queda ligado a un proyecto y podras volver a
-              cargar cualquier rastreo desde el panel.
-            </p>
+            <h2>Acceso rapido al trabajo diario</h2>
+            <QuickStepsModule
+              compact
+              steps={[
+                {
+                  title: "Inicia sesion con tu correo y contrasena.",
+                  detail: "Se restaura tu preferencia de idioma y tema.",
+                },
+                {
+                  title: "Abre un proyecto o crea uno nuevo.",
+                  detail: "Todos los rastreos quedan ligados al proyecto.",
+                },
+                {
+                  title: "Revisa historial y retoma corridas anteriores.",
+                  detail: "Puedes cargar resultados guardados cuando quieras.",
+                },
+              ]}
+            />
           </Card>
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
@@ -101,6 +115,9 @@ export default function LoginPage() {
             </Button>
             <p className="foot-note">
               No tienes cuenta. <Link href="/register">Crear cuenta</Link>
+            </p>
+            <p className="foot-note">
+              <Link href="/forgot-password">Olvide mi contrasena</Link>
             </p>
           </Card>
         </div>

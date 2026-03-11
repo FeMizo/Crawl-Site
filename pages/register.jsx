@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
+import QuickStepsModule from "../components/shared/QuickStepsModule";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -79,11 +80,24 @@ export default function RegisterPage() {
         <div className="auth-grid">
           <Card className="info-card">
             <div className="eyebrow"><Icon name="register" size={12} /> Registro</div>
-            <h2>Un solo producto, una sola experiencia</h2>
-            <p>
-              El registro ya no vive en una pantalla aparte. Forma parte del mismo
-              sistema visual y del mismo layout del panel.
-            </p>
+            <h2>Comienza en minutos</h2>
+            <QuickStepsModule
+              compact
+              steps={[
+                {
+                  title: "Crea tu cuenta con nombre, email y contrasena segura.",
+                  detail: "El acceso queda habilitado al instante.",
+                },
+                {
+                  title: "Registra tu primer proyecto con una URL valida.",
+                  detail: "Desde ahi podras ejecutar rastreos y guardar historial.",
+                },
+                {
+                  title: "Consulta resultados y descarga reportes.",
+                  detail: "Toda la operacion vive en el mismo flujo de trabajo.",
+                },
+              ]}
+            />
           </Card>
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>

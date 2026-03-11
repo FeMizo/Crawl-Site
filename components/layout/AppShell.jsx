@@ -30,18 +30,34 @@ export default function AppShell({
     setTheme(nextTheme);
     document.documentElement.setAttribute("data-theme", nextTheme);
     window.localStorage.setItem("seoCrawlerTheme", nextTheme);
+    window.dispatchEvent(
+      new CustomEvent("seo-theme-change", { detail: { theme: nextTheme } }),
+    );
+    if (typeof window.setTheme === "function") {
+      try {
+        window.setTheme(nextTheme);
+      } catch {}
+    }
   };
 
   const applyLang = (nextLang) => {
     setLang(nextLang);
     document.documentElement.lang = nextLang;
     window.localStorage.setItem("seoCrawlerLang", nextLang);
+    window.dispatchEvent(
+      new CustomEvent("seo-lang-change", { detail: { lang: nextLang } }),
+    );
+    if (typeof window.setLang === "function") {
+      try {
+        window.setLang(nextLang);
+      } catch {}
+    }
   };
 
   return (
     <main className="dashboard-shell-page">
       <div className="dashboard-shell">
-        <Sidebar activeKey={activeKey} user={user} aside={aside} />
+        <Sidebar activeKey={activeKey} user={user} aside={aside} lang={lang} />
         <div className="dashboard-main">
           <TopHeader
             eyebrow={kicker}
@@ -93,6 +109,9 @@ export default function AppShell({
         }
         .dashboard-main {
           min-width: 0;
+          display: grid;
+          grid-template-rows: auto 1fr;
+          align-content: start;
           padding: 0 var(--space-6) var(--space-6);
           overflow: visible;
         }
@@ -100,8 +119,8 @@ export default function AppShell({
           position: sticky;
           top: 0;
           z-index: 40;
-          padding: var(--space-4) var(--space-6);
-          margin: 0 calc(var(--space-6) * -1) var(--space-4);
+          padding: var(--space-4) 0;
+          margin: 0 0 var(--space-4);
           border-bottom: 1px solid var(--border);
           display: flex;
           justify-content: space-between;
@@ -174,6 +193,7 @@ export default function AppShell({
           height: auto;
           display: block;
           max-width: 100%;
+          color: var(--text);
         }
         .logo-sub {
           margin-top: 6px;
@@ -219,12 +239,17 @@ export default function AppShell({
           opacity: 0.9;
         }
         .ui-card {
+          --ui-card-top-space: 8px;
           border: 1px solid var(--border);
           background: var(--bg2);
           border-radius: var(--radius-card);
           min-width: 0;
           max-width: 100%;
           overflow: hidden;
+          margin-top: var(--ui-card-top-space);
+        }
+        .ui-card.last-run {
+          --ui-card-top-space: 16px;
         }
         .ui-card-md {
           padding: var(--space-5);
@@ -350,6 +375,22 @@ export default function AppShell({
           color: var(--accent);
           background: var(--adim);
         }
+        .lang-btn {
+          min-width: 46px;
+          padding: 8px 10px;
+        }
+        .lang-emoji,
+        .theme-emoji {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          font-size: 16px;
+        }
+        .toolbar-themes .hbtn {
+          min-width: 44px;
+          padding: 8px 10px;
+        }
         .ui-btn {
           min-height: 44px;
           display: inline-flex;
@@ -450,6 +491,9 @@ export default function AppShell({
           display: grid;
           gap: 8px;
           min-width: 0;
+        }
+        .ui-field + .ui-field {
+          margin-top: 6px;
         }
         .ui-field-label {
           color: var(--text2);
@@ -558,10 +602,7 @@ export default function AppShell({
             padding: 0 var(--space-3) var(--space-5);
           }
           .dashboard-top-header {
-            padding-left: var(--space-3);
-            padding-right: var(--space-3);
-            margin-left: calc(var(--space-3) * -1);
-            margin-right: calc(var(--space-3) * -1);
+            padding: var(--space-3) 0;
           }
           .dashboard-top-header,
           .hdr-r,

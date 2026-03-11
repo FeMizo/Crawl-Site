@@ -1,5 +1,5 @@
 import Card from "../ui/Card";
-import Icon from "../ui/Icon";
+import QuickStepsModule from "../shared/QuickStepsModule";
 
 type LandingStepsSectionProps = {
   content: Record<string, unknown>;
@@ -14,64 +14,28 @@ function text(content: Record<string, unknown>, key: string, fallback: string): 
 export default function LandingStepsSection({ content }: LandingStepsSectionProps) {
   const title = text(content, "title", "Pasos rapidos");
   const steps = [
-    text(content, "step1", "Crea tu cuenta para guardar proyectos y rastreos."),
-    text(content, "step2", "Registra la URL principal del sitio que quieres auditar."),
-    text(content, "step3", "Ejecuta el rastreo y revisa errores SEO con prioridad."),
-  ].filter(Boolean);
+    {
+      title: text(content, "step1", "Crea tu cuenta para guardar proyectos y rastreos."),
+      detail: "Accede a historial y configuracion de tu espacio.",
+    },
+    {
+      title: text(content, "step2", "Registra la URL principal del sitio que quieres auditar."),
+      detail: "El sistema crea el proyecto y prepara el analisis.",
+    },
+    {
+      title: text(content, "step3", "Ejecuta el rastreo y revisa errores SEO con prioridad."),
+      detail: "Filtra hallazgos y descarga reporte cuando termines.",
+    },
+  ].filter((step) => step.title);
 
   return (
     <Card className="steps-card">
-      <div className="eyebrow">
-        <Icon name="roadmap" size={12} />
-        {title}
-      </div>
-      <div className="steps-grid">
-        {steps.map((step, index) => (
-          <div key={`${step}-${index}`} className="step-item">
-            <strong>{index + 1}</strong>
-            <span>{step}</span>
-          </div>
-        ))}
-      </div>
+      <QuickStepsModule title={title} steps={steps} />
 
       <style jsx>{`
         .steps-card {
           display: grid;
-          gap: 14px;
-        }
-        .eyebrow {
-          color: var(--muted);
-          font-size: 11px;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .steps-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
           gap: 10px;
-        }
-        .step-item {
-          display: grid;
-          grid-template-columns: 26px 1fr;
-          gap: 10px;
-          align-items: center;
-          color: var(--text2);
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          background: var(--bg);
-          padding: 12px;
-        }
-        .step-item strong {
-          width: 26px;
-          height: 26px;
-          display: grid;
-          place-items: center;
-          border-radius: 999px;
-          background: rgba(77, 141, 255, 0.14);
-          color: #77abff;
         }
       `}</style>
     </Card>

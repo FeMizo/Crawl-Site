@@ -221,7 +221,7 @@ export default function ProjectsPage() {
             overflow-wrap: anywhere;
           }
           .last-run {
-            margin-top: 6px;
+            margin-top: 16px;
           }
           .empty {
             align-content: center;

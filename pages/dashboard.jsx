@@ -6,13 +6,17 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
-function formatDate(value) {
+function formatDate(value, lang) {
   if (!value) return "";
-  return new Date(value).toLocaleString("es-MX");
+  const locale = lang === "en" ? "en-US" : "es-MX";
+  return new Date(value).toLocaleString(locale);
 }
 
 export default function DashboardPage() {
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const [markup, setMarkup] = useState("");
   const [loadError, setLoadError] = useState("");
   const [appReady, setAppReady] = useState(false);
@@ -73,8 +77,21 @@ export default function DashboardPage() {
       .then((data) => {
         if (!active || !data) return;
         setViewer(data.meData?.user || null);
-        setProject(data.projectData.project);
-        setActiveRunId(runId);
+        const projectPayload = data.projectData.project;
+        const projectRuns = Array.isArray(projectPayload?.crawlRuns)
+          ? projectPayload.crawlRuns
+          : [];
+        const hasRequestedRun = !!runId && projectRuns.some((run) => run.id === runId);
+        const initialRunId = hasRequestedRun ? runId : (projectRuns[0]?.id || "");
+
+        setProject(projectPayload);
+        setActiveRunId(initialRunId);
+
+        if (initialRunId && initialRunId !== runId) {
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set("runId", initialRunId);
+          window.history.replaceState({}, "", nextUrl.pathname + nextUrl.search);
+        }
       })
       .catch((err) => {
         if (active) setLoadError(err.message || "Error cargando proyecto");
@@ -114,7 +131,7 @@ export default function DashboardPage() {
 
   const renameProject = async () => {
     if (!project) return;
-    const nextName = window.prompt("Nuevo nombre del proyecto", project.name || "");
+    const nextName = window.prompt(t("promptRename"), project.name || "");
     if (!nextName || nextName.trim() === project.name) return;
     setSaving(true);
     try {
@@ -135,7 +152,7 @@ export default function DashboardPage() {
 
   const deleteProject = async () => {
     if (!project) return;
-    const confirmed = window.confirm("Esto eliminara el proyecto y su historial. Continuar?");
+    const confirmed = window.confirm(t("confirmDelete"));
     if (!confirmed) return;
     setDeleting(true);
     try {
@@ -172,33 +189,33 @@ export default function DashboardPage() {
       <AppShell
         activeKey="dashboard"
         user={viewer}
-        kicker="Paginas / Panel"
-        title={project?.name || "Panel"}
-        description={project?.targetUrl || "Cargando proyecto..."}
+        kicker={t("dashboardKicker")}
+        title={project?.name || t("dashboardTitleFallback")}
+        description={project?.targetUrl || t("dashboardDescriptionLoading")}
         actions={
           <>
             <Button href="/projects" variant="outline" tone="secondary" iconLeft={<Icon name="projects" size={15} />}>
-              Proyectos
+              {t("btnProjects")}
             </Button>
             <Button type="button" variant="outline" tone="secondary" onClick={renameProject} loading={saving} iconLeft={<Icon name="edit" size={15} />}>
-              Renombrar
+              {t("btnRename")}
             </Button>
             <Button type="button" variant="outline" tone="danger" onClick={deleteProject} loading={deleting} iconLeft={<Icon name="trash" size={15} />}>
-              Eliminar
+              {t("btnDelete")}
             </Button>
           </>
         }
         aside={
           <div className="dashboard-aside">
-            <StatCard label="Rastreos" value={project?.crawlRuns?.length || 0} hint="Recientes" tone="primary" icon={<Icon name="run" size={14} />} />
-            <StatCard label="Proyecto" value={project?.name || "--"} hint="Activo" tone="secondary" icon={<Icon name="projects" size={14} />} />
+            <StatCard label={t("statRuns")} value={project?.crawlRuns?.length || 0} hint={t("hintRecent")} tone="primary" icon={<Icon name="run" size={14} />} />
+            <StatCard label={t("statProject")} value={project?.name || "--"} hint={t("hintActive")} tone="secondary" icon={<Icon name="projects" size={14} />} />
           </div>
         }
       >
         {project ? (
           <div className="dashboard-grid">
             <Card className="history-panel">
-              <div className="eyebrow"><Icon name="history" size={12} /> Historial</div>
+              <div className="eyebrow"><Icon name="history" size={12} /> {t("historyTitle")}</div>
               <div className="history-list">
                 {project.crawlRuns?.map((run) => (
                   <button
@@ -207,12 +224,12 @@ export default function DashboardPage() {
                     className={`history-item${activeRunId === run.id ? " active" : ""}`}
                     onClick={() => openRun(run.id)}
                   >
-                    <span>{formatDate(run.createdAt)}</span>
-                    <strong>{run.withIssues}/{run.total} con problemas</strong>
+                    <span>{formatDate(run.createdAt, lang)}</span>
+                    <strong>{run.withIssues}/{run.total} {t("withIssues")}</strong>
                     <small>{run.sourceUrl}</small>
                   </button>
                 ))}
-                {!project.crawlRuns?.length ? <div className="history-empty">Todavia no hay historial guardado.</div> : null}
+                {!project.crawlRuns?.length ? <div className="history-empty">{t("noSavedHistory")}</div> : null}
               </div>
             </Card>
 
@@ -224,7 +241,7 @@ export default function DashboardPage() {
         ) : loadError ? (
           <Card><div className="feedback error">{loadError}</div></Card>
         ) : (
-          <Card><div className="feedback">Cargando dashboard...</div></Card>
+          <Card><div className="feedback">{t("loadingDashboard")}</div></Card>
         )}
 
         <style jsx global>{`
