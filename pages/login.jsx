@@ -10,6 +10,20 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 
+async function readResponsePayload(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      error: response.ok
+        ? "Respuesta invalida del servidor."
+        : `Error del servidor (${response.status}).`,
+    };
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [sessionUser, setSessionUser] = useState(null);
@@ -43,7 +57,7 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await response.json();
+      const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesion");
       router.push(typeof router.query.next === "string" ? router.query.next : "/projects");
     } catch (err) {

@@ -10,6 +10,20 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 
+async function readResponsePayload(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      error: response.ok
+        ? "Respuesta invalida del servidor."
+        : `Error del servidor (${response.status}).`,
+    };
+  }
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [sessionUser, setSessionUser] = useState(null);
@@ -44,7 +58,7 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
-      const data = await response.json();
+      const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo registrar");
       router.push("/projects");
     } catch (err) {

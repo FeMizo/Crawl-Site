@@ -76,6 +76,46 @@ const ICONS = {
       opacity=".9"
     />
   ),
+  eye: (
+    <>
+      <path
+        d="M2.8 12s3.4-5.4 9.2-5.4 9.2 5.4 9.2 5.4-3.4 5.4-9.2 5.4S2.8 12 2.8 12Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path
+        d="M3.2 4.2 20.8 19.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9.9 6.9a9.5 9.5 0 0 1 2.1-.3c5.8 0 9.2 5.4 9.2 5.4a15.7 15.7 0 0 1-3.2 3.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.6 9A15 15 0 0 0 2.8 12s3.4 5.4 9.2 5.4c1 0 1.9-.1 2.7-.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  ),
   workspace: (
     <>
       <rect x="3.5" y="4.5" width="17" height="13" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
