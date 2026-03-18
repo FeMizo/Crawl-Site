@@ -13,7 +13,7 @@ export async function requireRoadmapViewer() {
 export async function requireRoadmapEditor() {
   const { user, canEdit } = await requireRoadmapViewer();
   if (!canEdit) {
-    routeError(403, "Solo administradores pueden editar el roadmap");
+    routeError(403, "Solo usuarios con permisos de edicion pueden editar el roadmap");
   }
 
   return { user, canEdit };

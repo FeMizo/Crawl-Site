@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
+const { canEditContent, getEffectiveRole, getAssignedRole } = require("./user-roles");
 
 type JwtPayload = {
   userId?: string;
@@ -10,6 +11,8 @@ export type RoadmapActor = {
   id: string;
   email: string;
   name: string | null;
+  role: string;
+  assignedRole: string;
 };
 
 type AccessResult = {
@@ -17,20 +20,8 @@ type AccessResult = {
   canEdit: boolean;
 };
 
-function getAdminEmails(): Set<string> {
-  const raw = process.env.ROADMAP_ADMIN_EMAILS || "";
-  const values = raw
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-  return new Set(values);
-}
-
 export function canEditRoadmap(actor: RoadmapActor | null): boolean {
-  if (!actor) return false;
-  const admins = getAdminEmails();
-  if (!admins.size) return false;
-  return admins.has(actor.email.toLowerCase());
+  return canEditContent(actor);
 }
 
 export async function requireRoadmapAccess(): Promise<AccessResult> {
@@ -53,6 +44,7 @@ export async function requireRoadmapAccess(): Promise<AccessResult> {
         id: true,
         email: true,
         name: true,
+        role: true,
       },
     });
 
@@ -62,6 +54,8 @@ export async function requireRoadmapAccess(): Promise<AccessResult> {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: getEffectiveRole(user),
+      assignedRole: getAssignedRole(user),
     };
 
     return {

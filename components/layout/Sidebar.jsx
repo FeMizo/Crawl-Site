@@ -5,6 +5,7 @@ import FaviconMark from "../ui/FaviconMark";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 import { tUi } from "../../lib/ui-language";
+const { getRoleLabel } = require("../../lib/user-roles");
 
 export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
   const privateNav = [
@@ -38,6 +39,16 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
       label: tUi(lang, "navSettings"),
       icon: "settings",
     },
+    ...(user?.permissions?.canManageUsers
+      ? [
+          {
+            key: "users",
+            href: "/admin/users",
+            label: tUi(lang, "navUsers"),
+            icon: "users",
+          },
+        ]
+      : []),
   ];
   const publicNav = [
     {
@@ -88,7 +99,9 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         <div>
           <div className="user-name">{userDisplay}</div>
           <div className="user-plan">
-            {user ? user.email : tUi(lang, "statusPublicAccess")}
+            {user
+              ? `${user.email}${user.role ? ` • ${getRoleLabel(user.role)}` : ""}`
+              : tUi(lang, "statusPublicAccess")}
           </div>
         </div>
         {user ? (

@@ -190,6 +190,13 @@ export default function SettingsPage() {
         kicker="Ajustes / Cuenta"
         title="Ajustes de cuenta"
         description="Administra nombre de usuario, contrasena y preferencias de idioma/tema."
+        actions={
+          me?.permissions?.canManageUsers ? (
+            <Button href="/admin/users" variant="outline" tone="secondary" iconLeft={<Icon name="users" size={15} />}>
+              Gestionar usuarios
+            </Button>
+          ) : null
+        }
       >
         <div className="settings-grid">
           <Card
@@ -199,6 +206,7 @@ export default function SettingsPage() {
           >
             <Eyebrow icon={<Icon name="user" size={12} />}>Perfil</Eyebrow>
             <Input label="Email" value={me?.email || ""} disabled readOnly />
+            <Input label="Rol efectivo" value={me?.roleLabel || ""} disabled readOnly />
             <Input
               label="Nombre de usuario"
               value={name}

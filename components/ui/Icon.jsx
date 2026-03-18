@@ -42,6 +42,14 @@ const ICONS = {
       <path d="M5.3 19c1.2-3.2 3.8-5.1 6.7-5.1S17.5 15.8 18.7 19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </>
   ),
+  users: (
+    <>
+      <circle cx="8" cy="9" r="2.8" fill="currentColor" opacity=".9" />
+      <circle cx="16.5" cy="8.2" r="2.3" fill="currentColor" opacity=".6" />
+      <path d="M3.7 18.4c.8-2.8 3-4.4 5.3-4.4s4.5 1.6 5.3 4.4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M13.6 17.4c.5-1.9 2-3.1 3.8-3.1 1.5 0 2.8.8 3.6 2.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </>
+  ),
   plus: (
     <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   ),

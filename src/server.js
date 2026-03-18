@@ -1,5 +1,6 @@
 ﻿const express = require("express");
 const path = require("path");
+const { loadEnvConfig } = require("@next/env");
 const https = require("https");
 const http = require("http");
 const tls = require("tls");
@@ -20,10 +21,26 @@ const {
   validateEmail,
   validatePhoneInput,
 } = require("../lib/contact-validation");
+const {
+  USER_ROLE,
+  buildRolePermissions,
+  canAssignRole,
+  canManageTarget,
+  canManageUsers,
+  getAssignedRole,
+  getEffectiveRole,
+  getRoleLabel,
+  normalizeRole,
+} = require("../lib/user-roles");
+const {
+  getPublicError,
+  logServerError,
+} = require("../lib/server-error-utils");
 
 const app = express();
 const prisma = new PrismaClient();
 const isProd = process.env.NODE_ENV === "production";
+loadEnvConfig(process.cwd());
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -78,15 +95,40 @@ function normalizeDisplayName(name) {
     .slice(0, 80);
 }
 
+function resolveUserRoleData(user) {
+  if (!user) {
+    return {
+      assignedRole: USER_ROLE.USER,
+      role: USER_ROLE.USER,
+      roleLabel: getRoleLabel(USER_ROLE.USER),
+      permissions: buildRolePermissions(null),
+    };
+  }
+
+  const assignedRole = getAssignedRole(user);
+  const role = getEffectiveRole(user);
+  return {
+    assignedRole,
+    role,
+    roleLabel: getRoleLabel(role),
+    permissions: buildRolePermissions(user),
+  };
+}
+
 function sanitizeUser(user) {
   if (!user) return null;
   const phone = validatePhoneInput(user.phoneCountry, user.phoneNumber, {
     required: false,
   });
+  const roleData = resolveUserRoleData(user);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
+    assignedRole: roleData.assignedRole,
+    role: roleData.role,
+    roleLabel: roleData.roleLabel,
+    permissions: roleData.permissions,
     phoneCountry: phone.country?.code || null,
     phoneNumber: phone.digits || "",
     phoneE164: phone.e164,
@@ -130,6 +172,16 @@ function clearAuthCookie(res) {
   });
 }
 
+function handleApiError(res, req, context, error, fallbackMessage) {
+  logServerError(context, error, {
+    path: req.originalUrl || req.url,
+    method: req.method,
+  });
+  const publicError = getPublicError(error, fallbackMessage);
+  if (res.headersSent) return;
+  return res.status(publicError.status).json({ error: publicError.message });
+}
+
 async function requireAuth(req, res, next) {
   try {
     const token = req.cookies?.auth_token;
@@ -144,15 +196,30 @@ async function requireAuth(req, res, next) {
     }
     req.user = user;
     next();
-  } catch {
+  } catch (error) {
     if (!process.env.JWT_SECRET && isProd) {
       return res
         .status(500)
         .json({ error: "Falta JWT_SECRET en el entorno de produccion" });
     }
+    if (error?.name !== "JsonWebTokenError" && error?.name !== "TokenExpiredError") {
+      logServerError("auth/require", error, {
+        path: req.originalUrl || req.url,
+        method: req.method,
+      });
+    }
     clearAuthCookie(res);
     return res.status(401).json({ error: "Sesion invalida" });
   }
+}
+
+function requireUserManagement(req, res, next) {
+  if (!canManageUsers(req.user)) {
+    return res
+      .status(403)
+      .json({ error: "No tienes permisos para administrar usuarios" });
+  }
+  return next();
 }
 
 function normalizeProjectName(name, targetUrl) {
@@ -1784,6 +1851,7 @@ app.post("/api/auth/register", async (req, res) => {
       data: {
         name: name || null,
         email,
+        role: USER_ROLE.USER.toUpperCase(),
         phoneCountry: phone.country?.code || null,
         phoneNumber: phone.digits || null,
         passwordHash,
@@ -1793,7 +1861,13 @@ app.post("/api/auth/register", async (req, res) => {
     writeAuthCookie(res, user);
     return res.status(201).json({ user: sanitizeUser(user) });
   } catch (error) {
-    return res.status(500).json({ error: "No se pudo registrar el usuario" });
+    return handleApiError(
+      res,
+      req,
+      "auth/register",
+      error,
+      "No se pudo registrar el usuario",
+    );
   }
 });
 
@@ -1823,8 +1897,14 @@ app.post("/api/auth/login", async (req, res) => {
 
     writeAuthCookie(res, user);
     return res.json({ user: sanitizeUser(user) });
-  } catch {
-    return res.status(500).json({ error: "No se pudo iniciar sesion" });
+  } catch (error) {
+    return handleApiError(
+      res,
+      req,
+      "auth/login",
+      error,
+      "No se pudo iniciar sesion",
+    );
   }
 });
 
@@ -1853,8 +1933,14 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       });
     }
     return res.json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ error: "No se pudo procesar la solicitud" });
+  } catch (error) {
+    return handleApiError(
+      res,
+      req,
+      "auth/forgot-password",
+      error,
+      "No se pudo procesar la solicitud",
+    );
   }
 });
 
@@ -1884,8 +1970,14 @@ app.post("/api/auth/reset-password", async (req, res) => {
       data: { passwordHash },
     });
     return res.json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ error: "No se pudo resetear la contrasena" });
+  } catch (error) {
+    return handleApiError(
+      res,
+      req,
+      "auth/reset-password",
+      error,
+      "No se pudo resetear la contrasena",
+    );
   }
 });
 
@@ -1908,7 +2000,16 @@ app.get("/api/auth/me", async (req, res) => {
       });
 
       return res.json(await buildMePayload(user));
-    } catch {
+    } catch (error) {
+      if (
+        error?.name !== "JsonWebTokenError" &&
+        error?.name !== "TokenExpiredError"
+      ) {
+        logServerError("auth/me-optional", error, {
+          path: req.originalUrl || req.url,
+          method: req.method,
+        });
+      }
       return res.json(await buildMePayload(null));
     }
   }
@@ -1938,8 +2039,14 @@ app.put("/api/auth/profile", requireAuth, async (req, res) => {
       },
     });
     return res.json({ user: sanitizeUser(user) });
-  } catch {
-    return res.status(500).json({ error: "No se pudo actualizar el perfil" });
+  } catch (error) {
+    return handleApiError(
+      res,
+      req,
+      "auth/profile",
+      error,
+      "No se pudo actualizar el perfil",
+    );
   }
 });
 
@@ -1972,12 +2079,101 @@ app.put("/api/auth/password", requireAuth, async (req, res) => {
     });
 
     return res.json({ ok: true });
-  } catch {
-    return res
-      .status(500)
-      .json({ error: "No se pudo actualizar la contrasena" });
+  } catch (error) {
+    return handleApiError(
+      res,
+      req,
+      "auth/password",
+      error,
+      "No se pudo actualizar la contrasena",
+    );
   }
 });
+
+app.get(
+  "/api/admin/users",
+  requireAuth,
+  requireUserManagement,
+  async (req, res) => {
+    try {
+      const users = await prisma.user.findMany({
+        orderBy: { createdAt: "asc" },
+      });
+
+      return res.json({
+        users: users
+          .filter((user) => canManageTarget(req.user, user))
+          .map((user) => sanitizeUser(user)),
+      });
+    } catch (error) {
+      return handleApiError(
+        res,
+        req,
+        "admin/users:list",
+        error,
+        "No se pudo cargar el listado de usuarios",
+      );
+    }
+  },
+);
+
+app.put(
+  "/api/admin/users/:userId/role",
+  requireAuth,
+  requireUserManagement,
+  async (req, res) => {
+    try {
+      const targetRole = normalizeRole(req.body?.role);
+
+      if (req.user.id === req.params.userId) {
+        return res
+          .status(403)
+          .json({ error: "No puedes modificar tu propio rol desde esta ruta" });
+      }
+
+      if (!canAssignRole(req.user, targetRole)) {
+        return res
+          .status(403)
+          .json({ error: "No tienes permisos para asignar ese rol" });
+      }
+
+      const targetUser = await prisma.user.findUnique({
+        where: { id: req.params.userId },
+      });
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      if (!canManageTarget(req.user, targetUser)) {
+        return res
+          .status(403)
+          .json({ error: "No tienes permisos para modificar ese usuario" });
+      }
+
+      if (getEffectiveRole(targetUser) === USER_ROLE.OWNER) {
+        return res
+          .status(403)
+          .json({ error: "El rol owner solo puede controlarse desde servidor" });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: targetUser.id },
+        data: { role: targetRole.toUpperCase() },
+      });
+
+      return res.json({ user: sanitizeUser(updatedUser) });
+    } catch (error) {
+      return handleApiError(
+        res,
+        req,
+        "admin/users:update-role",
+        error,
+        "No se pudo actualizar el rol del usuario",
+      );
+    }
+  },
+);
 
 app.get("/api/projects", requireAuth, async (req, res) => {
   const projects = await prisma.project.findMany({

@@ -2,6 +2,13 @@ import { ReactNode } from "react";
 
 type ShellUser = {
   email?: string | null;
+  role?: string | null;
+  roleLabel?: string | null;
+  permissions?: {
+    canManageUsers?: boolean;
+    canEditContent?: boolean;
+    assignableRoles?: string[];
+  } | null;
 };
 
 type AppShellProps = {
