@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 const {
   clearStoredSessionUser,
@@ -8,11 +8,17 @@ const {
 } = require("../lib/session-user-client");
 
 export default function useSessionUser() {
-  const [sessionUser, setSessionUserState] = useState(() =>
-    readStoredSessionUser(),
-  );
+  const [sessionUser, setSessionUserState] = useState(null);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
 
-  useEffect(() => subscribeSessionUserChange(setSessionUserState), []);
+  const useClientLayoutEffect =
+    typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+  useClientLayoutEffect(() => {
+    setSessionUserState(readStoredSessionUser());
+    setSessionHydrated(true);
+    return subscribeSessionUserChange(setSessionUserState);
+  }, []);
 
   const setSessionUser = (user) => {
     const safeUser = writeStoredSessionUser(user);
@@ -27,6 +33,7 @@ export default function useSessionUser() {
 
   return {
     sessionUser,
+    sessionHydrated,
     setSessionUser,
     clearSessionUser,
   };
