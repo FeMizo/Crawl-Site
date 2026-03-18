@@ -89,6 +89,25 @@ function sanitizeUser(user) {
   };
 }
 
+async function buildMePayload(user) {
+  if (!user) {
+    return {
+      user: null,
+      counts: { projects: 0, crawlRuns: 0 },
+    };
+  }
+
+  const [projectCount, crawlRunCount] = await Promise.all([
+    prisma.project.count({ where: { userId: user.id } }),
+    prisma.crawlRun.count({ where: { userId: user.id } }),
+  ]);
+
+  return {
+    user: sanitizeUser(user),
+    counts: { projects: projectCount, crawlRuns: crawlRunCount },
+  };
+}
+
 function createAuthToken(user) {
   return jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: "7d" });
 }
@@ -1840,14 +1859,27 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/auth/me", requireAuth, async (req, res) => {
-  const [projectCount, crawlRunCount] = await Promise.all([
-    prisma.project.count({ where: { userId: req.user.id } }),
-    prisma.crawlRun.count({ where: { userId: req.user.id } }),
-  ]);
-  res.json({
-    user: sanitizeUser(req.user),
-    counts: { projects: projectCount, crawlRuns: crawlRunCount },
+app.get("/api/auth/me", async (req, res) => {
+  if (req.query.optional === "1") {
+    try {
+      const token = req.cookies?.auth_token;
+      if (!token) {
+        return res.json(await buildMePayload(null));
+      }
+
+      const payload = jwt.verify(token, getJwtSecret());
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+      });
+
+      return res.json(await buildMePayload(user));
+    } catch {
+      return res.json(await buildMePayload(null));
+    }
+  }
+
+  return requireAuth(req, res, async () => {
+    res.json(await buildMePayload(req.user));
   });
 });
 

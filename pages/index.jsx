@@ -37,7 +37,7 @@ export default function HomePage() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
+    fetch("/api/auth/me?optional=1")
       .then(async (response) => {
         if (!active) return;
         if (response.ok) {

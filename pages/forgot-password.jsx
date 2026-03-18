@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
+    fetch("/api/auth/me?optional=1")
       .then(async (response) => {
         if (!active || !response.ok) return;
         const data = await response.json();
