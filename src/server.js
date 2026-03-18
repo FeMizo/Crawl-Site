@@ -19,17 +19,19 @@ const { PrismaClient } = require("@prisma/client");
 const app = express();
 const prisma = new PrismaClient();
 const isProd = process.env.NODE_ENV === "production";
-let JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+
   if (isProd) {
-    console.error("FATAL: JWT_SECRET must be set in production environment");
-    process.exit(1);
-  } else {
-    console.warn(
-      "Warning: JWT_SECRET not set — using insecure fallback for development",
-    );
-    JWT_SECRET = "change-this-local-secret";
+    throw new Error("JWT_SECRET must be set in production environment");
   }
+
+  console.warn(
+    "Warning: JWT_SECRET not set — using insecure fallback for development",
+  );
+  return "change-this-local-secret";
 }
 
 app.use(express.json());
@@ -88,7 +90,7 @@ function sanitizeUser(user) {
 }
 
 function createAuthToken(user) {
-  return jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: "7d" });
 }
 
 function writeAuthCookie(res, user) {
@@ -108,7 +110,7 @@ async function requireAuth(req, res, next) {
   try {
     const token = req.cookies?.auth_token;
     if (!token) return res.status(401).json({ error: "No autenticado" });
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, getJwtSecret());
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
     });
@@ -119,6 +121,11 @@ async function requireAuth(req, res, next) {
     req.user = user;
     next();
   } catch {
+    if (!process.env.JWT_SECRET && isProd) {
+      return res
+        .status(500)
+        .json({ error: "Falta JWT_SECRET en el entorno de produccion" });
+    }
     clearAuthCookie(res);
     return res.status(401).json({ error: "Sesion invalida" });
   }

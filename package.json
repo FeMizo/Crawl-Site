@@ -1,10 +1,10 @@
 {
   "name": "seo-crawler",
-  "version": "2.12.1",
+  "version": "2.12.2",
   "private": true,
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
