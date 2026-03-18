@@ -5,7 +5,7 @@
   "/dashboard": "pages/dashboard.js",
   "/projects": "pages/projects.js",
   "/api/auth/[[...slug]]": "pages/api/auth/[[...slug]].js",
-  "/api/projects/[[...slug]]": "pages/api/projects/[[...slug]].js",
   "/api/legacy-markup": "pages/api/legacy-markup.js",
+  "/api/projects/[[...slug]]": "pages/api/projects/[[...slug]].js",
   "/api/site-info": "pages/api/site-info.js"
 }
