@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
@@ -8,6 +9,7 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import PhoneField from "../components/ui/PhoneField";
 import Select from "../components/ui/Select";
+import useSessionUser from "../hooks/useSessionUser";
 
 const { validatePhoneInput } = require("../lib/contact-validation");
 
@@ -24,9 +26,10 @@ const THEME_OPTIONS = [
 ];
 
 export default function SettingsPage() {
-  const [me, setMe] = useState(null);
+  const router = useRouter();
+  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
   const [counts, setCounts] = useState({ projects: 0, crawlRuns: 0 });
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => sessionUser?.name || "");
   const [phoneCountry, setPhoneCountry] = useState("MX");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [profileSubmitting, setProfileSubmitting] = useState(false);
@@ -48,12 +51,13 @@ export default function SettingsPage() {
     fetch("/api/auth/me")
       .then(async (response) => {
         if (response.status === 401) {
-          window.location.href = "/login?next=/settings";
+          clearSessionUser();
+          router.replace("/login?next=/settings");
           return null;
         }
         const data = await response.json();
         if (!active || !data?.user) return null;
-        setMe(data.user);
+        setSessionUser(data.user || null);
         setName(data.user.name || "");
         setPhoneCountry(data.user.phoneCountry || "MX");
         setPhoneNumber(data.user.phoneNumber || "");
@@ -70,7 +74,7 @@ export default function SettingsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [clearSessionUser, router, setSessionUser]);
 
   const applyLanguage = (nextLanguage) => {
     setLanguage(nextLanguage);
@@ -122,7 +126,7 @@ export default function SettingsPage() {
       if (!response.ok) {
         throw new Error(data.error || "No se pudo actualizar el perfil.");
       }
-      setMe(data.user || null);
+      setSessionUser(data.user || null);
       setName(data.user?.name || normalizedName);
       setProfileMessage("Nombre de usuario actualizado.");
     } catch (err) {
@@ -186,12 +190,12 @@ export default function SettingsPage() {
       </Head>
       <AppShell
         activeKey="settings"
-        user={me}
+        user={sessionUser}
         kicker="Ajustes / Cuenta"
         title="Ajustes de cuenta"
         description="Administra nombre de usuario, contrasena y preferencias de idioma/tema."
         actions={
-          me?.permissions?.canManageUsers ? (
+          sessionUser?.permissions?.canManageUsers ? (
             <Button href="/admin/users" variant="outline" tone="secondary" iconLeft={<Icon name="users" size={15} />}>
               Gestionar usuarios
             </Button>
@@ -205,8 +209,8 @@ export default function SettingsPage() {
             onSubmit={handleProfileSubmit}
           >
             <Eyebrow icon={<Icon name="user" size={12} />}>Perfil</Eyebrow>
-            <Input label="Email" value={me?.email || ""} disabled readOnly />
-            <Input label="Rol efectivo" value={me?.roleLabel || ""} disabled readOnly />
+            <Input label="Email" value={sessionUser?.email || ""} disabled readOnly />
+            <Input label="Rol efectivo" value={sessionUser?.roleLabel || ""} disabled readOnly />
             <Input
               label="Nombre de usuario"
               value={name}

@@ -246,6 +246,12 @@ export default function AppShell({
           color: #77abff;
           border-color: rgba(77, 141, 255, 0.4);
         }
+        .dashboard-nav a.pending {
+          background: rgba(77, 141, 255, 0.1);
+          color: var(--text);
+          border-color: rgba(77, 141, 255, 0.24);
+          transform: translateX(2px);
+        }
         .nav-icon {
           flex: 0 0 auto;
           opacity: 0.9;

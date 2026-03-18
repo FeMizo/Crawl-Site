@@ -10,6 +10,7 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import PhoneField from "../components/ui/PhoneField";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
+import useSessionUser from "../hooks/useSessionUser";
 
 const { validateEmail, validatePhoneInput } = require("../lib/contact-validation");
 
@@ -29,7 +30,7 @@ async function readResponsePayload(response) {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [sessionUser, setSessionUser] = useState(null);
+  const { sessionUser, setSessionUser } = useSessionUser();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("MX");
@@ -77,6 +78,7 @@ export default function RegisterPage() {
       });
       const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo registrar");
+      setSessionUser(data.user || null);
       router.push("/projects");
     } catch (err) {
       setError(err.message || "No se pudo registrar");

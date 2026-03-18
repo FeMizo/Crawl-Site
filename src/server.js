@@ -1,6 +1,7 @@
 ﻿const express = require("express");
 const path = require("path");
 const { loadEnvConfig } = require("@next/env");
+loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
 const https = require("https");
 const http = require("http");
 const tls = require("tls");
@@ -40,7 +41,6 @@ const {
 const app = express();
 const prisma = new PrismaClient();
 const isProd = process.env.NODE_ENV === "production";
-loadEnvConfig(process.cwd());
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;

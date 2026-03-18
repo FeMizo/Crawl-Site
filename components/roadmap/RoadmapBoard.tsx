@@ -512,8 +512,10 @@ export default function RoadmapBoard() {
 
       {!canEdit ? (
         <p className="read-only">
-          Tu sesion tiene acceso de lectura. Para editar, configura una allowlist
-          valida en <code>ROADMAP_ADMIN_EMAILS</code>.
+          Tu sesion tiene acceso de lectura. Para editar necesitas un rol con
+          permisos (<code>owner</code>, <code>super_admin</code>,{" "}
+          <code>admin</code> o <code>editor</code>) o una lista permitida valida en{" "}
+          <code>ROADMAP_ADMIN_EMAILS</code>.
         </p>
       ) : null}
 

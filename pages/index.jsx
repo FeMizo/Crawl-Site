@@ -5,6 +5,7 @@ import AppShell from "../components/layout/AppShell";
 import LandingSectionRenderer from "../components/landing/LandingSectionRenderer";
 import Button from "../components/ui/Button";
 import Icon from "../components/ui/Icon";
+import useSessionUser from "../hooks/useSessionUser";
 import { getLandingSections } from "../lib/landing-sections";
 
 function normalizeUrl(value) {
@@ -28,9 +29,9 @@ function projectNameFromUrl(url) {
 
 export default function HomePage() {
   const router = useRouter();
+  const { sessionUser, setSessionUser } = useSessionUser();
   const [url, setUrl] = useState("");
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(!sessionUser);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [sections] = useState(getLandingSections());
@@ -42,13 +43,13 @@ export default function HomePage() {
         if (!active) return;
         if (response.ok) {
           const data = await response.json();
-          setUser(data.user);
+          setSessionUser(data.user || null);
           return;
         }
-        setUser(null);
+        setSessionUser(null);
       })
       .catch(() => {
-        if (active) setUser(null);
+        if (active) setSessionUser(null);
       })
       .finally(() => {
         if (active) setLoadingUser(false);
@@ -56,7 +57,7 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [setSessionUser]);
 
   const goToDashboard = async () => {
     const normalized = normalizeUrl(url);
@@ -64,8 +65,10 @@ export default function HomePage() {
       setError("Ingresa una URL valida.");
       return;
     }
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent(`/?url=${encodeURIComponent(normalized)}`)}`);
+    if (!sessionUser) {
+      router.push(
+        `/login?next=${encodeURIComponent(`/?url=${encodeURIComponent(normalized)}`)}`,
+      );
       return;
     }
 
@@ -112,16 +115,20 @@ export default function HomePage() {
       </Head>
       <AppShell
         activeKey="dashboard"
-        user={user}
-        kicker="Landing / Publica"
+        user={sessionUser}
+        kicker="Inicio / Vista publica"
         title="Nuevo rastreo"
-        description="Inicia una auditoria SEO con una URL, crea el proyecto y entra al dashboard en un solo flujo."
+        description="Inicia una auditoria SEO con una URL, crea el proyecto y entra al panel en un solo flujo."
         actions={
           loadingUser ? (
-            <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">Cargando sesion...</span>
-          ) : user ? (
+            <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">
+              Cargando sesion...
+            </span>
+          ) : sessionUser ? (
             <>
-              <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">{user.email}</span>
+              <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">
+                {sessionUser.email}
+              </span>
               <Button href="/projects" variant="solid" tone="primary" iconLeft={<Icon name="projects" size={15} />}>
                 Proyectos
               </Button>

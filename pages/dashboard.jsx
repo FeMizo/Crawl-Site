@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Script from "next/script";
+import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
@@ -7,7 +8,10 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
+import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
+
+let legacyMarkupCache = "";
 
 function formatDate(value, lang) {
   if (!value) return "";
@@ -16,18 +20,20 @@ function formatDate(value, lang) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const lang = useUiLanguage();
   const t = (key) => tUi(lang, key);
-  const [markup, setMarkup] = useState("");
+  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const [markup, setMarkup] = useState(() => legacyMarkupCache);
   const [loadError, setLoadError] = useState("");
   const [appReady, setAppReady] = useState(false);
   const [project, setProject] = useState(null);
-  const [viewer, setViewer] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [activeRunId, setActiveRunId] = useState("");
 
   useEffect(() => {
+    if (legacyMarkupCache) return undefined;
     let active = true;
     fetch("/api/legacy-markup", { cache: "no-store" })
       .then((r) => {
@@ -36,6 +42,7 @@ export default function DashboardPage() {
       })
       .then((html) => {
         if (!active) return;
+        legacyMarkupCache = html;
         setMarkup(html);
       })
       .catch((e) => {
@@ -65,7 +72,10 @@ export default function DashboardPage() {
     ])
       .then(async ([meResponse, projectResponse]) => {
         if (meResponse.status === 401 || projectResponse.status === 401) {
-          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          clearSessionUser();
+          router.replace(
+            `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+          );
           return null;
         }
         const meData = await meResponse.json();
@@ -77,7 +87,7 @@ export default function DashboardPage() {
       })
       .then((data) => {
         if (!active || !data) return;
-        setViewer(data.meData?.user || null);
+        setSessionUser(data.meData?.user || null);
         const projectPayload = data.projectData.project;
         const projectRuns = Array.isArray(projectPayload?.crawlRuns)
           ? projectPayload.crawlRuns
@@ -101,7 +111,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [clearSessionUser, router, setSessionUser]);
 
   const canInit = useMemo(
     () => appReady && !!markup && !!project && typeof window !== "undefined",
@@ -160,7 +170,7 @@ export default function DashboardPage() {
       const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "No se pudo eliminar");
-      window.location.href = "/projects";
+      router.push("/projects");
     } catch (err) {
       setLoadError(err.message || "No se pudo eliminar");
       setDeleting(false);
@@ -189,7 +199,7 @@ export default function DashboardPage() {
       <Script src="/app.js" strategy="afterInteractive" onLoad={() => setAppReady(true)} />
       <AppShell
         activeKey="dashboard"
-        user={viewer}
+        user={sessionUser}
         kicker={t("dashboardKicker")}
         title={project?.name || t("dashboardTitleFallback")}
         description={project?.targetUrl || t("dashboardDescriptionLoading")}

@@ -7,11 +7,12 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
+import useSessionUser from "../hooks/useSessionUser";
 
 const { validateEmail } = require("../lib/contact-validation");
 
 export default function ForgotPasswordPage() {
-  const [sessionUser, setSessionUser] = useState(null);
+  const { sessionUser, setSessionUser } = useSessionUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -97,7 +98,7 @@ export default function ForgotPasswordPage() {
         description="Restablece el acceso usando tu email y define una nueva contrasena."
         actions={
           <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
-            Volver a login
+            Volver a acceso
           </Button>
         }
       >

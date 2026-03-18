@@ -9,6 +9,7 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
+import useSessionUser from "../hooks/useSessionUser";
 
 const { validateEmail } = require("../lib/contact-validation");
 
@@ -28,7 +29,7 @@ async function readResponsePayload(response) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [sessionUser, setSessionUser] = useState(null);
+  const { sessionUser, setSessionUser } = useSessionUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +67,7 @@ export default function LoginPage() {
       });
       const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesion");
+      setSessionUser(data.user || null);
       router.push(typeof router.query.next === "string" ? router.query.next : "/projects");
     } catch (err) {
       setError(err.message || "No se pudo iniciar sesion");

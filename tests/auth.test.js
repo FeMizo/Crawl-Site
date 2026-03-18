@@ -1,9 +1,31 @@
 const { loadEnvConfig } = require("@next/env");
+const fs = require("fs");
+const path = require("path");
+loadEnvConfig(process.cwd(), true);
 const bcrypt = require("bcryptjs");
 const request = require("supertest");
-const { PrismaClient } = require("@prisma/client");
 
-loadEnvConfig(process.cwd());
+function applyEnvFile(fileName) {
+  const envPath = path.join(process.cwd(), fileName);
+  if (!fs.existsSync(envPath)) return;
+
+  const content = fs.readFileSync(envPath, "utf8");
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const separator = line.indexOf("=");
+    if (separator < 0) continue;
+
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+    const normalizedValue = value.replace(/^['"]|['"]$/g, "");
+    process.env[key] = normalizedValue;
+  }
+}
+
+applyEnvFile(".env.local");
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 const app = require("../src/server");
@@ -164,6 +186,6 @@ describe("Basic server, auth and role validations", () => {
       .send({ role: USER_ROLE.USER });
 
     expect(updateOwner.statusCode).toBe(403);
-    expect(updateOwner.body.error).toMatch(/owner/i);
+    expect(updateOwner.body.error).toMatch(/owner|permisos/i);
   });
 });

@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
@@ -6,6 +7,7 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
+import useSessionUser from "../hooks/useSessionUser";
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
@@ -13,7 +15,8 @@ function formatDate(value) {
 }
 
 export default function ProjectsPage() {
-  const [me, setMe] = useState(null);
+  const router = useRouter();
+  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -21,9 +24,10 @@ export default function ProjectsPage() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetch("/api/auth/me").then((response) => {
+      fetch("/api/auth/me").then(async (response) => {
         if (response.status === 401) {
-          window.location.href = "/login?next=/projects";
+          clearSessionUser();
+          router.replace("/login?next=/projects");
           return null;
         }
         return response.json();
@@ -38,7 +42,7 @@ export default function ProjectsPage() {
     ])
       .then(([meData, projectsData]) => {
         if (!active) return;
-        setMe(meData?.user || null);
+        setSessionUser(meData?.user || null);
         setProjects(projectsData?.projects || []);
       })
       .catch((err) => {
@@ -51,11 +55,12 @@ export default function ProjectsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [clearSessionUser, router, setSessionUser]);
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    clearSessionUser();
+    router.push("/login");
   };
 
   const deleteProject = async (projectId) => {
@@ -67,7 +72,9 @@ export default function ProjectsPage() {
       setError(data.error || "No se pudo eliminar el proyecto");
       return;
     }
-    setProjects((current) => current.filter((project) => project.id !== projectId));
+    setProjects((current) =>
+      current.filter((project) => project.id !== projectId),
+    );
   };
 
   return (
@@ -78,10 +85,10 @@ export default function ProjectsPage() {
       </Head>
       <AppShell
         activeKey="projects"
-        user={me}
+        user={sessionUser}
         kicker="Espacio de trabajo / Proyectos"
         title="Proyectos guardados"
-        description="Todas las tarjetas, acciones y grids viven dentro del mismo layout base del panel principal."
+        description="Todos los proyectos, accesos y acciones viven dentro del mismo panel principal."
         actions={
           <>
             <Button href="/" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
@@ -98,7 +105,7 @@ export default function ProjectsPage() {
             <StatCard
               label="Rastreos"
               value={projects.reduce((acc, project) => acc + (project.runCount || 0), 0)}
-              hint="Historial total"
+              hint="Historial acumulado"
               tone="secondary"
               icon={<Icon name="history" size={14} />}
             />

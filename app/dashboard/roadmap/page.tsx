@@ -1,11 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppShell from "../../../components/layout/AppShell";
 import RoadmapBoard from "../../../components/roadmap/RoadmapBoard";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import Icon from "../../../components/ui/Icon";
+import useSessionUser from "../../../hooks/useSessionUser";
 
 type Viewer = {
   id: string;
@@ -19,7 +21,8 @@ type MeResponse = {
 };
 
 export default function RoadmapPage() {
-  const [viewer, setViewer] = useState<Viewer | null>(null);
+  const router = useRouter();
+  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
 
@@ -29,7 +32,8 @@ export default function RoadmapPage() {
     fetch("/api/auth/me", { cache: "no-store" })
       .then(async (response) => {
         if (response.status === 401) {
-          window.location.href = `/login?next=${encodeURIComponent("/dashboard/roadmap")}`;
+          clearSessionUser();
+          router.replace(`/login?next=${encodeURIComponent("/dashboard/roadmap")}`);
           return null;
         }
 
@@ -43,7 +47,7 @@ export default function RoadmapPage() {
       })
       .then((payload) => {
         if (!active || !payload) return;
-        setViewer(payload.user ?? null);
+        setSessionUser(payload.user ?? null);
       })
       .catch((err) => {
         if (!active) return;
@@ -56,13 +60,13 @@ export default function RoadmapPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [clearSessionUser, router, setSessionUser]);
 
   return (
     <AppShell
       activeKey="roadmap"
-      user={viewer}
-      kicker="Workspace / Roadmap interno"
+      user={sessionUser as Viewer | null}
+      kicker="Espacio de trabajo / Roadmap interno"
       title="Roadmap del proyecto"
       description="Fases, tareas y progreso persistente para coordinar ejecucion interna."
       actions={
@@ -81,7 +85,7 @@ export default function RoadmapPage() {
             <Icon name="roadmap" size={12} />
             Roadmap
           </div>
-          <p>Checklists persistentes por fases para alinear el trabajo del equipo.</p>
+          <p>Checklist persistente por fases para alinear el trabajo del equipo.</p>
         </div>
       }
     >

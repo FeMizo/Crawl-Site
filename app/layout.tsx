@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SEO Crawler Dashboard",
+  title: "SEO Crawler | Panel",
   description: "Panel interno de SEO Crawler",
 };
 

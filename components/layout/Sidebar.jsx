@@ -1,13 +1,17 @@
 import Link from "next/link";
+import { useState } from "react";
 import Badge from "../ui/Badge";
 import Card from "../ui/Card";
 import FaviconMark from "../ui/FaviconMark";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 import { tUi } from "../../lib/ui-language";
+
 const { getRoleLabel } = require("../../lib/user-roles");
 
 export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
+  const [pendingHref, setPendingHref] = useState("");
+
   const privateNav = [
     {
       key: "dashboard",
@@ -50,6 +54,7 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         ]
       : []),
   ];
+
   const publicNav = [
     {
       key: "login",
@@ -64,8 +69,12 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
       icon: "register",
     },
   ];
+
   const navItems = user ? privateNav : publicNav;
   const userDisplay = user?.name || user?.email || tUi(lang, "statusGuest");
+  const userSummary = user
+    ? `${user.email}${user.role ? ` - ${getRoleLabel(user.role)}` : ""}`
+    : tUi(lang, "statusPublicAccess");
 
   return (
     <aside className="dashboard-sidebar">
@@ -83,8 +92,15 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         {navItems.map((item) => (
           <Link
             key={item.key}
-            className={activeKey === item.key ? "on" : ""}
+            className={
+              activeKey === item.key
+                ? "on"
+                : pendingHref === item.href
+                  ? "pending"
+                  : ""
+            }
             href={item.href}
+            onClick={() => setPendingHref(item.href)}
           >
             <Icon name={item.icon} size={17} className="nav-icon" />
             {item.label}
@@ -98,11 +114,7 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         </div>
         <div>
           <div className="user-name">{userDisplay}</div>
-          <div className="user-plan">
-            {user
-              ? `${user.email}${user.role ? ` • ${getRoleLabel(user.role)}` : ""}`
-              : tUi(lang, "statusPublicAccess")}
-          </div>
+          <div className="user-plan">{userSummary}</div>
         </div>
         {user ? (
           <Badge tone="primary">{tUi(lang, "statusActive")}</Badge>

@@ -1,10 +1,12 @@
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
+import useSessionUser from "../hooks/useSessionUser";
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
@@ -12,7 +14,8 @@ function formatDate(value) {
 }
 
 export default function HistoryPage() {
-  const [me, setMe] = useState(null);
+  const router = useRouter();
+  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,9 +23,10 @@ export default function HistoryPage() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetch("/api/auth/me").then((response) => {
+      fetch("/api/auth/me").then(async (response) => {
         if (response.status === 401) {
-          window.location.href = "/login?next=/history";
+          clearSessionUser();
+          router.replace("/login?next=/history");
           return null;
         }
         return response.json();
@@ -37,7 +41,7 @@ export default function HistoryPage() {
     ])
       .then(([meData, historyData]) => {
         if (!active) return;
-        setMe(meData?.user || null);
+        setSessionUser(meData?.user || null);
         setRuns(historyData?.runs || []);
       })
       .catch((err) => {
@@ -50,7 +54,7 @@ export default function HistoryPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [clearSessionUser, router, setSessionUser]);
 
   return (
     <>
@@ -60,10 +64,10 @@ export default function HistoryPage() {
       </Head>
       <AppShell
         activeKey="history"
-        user={me}
+        user={sessionUser}
         kicker="Espacio de trabajo / Historial"
         title="Historial de rastreos"
-        description="Registro reciente de rastreos guardados por usuario y proyecto dentro del mismo sistema del panel."
+        description="Consulta las ultimas ejecuciones guardadas por proyecto y retoma cualquier corrida en segundos."
       >
         {loading ? <p className="feedback">Cargando historial...</p> : null}
         {error ? <p className="feedback error">{error}</p> : null}
