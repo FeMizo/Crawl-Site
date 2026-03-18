@@ -7,15 +7,12 @@ const zlib = require("zlib");
 const dns = require("dns").promises;
 const { URL } = require("url");
 const ExcelJS = require("exceljs");
-const fs = require("fs");
-const os = require("os");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
-const crypto = require("crypto");
 const net = require("net");
 const { PrismaClient } = require("@prisma/client");
 
@@ -1662,11 +1659,7 @@ function getIssues(page, crawlLang = "es") {
   return issues;
 }
 
-//  Sessions
-const sessions = new Map();
 const brokenLinkCache = new Map();
-// temporary in-memory password reset tokens (token -> { userId, expires })
-const passwordResetTokens = new Map();
 
 function isIpPrivateRange(ip) {
   if (!ip) return false;
@@ -1785,16 +1778,22 @@ app.post("/api/auth/login", async (req, res) => {
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
     if (!email) return res.status(400).json({ error: "Email requerido" });
+    if (!password)
+      return res.status(400).json({ error: "Nueva contrasena requerida" });
+    if (password.length < 8)
+      return res
+        .status(400)
+        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (user) {
-      const token = crypto.randomBytes(32).toString("hex");
-      const expires = Date.now() + 1000 * 60 * 60; // 1h
-      passwordResetTokens.set(token, { userId: user.id, expires });
-      // TODO: send token via email to the user (use nodemailer or external service)
-      // For development convenience only, return token in response when not in production
-      if (!isProd) return res.json({ ok: true, token });
+      const passwordHash = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
     }
     return res.json({ ok: true });
   } catch (e) {
@@ -1804,21 +1803,18 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
-    const token = String(req.body?.token || "");
+    const email = normalizeEmail(req.body?.email);
     const newPassword = String(req.body?.password || "");
-    if (!token || !newPassword)
+    if (!email || !newPassword)
       return res
         .status(400)
-        .json({ error: "Token y nueva contrasena requeridos" });
+        .json({ error: "Email y nueva contrasena requeridos" });
     if (newPassword.length < 8)
       return res
         .status(400)
         .json({ error: "La contrasena debe tener al menos 8 caracteres" });
 
-    const entry = passwordResetTokens.get(token);
-    if (!entry || entry.expires < Date.now())
-      return res.status(400).json({ error: "Token invalido o expirado" });
-    const user = await prisma.user.findUnique({ where: { id: entry.userId } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -1826,7 +1822,6 @@ app.post("/api/auth/reset-password", async (req, res) => {
       where: { id: user.id },
       data: { passwordHash },
     });
-    passwordResetTokens.delete(token);
     return res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: "No se pudo resetear la contrasena" });
@@ -2089,6 +2084,54 @@ app.get(
   },
 );
 
+app.get(
+  "/api/projects/:projectId/runs/:runId/report",
+  requireAuth,
+  async (req, res) => {
+    const run = await prisma.crawlRun.findFirst({
+      where: {
+        id: req.params.runId,
+        projectId: req.params.projectId,
+        userId: req.user.id,
+      },
+      select: {
+        sourceUrl: true,
+        duplicates: true,
+        pages: true,
+        downloadName: true,
+        createdAt: true,
+      },
+    });
+
+    if (!run) {
+      return res.status(404).json({ error: "Reporte no encontrado" });
+    }
+
+    const crawlLang = req.query.lang === "en" ? "en" : "es";
+    const results = Array.isArray(run.pages) ? run.pages : [];
+    const duplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
+    const buffer = await generateExcelBuffer(
+      results,
+      run.sourceUrl,
+      duplicates,
+      crawlLang,
+    );
+    const downloadName =
+      run.downloadName || buildReportFileName(run.sourceUrl, run.createdAt);
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${downloadName}"`,
+    );
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.send(buffer);
+  },
+);
+
 //  API: Site info
 app.get("/api/site-info", requireAuth, async (req, res) => {
   const url = req.query.url;
@@ -2145,21 +2188,11 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const send = (event, data) =>
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
-  const sessionId = Date.now().toString();
   const results = [];
   const visited = new Set();
   const queue = [];
   let active = 0;
   let cancelled = false;
-
-  sessions.set(sessionId, {
-    cancel: () => {
-      cancelled = true;
-    },
-    userId: req.user.id,
-    projectId: project.id,
-  });
-  send("session", { sessionId });
 
   // Robots
   const { disallowed, hasSitemap, sitemapUrls, rawContent } =
@@ -2393,13 +2426,6 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   }
 
   if (!cancelled) {
-    const filePath = await generateExcel(
-      results,
-      startUrl,
-      duplicates,
-      crawlLang,
-    );
-    sessions.set(`file_${sessionId}`, filePath);
     const stats = {
       404: results.filter((r) => r.statusCode === 404).length,
       redirects: results.filter(
@@ -2443,6 +2469,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
       robots: { disallowed, hasSitemap, sitemapUrls, rawContent },
     };
     const withIssues = results.filter((r) => r.issues.length > 0).length;
+    const downloadName = buildReportFileName(startUrl);
     const createdRun = await prisma.crawlRun.create({
       data: {
         userId: req.user.id,
@@ -2457,52 +2484,47 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         stats,
         duplicates,
         pages: results,
-        downloadName: path.basename(filePath),
+        downloadName,
         status: "completed",
       },
       select: { id: true },
-    });
-    sessions.set(`file_${sessionId}`, {
-      filePath,
-      userId: req.user.id,
-      projectId: project.id,
-      runId: createdRun.id,
     });
     send("done", {
       total: results.length,
       withIssues,
       stats,
       duplicates,
-      downloadUrl: `/api/download/${sessionId}`,
-      fileName: path.basename(filePath),
+      downloadUrl: `/api/projects/${project.id}/runs/${createdRun.id}/report?lang=${crawlLang}`,
+      fileName: downloadName,
       runId: createdRun.id,
     });
   }
 
-  sessions.delete(sessionId);
   res.end();
 });
 
-app.get("/api/download/:sessionId", requireAuth, (req, res) => {
-  const fileSession = sessions.get(`file_${req.params.sessionId}`);
-  if (
-    !fileSession ||
-    fileSession.userId !== req.user.id ||
-    !fs.existsSync(fileSession.filePath)
-  )
-    return res.status(404).json({ error: "Archivo no encontrado" });
-  res.download(
-    fileSession.filePath,
-    path.basename(fileSession.filePath),
-    () => {
-      fs.unlink(fileSession.filePath, () => {});
-      sessions.delete(`file_${req.params.sessionId}`);
-    },
-  );
-});
-
 //  Excel
-async function generateExcel(results, siteUrl, duplicates, crawlLang = "es") {
+function buildReportFileName(siteUrl, createdAt = new Date()) {
+  let host = "site";
+  try {
+    host = new URL(siteUrl).hostname || host;
+  } catch {}
+
+  const timestamp = new Date(createdAt)
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace("T", "_")
+    .replace("Z", "");
+
+  return `seo-report-${host.replace(/[^a-z0-9.-]/gi, "-")}-${timestamp}.xlsx`;
+}
+
+async function generateExcelBuffer(
+  results,
+  siteUrl,
+  duplicates,
+  crawlLang = "es",
+) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "SEO Crawler";
   wb.created = new Date();
@@ -2826,9 +2848,8 @@ async function generateExcel(results, siteUrl, duplicates, crawlLang = "es") {
     });
   }
 
-  const tmpFile = path.join(os.tmpdir(), `seo-report-${Date.now()}.xlsx`);
-  await wb.xlsx.writeFile(tmpFile);
-  return tmpFile;
+  const output = await wb.xlsx.writeBuffer();
+  return Buffer.isBuffer(output) ? output : Buffer.from(output);
 }
 
 app.get("/", (req, res) =>

@@ -429,6 +429,29 @@ const SELECT_SIZE_CLASSES = [
   "select-size-lg",
 ];
 
+function buildRunReportUrl(runId) {
+  const projectId = currentProject?.id;
+  if (!projectId || !runId) return "";
+  return `/api/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/report?lang=${encodeURIComponent(lang)}`;
+}
+
+function updateDownloadUi(downloadUrl, fileName, total, withIssues) {
+  const dl = document.getElementById("dlb");
+  const link = document.getElementById("dllink");
+  if (!dl || !link || !downloadUrl) {
+    if (dl) dl.style.display = "none";
+    if (link) link.removeAttribute("href");
+    return;
+  }
+
+  link.href = downloadUrl;
+  sv(
+    "dldesc",
+    `${total || 0}  ${withIssues || 0} ${T("withIssues")}  ${fileName || "seo-report.xlsx"}`,
+  );
+  dl.style.display = "flex";
+}
+
 function normalizeInputUrl(u) {
   try {
     const x = new URL(u.trim());
@@ -916,8 +939,12 @@ function applySavedRun(run) {
     duplicates: stats.duplicates || 0,
   });
 
-  const dl = document.getElementById("dlb");
-  if (dl) dl.style.display = "none";
+  updateDownloadUi(
+    buildRunReportUrl(run.id),
+    run.downloadName,
+    run.total || crawlState.pages.length || 0,
+    run.withIssues || 0,
+  );
   const pw = document.getElementById("pw");
   if (pw) {
     pw.classList.remove("is-active", "is-complete");
@@ -1046,12 +1073,7 @@ function startCrawl() {
     renderChart(s);
     crawlState.duplicates = d.duplicates || [];
     if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
-    document.getElementById("dllink").href = d.downloadUrl;
-    sv(
-      "dldesc",
-      `${d.total}  ${d.withIssues} ${T("withIssues")}  ${d.fileName}`,
-    );
-    show("dlb", "flex");
+    updateDownloadUi(d.downloadUrl, d.fileName, d.total, d.withIssues);
     hideProgress(true);
     btn.disabled = false;
     updateCrawlButtonLabel();

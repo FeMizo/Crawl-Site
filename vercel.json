@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "pages/api/crawl.js": {
+      "maxDuration": 300
+    },
+    "pages/api/auth/[[...slug]].js": {
+      "maxDuration": 60
+    },
+    "pages/api/projects/[[...slug]].js": {
+      "maxDuration": 60
+    },
+    "pages/api/history.js": {
+      "maxDuration": 60
+    },
+    "pages/api/site-info.js": {
+      "maxDuration": 60
+    }
+  }
+}
