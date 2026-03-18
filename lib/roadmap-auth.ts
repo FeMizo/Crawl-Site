@@ -38,10 +38,12 @@ export async function requireRoadmapAccess(): Promise<AccessResult> {
   if (!token) return { user: null, canEdit: false };
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "change-this-local-secret",
-    ) as JwtPayload;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      // In production this should be required; warn in case env is missing
+      console.warn("Warning: JWT_SECRET not set for roadmap access checks");
+    }
+    const decoded = jwt.verify(token, secret as string) as JwtPayload;
 
     if (!decoded?.userId) return { user: null, canEdit: false };
 

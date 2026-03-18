@@ -12,16 +12,50 @@ const os = require("os");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const cors = require("cors");
+const rateLimit = require("express-rate-limit");
+const crypto = require("crypto");
+const net = require("net");
 const { PrismaClient } = require("@prisma/client");
 
 const app = express();
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "change-this-local-secret";
 const isProd = process.env.NODE_ENV === "production";
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (isProd) {
+    console.error("FATAL: JWT_SECRET must be set in production environment");
+    process.exit(1);
+  } else {
+    console.warn(
+      "Warning: JWT_SECRET not set — using insecure fallback for development",
+    );
+    JWT_SECRET = "change-this-local-secret";
+  }
+}
 
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "../public")));
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(",")
+      : "http://localhost:3000",
+    credentials: true,
+  }),
+);
+
+const crawlLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.CRAWL_MAX_PER_MIN
+    ? parseInt(process.env.CRAWL_MAX_PER_MIN)
+    : 2,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function getAuthCookieOptions() {
   return {
@@ -34,7 +68,9 @@ function getAuthCookieOptions() {
 }
 
 function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
+  return String(email || "")
+    .trim()
+    .toLowerCase();
 }
 
 function normalizeDisplayName(name) {
@@ -76,7 +112,9 @@ async function requireAuth(req, res, next) {
     const token = req.cookies?.auth_token;
     if (!token) return res.status(401).json({ error: "No autenticado" });
     const payload = jwt.verify(token, JWT_SECRET);
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
     if (!user) {
       clearAuthCookie(res);
       return res.status(401).json({ error: "Sesion invalida" });
@@ -168,7 +206,8 @@ function parseSecurityHeaders(headers) {
   if (!csp) {
     addScore("contentSecurityPolicy", 0);
   } else {
-    const hasDirective = /(default-src|script-src|object-src|base-uri|frame-ancestors)/i.test(csp);
+    const hasDirective =
+      /(default-src|script-src|object-src|base-uri|frame-ancestors)/i.test(csp);
     const hasUnsafe = /unsafe-inline|unsafe-eval/i.test(csp);
     addScore(
       "contentSecurityPolicy",
@@ -183,11 +222,7 @@ function parseSecurityHeaders(headers) {
     const hasSubdomains = /includesubdomains/i.test(hsts);
     addScore(
       "strictTransportSecurity",
-      maxAge >= 15552000 && hasSubdomains
-        ? 18
-        : maxAge >= 31536000
-          ? 14
-          : 9,
+      maxAge >= 15552000 && hasSubdomains ? 18 : maxAge >= 31536000 ? 14 : 9,
     );
   }
 
@@ -413,18 +448,25 @@ function buildDomainObservations(info) {
   if (!info.security) {
     notes.push("No fue posible analizar headers HTTP de seguridad.");
   } else {
-    if (Array.isArray(info.security.criticalMissingHeaders) && info.security.criticalMissingHeaders.length) {
+    if (
+      Array.isArray(info.security.criticalMissingHeaders) &&
+      info.security.criticalMissingHeaders.length
+    ) {
       notes.push(
         `Faltan headers criticos: ${info.security.criticalMissingHeaders.join(", ")}`,
       );
     }
     if (Number(info.security.score || 0) < 40) {
-      notes.push("Nivel de seguridad HTTP bajo; priorizar hardening de headers.");
+      notes.push(
+        "Nivel de seguridad HTTP bajo; priorizar hardening de headers.",
+      );
     }
   }
 
   if (info.ssl && Number(info.ssl.validDaysRemaining || 0) <= 15) {
-    notes.push(`Certificado SSL cercano a vencer (${info.ssl.validDaysRemaining} dias).`);
+    notes.push(
+      `Certificado SSL cercano a vencer (${info.ssl.validDaysRemaining} dias).`,
+    );
   } else if (!info.ssl) {
     notes.push("Sin certificado SSL detectado para HTTPS.");
   }
@@ -564,27 +606,31 @@ function fetchRaw(url, headOnly = false) {
         try {
           redirectTo = normalizeUrl(new URL(location, url).href);
         } catch {}
-        return resolve(withElapsed({
-          url,
-          statusCode,
-          body: "",
-          redirectTo,
-          headers,
-          server,
-          powered,
-        }));
+        return resolve(
+          withElapsed({
+            url,
+            statusCode,
+            body: "",
+            redirectTo,
+            headers,
+            server,
+            powered,
+          }),
+        );
       }
       if (headOnly || statusCode < 200 || statusCode >= 400) {
         res.resume();
-        return resolve(withElapsed({
-          url,
-          statusCode,
-          body: "",
-          redirectTo: null,
-          headers,
-          server,
-          powered,
-        }));
+        return resolve(
+          withElapsed({
+            url,
+            statusCode,
+            body: "",
+            redirectTo: null,
+            headers,
+            server,
+            powered,
+          }),
+        );
       }
       const ct = res.headers["content-type"] || "";
       // Accept text/html, text/plain (robots.txt), text/xml and application/xml (sitemaps)
@@ -594,16 +640,18 @@ function fetchRaw(url, headOnly = false) {
         ct.includes("xml");
       if (!isText) {
         res.resume();
-        return resolve(withElapsed({
-          url,
-          statusCode,
-          body: "",
-          redirectTo: null,
-          nonHtml: true,
-          headers,
-          server,
-          powered,
-        }));
+        return resolve(
+          withElapsed({
+            url,
+            statusCode,
+            body: "",
+            redirectTo: null,
+            nonHtml: true,
+            headers,
+            server,
+            powered,
+          }),
+        );
       }
       let stream = res;
       if (encoding === "gzip") stream = res.pipe(zlib.createGunzip());
@@ -616,48 +664,56 @@ function fetchRaw(url, headOnly = false) {
         if (chunks.reduce((a, b) => a + b.length, 0) > 600000) res.destroy();
       });
       stream.on("end", () =>
-        resolve(withElapsed({
-          url,
-          statusCode,
-          body: Buffer.concat(chunks).toString("utf8"),
-          redirectTo: null,
-          headers,
-          server,
-          powered,
-        })),
+        resolve(
+          withElapsed({
+            url,
+            statusCode,
+            body: Buffer.concat(chunks).toString("utf8"),
+            redirectTo: null,
+            headers,
+            server,
+            powered,
+          }),
+        ),
       );
       stream.on("error", () =>
-        resolve(withElapsed({
-          url,
-          statusCode,
-          body: "",
-          redirectTo: null,
-          headers,
-          server,
-          powered,
-        })),
+        resolve(
+          withElapsed({
+            url,
+            statusCode,
+            body: "",
+            redirectTo: null,
+            headers,
+            server,
+            powered,
+          }),
+        ),
       );
     });
     req.on("timeout", () => {
       req.destroy();
-      resolve(withElapsed({
-        url,
-        statusCode: 0,
-        body: "",
-        redirectTo: null,
-        headers: {},
-        timeout: true,
-      }));
+      resolve(
+        withElapsed({
+          url,
+          statusCode: 0,
+          body: "",
+          redirectTo: null,
+          headers: {},
+          timeout: true,
+        }),
+      );
     });
     req.on("error", (e) =>
-      resolve(withElapsed({
-        url,
-        statusCode: 0,
-        body: "",
-        redirectTo: null,
-        headers: {},
-        error: e.message,
-      })),
+      resolve(
+        withElapsed({
+          url,
+          statusCode: 0,
+          body: "",
+          redirectTo: null,
+          headers: {},
+          error: e.message,
+        }),
+      ),
     );
     req.end();
   });
@@ -743,7 +799,9 @@ async function fetchSiteInfo(siteUrl) {
       const dmarc = await dns.resolveTxt(`_dmarc.${hostname}`).catch(() => []);
       const flatten = (rows) =>
         rows
-          .map((parts) => (Array.isArray(parts) ? parts.join("") : String(parts || "")))
+          .map((parts) =>
+            Array.isArray(parts) ? parts.join("") : String(parts || ""),
+          )
           .filter(Boolean);
       info.txtRecords = flatten(txt).slice(0, 6);
       info.dmarcRecords = flatten(dmarc).slice(0, 2);
@@ -1010,10 +1068,12 @@ function extractMeta(body, pageUrl) {
   ).length;
   const imgsNoSize = imgMatches.filter((m) => {
     const tag = m[0];
-    const hasWidth =
-      /\bwidth\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(tag);
-    const hasHeight =
-      /\bheight\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(tag);
+    const hasWidth = /\bwidth\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(
+      tag,
+    );
+    const hasHeight = /\bheight\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(
+      tag,
+    );
     return !hasWidth || !hasHeight;
   }).length;
   const totalImgs = imgMatches.length;
@@ -1021,7 +1081,8 @@ function extractMeta(body, pageUrl) {
     .map((m) => {
       const srcMatch = m[0].match(/\bsrc=["']([^"']+)["']/i);
       const src = (srcMatch?.[1] || "").trim();
-      if (!src || src.startsWith("data:") || src.startsWith("blob:")) return null;
+      if (!src || src.startsWith("data:") || src.startsWith("blob:"))
+        return null;
       try {
         return normalizeUrl(new URL(src, pageUrl).href);
       } catch {
@@ -1128,7 +1189,11 @@ function extractMeta(body, pageUrl) {
     if (!isPlaceholder) continue;
     placeholderLinks++;
     placeholderLinkDetails.push({
-      text: inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() || "(sin texto)",
+      text:
+        inner
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim() || "(sin texto)",
       source: hasOnClick ? "a[onclick]" : "a[href=#]",
       href: href || "#",
     });
@@ -1600,6 +1665,48 @@ function getIssues(page, crawlLang = "es") {
 //  Sessions
 const sessions = new Map();
 const brokenLinkCache = new Map();
+// temporary in-memory password reset tokens (token -> { userId, expires })
+const passwordResetTokens = new Map();
+
+function isIpPrivateRange(ip) {
+  if (!ip) return false;
+  if (net.isIP(ip) === 6) {
+    const l = ip.toLowerCase();
+    if (l === "::1") return true;
+    if (l.startsWith("fc") || l.startsWith("fd") || l.startsWith("fe80"))
+      return true;
+    return false;
+  }
+  // IPv4
+  if (/^(127|10)\./.test(ip)) return true;
+  if (/^169\.254\./.test(ip)) return true;
+  if (/^192\.168\./.test(ip)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip)) return true;
+  return false;
+}
+
+async function ensureUrlAllowed(rawUrl) {
+  if (!rawUrl) return false;
+  let hostname;
+  try {
+    hostname = new URL(rawUrl).hostname;
+  } catch {
+    return false;
+  }
+  const lower = hostname.toLowerCase();
+  if (lower === "localhost" || lower === "127.0.0.1" || lower === "::1")
+    return false;
+  // quick IP literal check
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(lower) && isIpPrivateRange(lower))
+    return false;
+  try {
+    const r = await dns.lookup(hostname).catch(() => null);
+    if (r && r.address && isIpPrivateRange(r.address)) return false;
+  } catch {
+    // ignore lookup errors, allow conservative behavior
+  }
+  return true;
+}
 
 async function checkExternalLink(url) {
   if (brokenLinkCache.has(url)) return brokenLinkCache.get(url);
@@ -1621,7 +1728,9 @@ app.post("/api/auth/register", async (req, res) => {
     const password = String(req.body?.password || "");
 
     if (!email || !password) {
-      return res.status(400).json({ error: "Email y contrasena son requeridos" });
+      return res
+        .status(400)
+        .json({ error: "Email y contrasena son requeridos" });
     }
     if (password.length < 8) {
       return res
@@ -1651,7 +1760,9 @@ app.post("/api/auth/login", async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
     if (!email || !password) {
-      return res.status(400).json({ error: "Email y contrasena son requeridos" });
+      return res
+        .status(400)
+        .json({ error: "Email y contrasena son requeridos" });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -1674,30 +1785,51 @@ app.post("/api/auth/login", async (req, res) => {
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
-    const password = String(req.body?.password || "");
-
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email y contrasena son requeridos" });
-    }
-
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
-    }
+    if (!email) return res.status(400).json({ error: "Email requerido" });
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (user) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash },
-      });
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = Date.now() + 1000 * 60 * 60; // 1h
+      passwordResetTokens.set(token, { userId: user.id, expires });
+      // TODO: send token via email to the user (use nodemailer or external service)
+      // For development convenience only, return token in response when not in production
+      if (!isProd) return res.json({ ok: true, token });
     }
-
     return res.json({ ok: true });
-  } catch {
-    return res.status(500).json({ error: "No se pudo actualizar la contrasena" });
+  } catch (e) {
+    return res.status(500).json({ error: "No se pudo procesar la solicitud" });
+  }
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const token = String(req.body?.token || "");
+    const newPassword = String(req.body?.password || "");
+    if (!token || !newPassword)
+      return res
+        .status(400)
+        .json({ error: "Token y nueva contrasena requeridos" });
+    if (newPassword.length < 8)
+      return res
+        .status(400)
+        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
+
+    const entry = passwordResetTokens.get(token);
+    if (!entry || entry.expires < Date.now())
+      return res.status(400).json({ error: "Token invalido o expirado" });
+    const user = await prisma.user.findUnique({ where: { id: entry.userId } });
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    passwordResetTokens.delete(token);
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: "No se pudo resetear la contrasena" });
   }
 });
 
@@ -1736,13 +1868,15 @@ app.put("/api/auth/password", requireAuth, async (req, res) => {
     const newPassword = String(req.body?.newPassword || "");
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: "Completa contrasena actual y nueva" });
+      return res
+        .status(400)
+        .json({ error: "Completa contrasena actual y nueva" });
     }
 
     if (newPassword.length < 8) {
-      return res
-        .status(400)
-        .json({ error: "La nueva contrasena debe tener al menos 8 caracteres" });
+      return res.status(400).json({
+        error: "La nueva contrasena debe tener al menos 8 caracteres",
+      });
     }
 
     const valid = await bcrypt.compare(currentPassword, req.user.passwordHash);
@@ -1758,7 +1892,9 @@ app.put("/api/auth/password", requireAuth, async (req, res) => {
 
     return res.json({ ok: true });
   } catch {
-    return res.status(500).json({ error: "No se pudo actualizar la contrasena" });
+    return res
+      .status(500)
+      .json({ error: "No se pudo actualizar la contrasena" });
   }
 });
 
@@ -1830,6 +1966,8 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   if (!targetUrl) {
     return res.status(400).json({ error: "URL invalida" });
   }
+  const allowed = await ensureUrlAllowed(targetUrl);
+  if (!allowed) return res.status(400).json({ error: "URL no permitida" });
 
   const project = await prisma.project.create({
     data: {
@@ -1891,7 +2029,10 @@ app.put("/api/projects/:projectId", requireAuth, async (req, res) => {
   const project = await prisma.project.update({
     where: { id: existing.id },
     data: {
-      name: normalizeProjectName(req.body?.name ?? existing.name, nextTargetUrl),
+      name: normalizeProjectName(
+        req.body?.name ?? existing.name,
+        nextTargetUrl,
+      ),
       targetUrl: nextTargetUrl,
     },
   });
@@ -1912,37 +2053,41 @@ app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/projects/:projectId/runs/:runId", requireAuth, async (req, res) => {
-  const run = await prisma.crawlRun.findFirst({
-    where: {
-      id: req.params.runId,
-      projectId: req.params.projectId,
-      userId: req.user.id,
-    },
-    select: {
-      id: true,
-      sourceUrl: true,
-      source: true,
-      maxPages: true,
-      rateDelay: true,
-      checkExt: true,
-      total: true,
-      withIssues: true,
-      stats: true,
-      duplicates: true,
-      pages: true,
-      downloadName: true,
-      status: true,
-      createdAt: true,
-    },
-  });
+app.get(
+  "/api/projects/:projectId/runs/:runId",
+  requireAuth,
+  async (req, res) => {
+    const run = await prisma.crawlRun.findFirst({
+      where: {
+        id: req.params.runId,
+        projectId: req.params.projectId,
+        userId: req.user.id,
+      },
+      select: {
+        id: true,
+        sourceUrl: true,
+        source: true,
+        maxPages: true,
+        rateDelay: true,
+        checkExt: true,
+        total: true,
+        withIssues: true,
+        stats: true,
+        duplicates: true,
+        pages: true,
+        downloadName: true,
+        status: true,
+        createdAt: true,
+      },
+    });
 
-  if (!run) {
-    return res.status(404).json({ error: "Historial no encontrado" });
-  }
+    if (!run) {
+      return res.status(404).json({ error: "Historial no encontrado" });
+    }
 
-  res.json({ run });
-});
+    res.json({ run });
+  },
+);
 
 //  API: Site info
 app.get("/api/site-info", requireAuth, async (req, res) => {
@@ -1957,7 +2102,7 @@ app.get("/api/site-info", requireAuth, async (req, res) => {
 });
 
 //  SSE: Crawl
-app.get("/api/crawl", requireAuth, async (req, res) => {
+app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const startUrl = req.query.url;
   const maxPages = Math.min(parseInt(req.query.max) || 50, 500);
   const source = req.query.source || "crawl";
@@ -1968,6 +2113,8 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
 
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
   if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
+  const ok = await ensureUrlAllowed(startUrl);
+  if (!ok) return res.status(400).json({ error: "URL no permitida" });
   let baseOrigin;
   try {
     baseOrigin = new URL(startUrl).origin;
@@ -1978,7 +2125,8 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: req.user.id },
   });
-  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+  if (!project)
+    return res.status(404).json({ error: "Proyecto no encontrado" });
   if (!sameUrlLoose(project.targetUrl, startUrl)) {
     await prisma.project.update({
       where: { id: project.id },
@@ -2277,8 +2425,9 @@ app.get("/api/crawl", requireAuth, async (req, res) => {
         .length,
       brokenButtons: results.filter((r) => (r.brokenButtonLinks || []).length)
         .length,
-      placeholderLinks: results.filter((r) => (r.meta?.placeholderLinks || 0) > 0)
-        .length,
+      placeholderLinks: results.filter(
+        (r) => (r.meta?.placeholderLinks || 0) > 0,
+      ).length,
       formsNoAction: results.filter((r) => (r.meta?.formsNoAction || 0) > 0)
         .length,
       formsNoSubmit: results.filter((r) => (r.meta?.formsNoSubmit || 0) > 0)
@@ -2342,10 +2491,14 @@ app.get("/api/download/:sessionId", requireAuth, (req, res) => {
     !fs.existsSync(fileSession.filePath)
   )
     return res.status(404).json({ error: "Archivo no encontrado" });
-  res.download(fileSession.filePath, path.basename(fileSession.filePath), () => {
-    fs.unlink(fileSession.filePath, () => {});
-    sessions.delete(`file_${req.params.sessionId}`);
-  });
+  res.download(
+    fileSession.filePath,
+    path.basename(fileSession.filePath),
+    () => {
+      fs.unlink(fileSession.filePath, () => {});
+      sessions.delete(`file_${req.params.sessionId}`);
+    },
+  );
 });
 
 //  Excel
@@ -2688,6 +2841,10 @@ app.get("*", (req, res) =>
   res.sendFile(path.join(__dirname, "../public/home.html")),
 );
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`\n  SEO Crawler en http://localhost:${PORT}\n`),
-);
+if (require.main === module) {
+  app.listen(PORT, () =>
+    console.log(`\n  SEO Crawler en http://localhost:${PORT}\n`),
+  );
+}
+
+module.exports = app;
