@@ -10,6 +10,8 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 
+const { validateEmail } = require("../lib/contact-validation");
+
 async function readResponsePayload(response) {
   const text = await response.text();
   if (!text) return {};
@@ -49,8 +51,13 @@ export default function LoginPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitting(true);
     setError("");
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+    setSubmitting(true);
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",

@@ -8,6 +8,8 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 
+const { validateEmail } = require("../lib/contact-validation");
+
 export default function ForgotPasswordPage() {
   const [sessionUser, setSessionUser] = useState(null);
   const [email, setEmail] = useState("");
@@ -39,6 +41,11 @@ export default function ForgotPasswordPage() {
 
     if (!email.trim()) {
       setError("Ingresa el email de tu cuenta.");
+      return;
+    }
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
       return;
     }
 

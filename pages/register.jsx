@@ -8,7 +8,10 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
+import PhoneField from "../components/ui/PhoneField";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
+
+const { validateEmail, validatePhoneInput } = require("../lib/contact-validation");
 
 async function readResponsePayload(response) {
   const text = await response.text();
@@ -29,6 +32,8 @@ export default function RegisterPage() {
   const [sessionUser, setSessionUser] = useState(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("MX");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -50,13 +55,25 @@ export default function RegisterPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitting(true);
     setError("");
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+    const phone = validatePhoneInput(phoneCountry, phoneNumber, {
+      required: false,
+    });
+    if (!phone.ok) {
+      setError(phone.error);
+      return;
+    }
+    setSubmitting(true);
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, phoneCountry, phoneNumber, password }),
       });
       const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo registrar");
@@ -119,6 +136,14 @@ export default function RegisterPage() {
             <Eyebrow icon={<Icon name="register" size={12} />}>Nuevo usuario</Eyebrow>
             <Input label="Nombre" type="text" value={name} onChange={(e) => setName(e.target.value)} />
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <PhoneField
+              label="Telefono"
+              country={phoneCountry}
+              phone={phoneNumber}
+              onCountryChange={setPhoneCountry}
+              onPhoneChange={setPhoneNumber}
+              hint="Opcional. Selecciona el pais para mostrar prefijo y validar longitud."
+            />
             <Input
               label="Contrasena"
               type="password"

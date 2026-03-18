@@ -6,7 +6,10 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
+import PhoneField from "../components/ui/PhoneField";
 import Select from "../components/ui/Select";
+
+const { validatePhoneInput } = require("../lib/contact-validation");
 
 const LANG_OPTIONS = [
   { value: "es", label: "Espanol" },
@@ -24,6 +27,8 @@ export default function SettingsPage() {
   const [me, setMe] = useState(null);
   const [counts, setCounts] = useState({ projects: 0, crawlRuns: 0 });
   const [name, setName] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("MX");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileError, setProfileError] = useState("");
@@ -50,6 +55,8 @@ export default function SettingsPage() {
         if (!active || !data?.user) return null;
         setMe(data.user);
         setName(data.user.name || "");
+        setPhoneCountry(data.user.phoneCountry || "MX");
+        setPhoneNumber(data.user.phoneNumber || "");
         setCounts(data.counts || { projects: 0, crawlRuns: 0 });
         return data;
       })
@@ -96,13 +103,20 @@ export default function SettingsPage() {
       setProfileError("Ingresa un nombre de usuario.");
       return;
     }
+    const phone = validatePhoneInput(phoneCountry, phoneNumber, {
+      required: false,
+    });
+    if (!phone.ok) {
+      setProfileError(phone.error);
+      return;
+    }
 
     setProfileSubmitting(true);
     try {
       const response = await fetch("/api/auth/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: normalizedName }),
+        body: JSON.stringify({ name: normalizedName, phoneCountry, phoneNumber }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -191,6 +205,14 @@ export default function SettingsPage() {
               onChange={(event) => setName(event.target.value)}
               required
               maxLength={80}
+            />
+            <PhoneField
+              label="Telefono"
+              country={phoneCountry}
+              phone={phoneNumber}
+              onCountryChange={setPhoneCountry}
+              onPhoneChange={setPhoneNumber}
+              hint="Opcional. Se guarda el numero nacional y se muestra el prefijo del pais."
             />
             {profileError ? (
               <p className="feedback error">{profileError}</p>

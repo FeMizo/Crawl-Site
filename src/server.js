@@ -15,6 +15,11 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const net = require("net");
 const { PrismaClient } = require("@prisma/client");
+const {
+  normalizeEmail,
+  validateEmail,
+  validatePhoneInput,
+} = require("../lib/contact-validation");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -66,12 +71,6 @@ function getAuthCookieOptions() {
   };
 }
 
-function normalizeEmail(email) {
-  return String(email || "")
-    .trim()
-    .toLowerCase();
-}
-
 function normalizeDisplayName(name) {
   return String(name || "")
     .trim()
@@ -81,10 +80,16 @@ function normalizeDisplayName(name) {
 
 function sanitizeUser(user) {
   if (!user) return null;
+  const phone = validatePhoneInput(user.phoneCountry, user.phoneNumber, {
+    required: false,
+  });
   return {
     id: user.id,
     name: user.name,
     email: user.email,
+    phoneCountry: phone.country?.code || null,
+    phoneNumber: phone.digits || "",
+    phoneE164: phone.e164,
     createdAt: user.createdAt,
   };
 }
@@ -1745,16 +1750,28 @@ app.post("/api/auth/register", async (req, res) => {
     const name = normalizeDisplayName(req.body?.name);
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
+    const phone = validatePhoneInput(
+      req.body?.phoneCountry,
+      req.body?.phoneNumber,
+      { required: false },
+    );
 
     if (!email || !password) {
       return res
         .status(400)
         .json({ error: "Email y contrasena son requeridos" });
     }
+    const emailError = validateEmail(email);
+    if (emailError) {
+      return res.status(400).json({ error: emailError });
+    }
     if (password.length < 8) {
       return res
         .status(400)
         .json({ error: "La contrasena debe tener al menos 8 caracteres" });
+    }
+    if (!phone.ok) {
+      return res.status(400).json({ error: phone.error });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -1764,7 +1781,13 @@ app.post("/api/auth/register", async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { name: name || null, email, passwordHash },
+      data: {
+        name: name || null,
+        email,
+        phoneCountry: phone.country?.code || null,
+        phoneNumber: phone.digits || null,
+        passwordHash,
+      },
     });
 
     writeAuthCookie(res, user);
@@ -1782,6 +1805,10 @@ app.post("/api/auth/login", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Email y contrasena son requeridos" });
+    }
+    const emailError = validateEmail(email);
+    if (emailError) {
+      return res.status(400).json({ error: emailError });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -1806,6 +1833,10 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
     if (!email) return res.status(400).json({ error: "Email requerido" });
+    const emailError = validateEmail(email);
+    if (emailError) {
+      return res.status(400).json({ error: emailError });
+    }
     if (!password)
       return res.status(400).json({ error: "Nueva contrasena requerida" });
     if (password.length < 8)
@@ -1835,6 +1866,10 @@ app.post("/api/auth/reset-password", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Email y nueva contrasena requeridos" });
+    const emailError = validateEmail(email);
+    if (emailError) {
+      return res.status(400).json({ error: emailError });
+    }
     if (newPassword.length < 8)
       return res
         .status(400)
@@ -1886,9 +1921,21 @@ app.get("/api/auth/me", async (req, res) => {
 app.put("/api/auth/profile", requireAuth, async (req, res) => {
   try {
     const name = normalizeDisplayName(req.body?.name);
+    const phone = validatePhoneInput(
+      req.body?.phoneCountry,
+      req.body?.phoneNumber,
+      { required: false },
+    );
+    if (!phone.ok) {
+      return res.status(400).json({ error: phone.error });
+    }
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { name: name || null },
+      data: {
+        name: name || null,
+        phoneCountry: phone.country?.code || null,
+        phoneNumber: phone.digits || null,
+      },
     });
     return res.json({ user: sanitizeUser(user) });
   } catch {
