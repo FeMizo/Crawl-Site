@@ -411,6 +411,8 @@ let crawlSearchTerm = "";
 let allTablePageSize = 20;
 let allTablePage = 1;
 let currentProject = null;
+let currentWorkspace = "seo";
+let currentTab = "all";
 const TABLE_BODIES = [
   "tbAll",
   "tbSEO",
@@ -671,6 +673,7 @@ function setSrc(s) {
 function goTab(name, btn) {
   document.querySelectorAll(".tbtn").forEach((b) => b.classList.remove("on"));
   document.querySelectorAll(".tpane").forEach((p) => p.classList.remove("on"));
+  currentTab = name;
   if (btn) btn.classList.add("on");
   document.getElementById("tab-" + name).classList.add("on");
 }
@@ -678,6 +681,7 @@ function goTab(name, btn) {
 function setWorkspace(mode, btn) {
   const root = document.getElementById("mainLayout");
   if (!root) return;
+  currentWorkspace = mode;
   root.classList.toggle("mode-seo", mode === "seo");
   root.classList.toggle("mode-domain", mode === "domain");
   root.classList.toggle("mode-functionality", mode === "functionality");
@@ -696,6 +700,28 @@ function setWorkspace(mode, btn) {
     if (firstSeoTab) goTab("all", firstSeoTab);
   }
   if (btn) btn.classList.add("on");
+}
+
+function restoreWorkspaceState() {
+  const workspace = currentWorkspace || "seo";
+  const tab = currentTab || "all";
+  setWorkspace(workspace);
+
+  if (workspace === "functionality") {
+    goTab("functionality", null);
+    return;
+  }
+
+  const tabButton = Array.from(document.querySelectorAll(".tbtn")).find(
+    (button) => (button.getAttribute("onclick") || "").includes(`'${tab}'`),
+  );
+
+  if (document.getElementById(`tab-${tab}`)) {
+    goTab(tab, tabButton || null);
+  } else {
+    const firstSeoTab = document.querySelector(".tbtn");
+    if (firstSeoTab) goTab("all", firstSeoTab);
+  }
 }
 
 // Sub-filters
@@ -875,7 +901,11 @@ function normalizeSavedPage(page) {
 
 function applySavedRun(run) {
   if (!run) return;
+  const previousWorkspace = currentWorkspace;
+  const previousTab = currentTab;
   resetState();
+  currentWorkspace = "seo";
+  currentTab = "all";
   const show = (id, d) => {
     const el = document.getElementById(id);
     if (el) el.style.display = d || "block";
@@ -883,7 +913,9 @@ function applySavedRun(run) {
   show("cw");
   show("sg", "grid");
   show("mainLayout", "flex");
-  setWorkspace("seo");
+  currentWorkspace = previousWorkspace || "seo";
+  currentTab = previousTab || "all";
+  restoreWorkspaceState();
 
   const input = document.getElementById("urlInput");
   if (input && run.sourceUrl) input.value = run.sourceUrl;
@@ -945,6 +977,7 @@ function applySavedRun(run) {
     run.total || crawlState.pages.length || 0,
     run.withIssues || 0,
   );
+  restoreWorkspaceState();
   const pw = document.getElementById("pw");
   if (pw) {
     pw.classList.remove("is-active", "is-complete");
@@ -989,7 +1022,7 @@ function startCrawl() {
   show("cw");
   show("sg", "grid");
   show("mainLayout", "flex");
-  setWorkspace("seo");
+  restoreWorkspaceState();
 
   const btn = document.getElementById("btnCrawl");
   btn.disabled = true;

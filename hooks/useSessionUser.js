@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 const {
   clearStoredSessionUser,
@@ -20,16 +20,16 @@ export default function useSessionUser() {
     return subscribeSessionUserChange(setSessionUserState);
   }, []);
 
-  const setSessionUser = (user) => {
+  const setSessionUser = useCallback((user) => {
     const safeUser = writeStoredSessionUser(user);
     setSessionUserState(safeUser);
     return safeUser;
-  };
+  }, []);
 
-  const clearSessionUser = () => {
+  const clearSessionUser = useCallback(() => {
     clearStoredSessionUser();
     setSessionUserState(null);
-  };
+  }, []);
 
   return {
     sessionUser,
