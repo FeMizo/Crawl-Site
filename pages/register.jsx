@@ -96,6 +96,7 @@ export default function RegisterPage() {
       <AppShell
         activeKey="register"
         user={sessionUser}
+        showSidebar={false}
         kicker="Acceso / Registro"
         title="Crear cuenta"
         description="Activa tu area privada dentro del mismo sistema del panel para guardar proyectos, historial y reportes."

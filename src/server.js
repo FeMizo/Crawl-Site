@@ -1,4 +1,5 @@
 ﻿const express = require("express");
+const fs = require("fs");
 const path = require("path");
 const { loadEnvConfig } = require("@next/env");
 loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
@@ -37,6 +38,46 @@ const {
   getPublicError,
   logServerError,
 } = require("../lib/server-error-utils");
+
+function readDotEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+
+  return fs
+    .readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .reduce((acc, rawLine) => {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) return acc;
+
+      const separator = line.indexOf("=");
+      if (separator < 0) return acc;
+
+      const key = line.slice(0, separator).trim();
+      const value = line.slice(separator + 1).trim().replace(/^['"]|['"]$/g, "");
+      acc[key] = value;
+      return acc;
+    }, {});
+}
+
+function preferLocalDatabaseInDevelopment() {
+  if (process.env.NODE_ENV === "production") return;
+
+  const currentUrl = String(process.env.dashboard_DATABASE_URL || "");
+  if (!/neon\.tech/i.test(currentUrl)) return;
+
+  const localEnv = readDotEnvFile(path.join(process.cwd(), ".env"));
+  const localUrl = String(localEnv.dashboard_DATABASE_URL || "");
+  if (!/(localhost|127\.0\.0\.1)/i.test(localUrl)) return;
+
+  process.env.dashboard_DATABASE_URL = localUrl;
+
+  if (localEnv.dashboard_DATABASE_URL_UNPOOLED) {
+    process.env.dashboard_DATABASE_URL_UNPOOLED =
+      localEnv.dashboard_DATABASE_URL_UNPOOLED;
+  }
+}
+
+preferLocalDatabaseInDevelopment();
 
 const app = express();
 const prisma = new PrismaClient();

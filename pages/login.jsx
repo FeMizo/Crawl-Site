@@ -85,6 +85,7 @@ export default function LoginPage() {
       <AppShell
         activeKey="login"
         user={sessionUser}
+        showSidebar={false}
         kicker="Acceso / Iniciar sesion"
         title="Iniciar sesion"
         description="Accede al mismo sistema visual del panel para gestionar proyectos, historial y rastreos guardados."

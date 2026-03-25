@@ -93,6 +93,7 @@ export default function ForgotPasswordPage() {
       <AppShell
         activeKey="login"
         user={sessionUser}
+        showSidebar={false}
         kicker="Acceso / Recuperar contrasena"
         title="Olvidaste tu contrasena"
         description="Restablece el acceso usando tu email y define una nueva contrasena."

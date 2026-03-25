@@ -1,11 +1,11 @@
 {
   "name": "seo-crawler",
-  "version": "2.13.3",
+  "version": "2.13.4",
   "private": true,
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
     "predev": "node scripts/clean-next-dist.js development",
-    "dev": "next dev --port 3000",
+    "dev": "next dev --port 3666",
     "prebuild": "node scripts/clean-next-dist.js production",
     "build": "next build",
     "start": "next start",

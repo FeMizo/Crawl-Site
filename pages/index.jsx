@@ -59,6 +59,15 @@ export default function HomePage() {
     };
   }, [setSessionUser]);
 
+  useEffect(() => {
+    if (loadingUser || sessionUser) return;
+    const nextPath =
+      typeof router.asPath === "string" && router.asPath
+        ? router.asPath
+        : "/";
+    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+  }, [loadingUser, router, sessionUser]);
+
   const goToDashboard = async () => {
     const normalized = normalizeUrl(url);
     if (!normalized) {
@@ -100,6 +109,39 @@ export default function HomePage() {
     () => [...sections].sort((a, b) => (a.order || 0) - (b.order || 0)),
     [sections],
   );
+
+  if (loadingUser || !sessionUser) {
+    return (
+      <>
+        <Head>
+          <title>SEO Crawler - Inicio</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@400;600;800&display=swap"
+          />
+          <link rel="stylesheet" href="/styles.css" />
+        </Head>
+        <AppShell
+          activeKey="login"
+          user={null}
+          showSidebar={false}
+          kicker="Acceso / Redireccion"
+          title="Redirigiendo"
+          description="Verificando tu sesion para llevarte al acceso."
+        >
+          <p className="feedback">Cargando acceso...</p>
+          <style jsx>{`
+            .feedback {
+              margin: 0;
+              color: var(--text2);
+            }
+          `}</style>
+        </AppShell>
+      </>
+    );
+  }
 
   return (
     <>

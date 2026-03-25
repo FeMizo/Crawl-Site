@@ -13,6 +13,7 @@ export default function AppShell({
   children,
   aside,
   contentClassName = "",
+  showSidebar = true,
 }) {
   const [theme, setTheme] = useState("dark");
   const [lang, setLang] = useState("es");
@@ -56,8 +57,10 @@ export default function AppShell({
 
   return (
     <main className="dashboard-shell-page">
-      <div className="dashboard-shell">
-        <Sidebar activeKey={activeKey} user={user} aside={aside} lang={lang} />
+      <div className={`dashboard-shell${showSidebar ? "" : " no-sidebar"}`}>
+        {showSidebar ? (
+          <Sidebar activeKey={activeKey} user={user} aside={aside} lang={lang} />
+        ) : null}
         <div className="dashboard-main">
           <TopHeader
             eyebrow={kicker}
@@ -105,6 +108,9 @@ export default function AppShell({
           grid-template-columns: 270px minmax(0, 1fr);
           min-width: 0;
           overflow: visible;
+        }
+        .dashboard-shell.no-sidebar {
+          grid-template-columns: minmax(0, 1fr);
         }
         .dashboard-sidebar {
           border-right: 1px solid var(--border);
