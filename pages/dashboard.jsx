@@ -124,10 +124,20 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!project || !activeRunId || !appReady || typeof window.loadSeoCrawlerRun !== "function") return;
 
+    let active = true;
     const cachedRun = runCacheRef.current.get(activeRunId);
     if (cachedRun) {
-      window.loadSeoCrawlerRun(cachedRun);
-      return;
+      Promise.resolve(window.loadSeoCrawlerRun(cachedRun))
+        .then((hydratedRun) => {
+          if (!active || !hydratedRun) return;
+          runCacheRef.current.set(activeRunId, hydratedRun);
+        })
+        .catch((err) => {
+          if (active) setLoadError(err.message || "No se pudo cargar el historial");
+        });
+      return () => {
+        active = false;
+      };
     }
 
     fetch(`/api/projects/${project.id}/runs/${activeRunId}`)
@@ -136,13 +146,18 @@ export default function DashboardPage() {
         if (!response.ok) throw new Error(data.error || "No se pudo cargar el historial");
         return data;
       })
-      .then((data) => {
-        runCacheRef.current.set(activeRunId, data.run);
-        window.loadSeoCrawlerRun(data.run);
+      .then((data) => Promise.resolve(window.loadSeoCrawlerRun(data.run)))
+      .then((hydratedRun) => {
+        if (!active || !hydratedRun) return;
+        runCacheRef.current.set(activeRunId, hydratedRun);
       })
       .catch((err) => {
-        setLoadError(err.message || "No se pudo cargar el historial");
+        if (active) setLoadError(err.message || "No se pudo cargar el historial");
       });
+
+    return () => {
+      active = false;
+    };
   }, [activeRunId, appReady, project]);
 
   useEffect(() => {

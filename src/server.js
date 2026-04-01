@@ -446,6 +446,115 @@ const ADMIN_USER_LIST_SELECT = {
   createdAt: true,
 };
 
+function setPrivateApiCache(res, maxAgeSeconds = 15, swrSeconds = 60) {
+  res.setHeader(
+    "Cache-Control",
+    `private, max-age=${maxAgeSeconds}, stale-while-revalidate=${swrSeconds}`,
+  );
+}
+
+function normalizeStoredRunPage(page) {
+  if (!page || typeof page !== "object") return null;
+  return {
+    ...page,
+    issues: Array.isArray(page.issues) ? page.issues : [],
+  };
+}
+
+function serializeRunPageRow(page, position) {
+  return {
+    position,
+    url: String(page?.url || ""),
+    finalUrl: page?.finalUrl ? String(page.finalUrl) : null,
+    statusCode: Number.isFinite(Number(page?.statusCode))
+      ? Number(page.statusCode)
+      : null,
+    hasIssues: Array.isArray(page?.issues) && page.issues.length > 0,
+    title: page?.title ? String(page.title).slice(0, 512) : null,
+    titleLen: Number(page?.titleLen || 0),
+    description: page?.description ? String(page.description).slice(0, 2048) : null,
+    descLen: Number(page?.descLen || 0),
+    payload: normalizeStoredRunPage(page),
+  };
+}
+
+function serializeRunDuplicateRow(duplicate, position) {
+  const urls = Array.isArray(duplicate?.urls) ? duplicate.urls : [];
+  return {
+    position,
+    title: String(duplicate?.title || "").slice(0, 512),
+    urlCount: urls.length,
+    payload: {
+      title: String(duplicate?.title || ""),
+      urls,
+    },
+  };
+}
+
+function mapStoredRunPage(row) {
+  return normalizeStoredRunPage(row?.payload);
+}
+
+function mapStoredRunDuplicate(row) {
+  if (!row?.payload || typeof row.payload !== "object") return null;
+  return {
+    title: String(row.payload.title || row.title || ""),
+    urls: Array.isArray(row.payload.urls) ? row.payload.urls : [],
+  };
+}
+
+async function loadRunPagesForResponse(runId) {
+  const rows = await prisma.crawlRunPage.findMany({
+    where: { runId },
+    orderBy: { position: "asc" },
+    select: { payload: true },
+  });
+  return rows.map(mapStoredRunPage).filter(Boolean);
+}
+
+async function loadRunDuplicatesForResponse(runId) {
+  const rows = await prisma.crawlRunDuplicate.findMany({
+    where: { runId },
+    orderBy: { position: "asc" },
+    select: { title: true, payload: true },
+  });
+  return rows.map(mapStoredRunDuplicate).filter(Boolean);
+}
+
+async function loadStoredRunPageChunk(runId, page, limit) {
+  const where = { runId };
+  const total = await prisma.crawlRunPage.count({ where });
+  const pagination = buildPaginationMeta(total, page, limit);
+  const rows = await prisma.crawlRunPage.findMany({
+    where,
+    skip: (pagination.page - 1) * pagination.limit,
+    take: pagination.limit,
+    orderBy: { position: "asc" },
+    select: { payload: true },
+  });
+  return {
+    items: rows.map(mapStoredRunPage).filter(Boolean),
+    pagination,
+  };
+}
+
+async function loadStoredRunDuplicateChunk(runId, page, limit) {
+  const where = { runId };
+  const total = await prisma.crawlRunDuplicate.count({ where });
+  const pagination = buildPaginationMeta(total, page, limit);
+  const rows = await prisma.crawlRunDuplicate.findMany({
+    where,
+    skip: (pagination.page - 1) * pagination.limit,
+    take: pagination.limit,
+    orderBy: { position: "asc" },
+    select: { title: true, payload: true },
+  });
+  return {
+    items: rows.map(mapStoredRunDuplicate).filter(Boolean),
+    pagination,
+  };
+}
+
 //  URL utils
 function normalizeUrl(url) {
   try {
@@ -2444,6 +2553,7 @@ app.get("/api/projects", requireAuth, async (req, res) => {
     }),
   ]);
 
+  setPrivateApiCache(res, 20, 90);
   res.json({
     viewer: sanitizeUser(req.user),
     pagination: buildPaginationMeta(total, page, limit),
@@ -2491,6 +2601,7 @@ app.get("/api/history", requireAuth, async (req, res) => {
     }),
   ]);
 
+  setPrivateApiCache(res, 20, 90);
   res.json({
     viewer: sanitizeUser(req.user),
     pagination: buildPaginationMeta(total, page, limit),
@@ -2559,6 +2670,7 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Proyecto no encontrado" });
   }
 
+  setPrivateApiCache(res, 20, 90);
   res.json({
     viewer: sanitizeUser(req.user),
     project,
@@ -2632,6 +2744,12 @@ app.get(
         downloadName: true,
         status: true,
         createdAt: true,
+        _count: {
+          select: {
+            storedPages: true,
+            storedDups: true,
+          },
+        },
       },
     });
 
@@ -2639,7 +2757,112 @@ app.get(
       return res.status(404).json({ error: "Historial no encontrado" });
     }
 
-    res.json({ run });
+    const legacyPages = Array.isArray(run.pages) ? run.pages : [];
+    const legacyDuplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
+    const normalizedRun = {
+      ...run,
+      pageCount: run._count.storedPages || legacyPages.length,
+      duplicateCount: run._count.storedDups || legacyDuplicates.length,
+    };
+    delete normalizedRun._count;
+    delete normalizedRun.pages;
+    delete normalizedRun.duplicates;
+
+    setPrivateApiCache(res, 15, 60);
+    res.json({ run: normalizedRun });
+  },
+);
+
+app.get(
+  "/api/projects/:projectId/runs/:runId/pages",
+  requireAuth,
+  async (req, res) => {
+    const run = await prisma.crawlRun.findFirst({
+      where: {
+        id: req.params.runId,
+        projectId: req.params.projectId,
+        userId: req.user.id,
+      },
+      select: {
+        id: true,
+        pages: true,
+        _count: { select: { storedPages: true } },
+      },
+    });
+
+    if (!run) {
+      return res.status(404).json({ error: "Historial no encontrado" });
+    }
+
+    const { page, limit } = parsePaginationParams(req.query, {
+      defaultLimit: 100,
+      maxLimit: 200,
+    });
+
+    if (run._count.storedPages > 0) {
+      const payload = await loadStoredRunPageChunk(run.id, page, limit);
+      setPrivateApiCache(res, 30, 120);
+      return res.json(payload);
+    }
+
+    const legacyPages = Array.isArray(run.pages)
+      ? run.pages.map(normalizeStoredRunPage).filter(Boolean)
+      : [];
+    const pagination = buildPaginationMeta(legacyPages.length, page, limit);
+    const start = (pagination.page - 1) * pagination.limit;
+    setPrivateApiCache(res, 30, 120);
+    return res.json({
+      items: legacyPages.slice(start, start + pagination.limit),
+      pagination,
+    });
+  },
+);
+
+app.get(
+  "/api/projects/:projectId/runs/:runId/duplicates",
+  requireAuth,
+  async (req, res) => {
+    const run = await prisma.crawlRun.findFirst({
+      where: {
+        id: req.params.runId,
+        projectId: req.params.projectId,
+        userId: req.user.id,
+      },
+      select: {
+        id: true,
+        duplicates: true,
+        _count: { select: { storedDups: true } },
+      },
+    });
+
+    if (!run) {
+      return res.status(404).json({ error: "Historial no encontrado" });
+    }
+
+    const { page, limit } = parsePaginationParams(req.query, {
+      defaultLimit: 100,
+      maxLimit: 200,
+    });
+
+    if (run._count.storedDups > 0) {
+      const payload = await loadStoredRunDuplicateChunk(run.id, page, limit);
+      setPrivateApiCache(res, 30, 120);
+      return res.json(payload);
+    }
+
+    const legacyDuplicates = Array.isArray(run.duplicates)
+      ? run.duplicates.map((item) => ({
+          title: String(item?.title || ""),
+          urls: Array.isArray(item?.urls) ? item.urls : [],
+        }))
+      : [];
+    const pagination = buildPaginationMeta(legacyDuplicates.length, page, limit);
+    const start = (pagination.page - 1) * pagination.limit;
+    setPrivateApiCache(res, 30, 120);
+    return res.json({
+      items: legacyDuplicates.slice(start, start + pagination.limit),
+      pagination,
+    });
   },
 );
 
@@ -2654,11 +2877,18 @@ app.get(
         userId: req.user.id,
       },
       select: {
+        id: true,
         sourceUrl: true,
         duplicates: true,
         pages: true,
         downloadName: true,
         createdAt: true,
+        _count: {
+          select: {
+            storedPages: true,
+            storedDups: true,
+          },
+        },
       },
     });
 
@@ -2667,8 +2897,16 @@ app.get(
     }
 
     const crawlLang = req.query.lang === "en" ? "en" : "es";
-    const results = Array.isArray(run.pages) ? run.pages : [];
-    const duplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
+    const results = run._count.storedPages > 0
+      ? await loadRunPagesForResponse(run.id)
+      : Array.isArray(run.pages)
+        ? run.pages.map(normalizeStoredRunPage).filter(Boolean)
+        : [];
+    const duplicates = run._count.storedDups > 0
+      ? await loadRunDuplicatesForResponse(run.id)
+      : Array.isArray(run.duplicates)
+        ? run.duplicates
+        : [];
     const buffer = await generateExcelBuffer(
       results,
       run.sourceUrl,
@@ -3029,24 +3267,46 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
     };
     const withIssues = results.filter((r) => r.issues.length > 0).length;
     const downloadName = buildReportFileName(startUrl);
-    const createdRun = await prisma.crawlRun.create({
-      data: {
-        userId: req.user.id,
-        projectId: project.id,
-        sourceUrl: startUrl,
-        source,
-        maxPages,
-        rateDelay,
-        checkExt,
-        total: results.length,
-        withIssues,
-        stats,
-        duplicates,
-        pages: results,
-        downloadName,
-        status: "completed",
-      },
-      select: { id: true },
+    const createdRun = await prisma.$transaction(async (tx) => {
+      const run = await tx.crawlRun.create({
+        data: {
+          userId: req.user.id,
+          projectId: project.id,
+          sourceUrl: startUrl,
+          source,
+          maxPages,
+          rateDelay,
+          checkExt,
+          total: results.length,
+          withIssues,
+          stats,
+          duplicates: null,
+          pages: null,
+          downloadName,
+          status: "completed",
+        },
+        select: { id: true },
+      });
+
+      if (results.length) {
+        await tx.crawlRunPage.createMany({
+          data: results.map((page, index) => ({
+            runId: run.id,
+            ...serializeRunPageRow(page, index),
+          })),
+        });
+      }
+
+      if (duplicates.length) {
+        await tx.crawlRunDuplicate.createMany({
+          data: duplicates.map((duplicate, index) => ({
+            runId: run.id,
+            ...serializeRunDuplicateRow(duplicate, index),
+          })),
+        });
+      }
+
+      return run;
     });
     send("done", {
       total: results.length,

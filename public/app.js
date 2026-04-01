@@ -413,6 +413,8 @@ let allTablePage = 1;
 let currentProject = null;
 let currentWorkspace = "seo";
 let currentTab = "all";
+let activeRunLoadRequest = 0;
+const RUN_COLLECTION_BATCH_SIZE = 100;
 const TABLE_BODIES = [
   "tbAll",
   "tbSEO",
@@ -899,8 +901,33 @@ function normalizeSavedPage(page) {
   };
 }
 
-function applySavedRun(run) {
+async function fetchRunCollection(runId, resource) {
+  const projectId = currentProject?.id;
+  if (!projectId || !runId) return [];
+
+  const items = [];
+  let page = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    const response = await fetch(
+      `/api/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/${resource}?page=${page}&limit=${RUN_COLLECTION_BATCH_SIZE}`,
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "No se pudo cargar el historial");
+    }
+    items.push(...(Array.isArray(data.items) ? data.items : []));
+    hasNext = Boolean(data.pagination?.hasNext);
+    page += 1;
+  }
+
+  return items;
+}
+
+async function applySavedRun(run) {
   if (!run) return;
+  const requestId = ++activeRunLoadRequest;
   const previousWorkspace = currentWorkspace;
   const previousTab = currentTab;
   resetState();
@@ -919,14 +946,6 @@ function applySavedRun(run) {
 
   const input = document.getElementById("urlInput");
   if (input && run.sourceUrl) input.value = run.sourceUrl;
-  crawlState.pages = Array.isArray(run.pages)
-    ? run.pages.map(normalizeSavedPage)
-    : [];
-  crawlState.duplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
-  rerenderTablesFromState();
-  if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
-  updateAggregateSgStats();
-
   const stats = run.stats || {};
   if (stats.domainInfo) {
     crawlState.hosting = stats.domainInfo;
@@ -947,14 +966,14 @@ function applySavedRun(run) {
   }
 
   sv("stxt", `${T("runLoaded")}: ${new Date(run.createdAt).toLocaleString()}`);
-  sv("vT", run.total || crawlState.pages.length || 0);
+  sv("vT", run.total || 0);
   sv("vI", run.withIssues || 0);
   sv("vTi", stats.titleIssues || 0);
   sv("vH", stats.h1Issues || 0);
   sv("vIm", stats.imgIssues || 0);
   sv("vDu", stats.duplicates || 0);
-  sv("tc-all", run.total || crawlState.pages.length || 0);
-  sv("tc-seo", run.total || crawlState.pages.length || 0);
+  sv("tc-all", run.total || 0);
+  sv("tc-seo", run.total || 0);
   sv("tc-issues", run.withIssues || 0);
   sv("tc-titles", stats.titleIssues || 0);
   sv("tc-desc", stats.descIssues || 0);
@@ -974,7 +993,7 @@ function applySavedRun(run) {
   updateDownloadUi(
     buildRunReportUrl(run.id),
     run.downloadName,
-    run.total || crawlState.pages.length || 0,
+    run.total || 0,
     run.withIssues || 0,
   );
   restoreWorkspaceState();
@@ -985,7 +1004,33 @@ function applySavedRun(run) {
   }
   const sl = document.getElementById("sl");
   if (sl) sl.style.display = "none";
+
+  const [loadedPages, loadedDuplicates] = await Promise.all([
+    Array.isArray(run.pages)
+      ? Promise.resolve(run.pages.map(normalizeSavedPage))
+      : fetchRunCollection(run.id, "pages").then((items) =>
+          items.map(normalizeSavedPage),
+        ),
+    Array.isArray(run.duplicates)
+      ? Promise.resolve(run.duplicates)
+      : fetchRunCollection(run.id, "duplicates"),
+  ]);
+
+  if (requestId !== activeRunLoadRequest) {
+    return run;
+  }
+
+  crawlState.pages = loadedPages;
+  crawlState.duplicates = loadedDuplicates;
+  rerenderTablesFromState();
+  if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
+  updateAggregateSgStats();
   updateCrawlButtonLabel();
+  return {
+    ...run,
+    pages: loadedPages,
+    duplicates: loadedDuplicates,
+  };
 }
 
 //
