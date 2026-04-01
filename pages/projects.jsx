@@ -11,7 +11,7 @@ import useSessionUser from "../hooks/useSessionUser";
 
 const DEFAULT_PAGINATION = {
   page: 1,
-  limit: 10,
+  limit: 8,
   total: 0,
   pageCount: 1,
   hasPrev: false,

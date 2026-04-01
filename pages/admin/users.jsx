@@ -22,7 +22,7 @@ const ROLE_OPTIONS = [
 
 const DEFAULT_PAGINATION = {
   page: 1,
-  limit: 20,
+  limit: 15,
   total: 0,
   pageCount: 1,
   hasPrev: false,
@@ -56,7 +56,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      setQuery(queryInput.trim().slice(0, 120));
+      setQuery(queryInput.trim().slice(0, 64));
     }, 250);
 
     return () => window.clearTimeout(handle);
@@ -191,6 +191,7 @@ export default function AdminUsersPage() {
               <span className="ui-field-label">Buscar</span>
               <input
                 className="ui-input"
+                maxLength={64}
                 value={queryInput}
                 onChange={(event) => setQueryInput(event.target.value)}
                 placeholder="Nombre, email o rol"

@@ -31,6 +31,7 @@ const {
   canManageUsers,
   getAssignedRole,
   getEffectiveRole,
+  getOwnerEmails,
   getRoleLabel,
   normalizeRole,
 } = require("../lib/user-roles");
@@ -316,8 +317,123 @@ function buildPaginationMeta(total, page, limit) {
   };
 }
 
-function normalizeSearchQuery(value, maxLength = 120) {
+function normalizeSearchQuery(value, maxLength = 64) {
   return String(value || "").trim().slice(0, maxLength);
+}
+
+function getManageableRoles(actor) {
+  const actorRole = getEffectiveRole(actor);
+  if (actorRole === USER_ROLE.OWNER) return null;
+  if (actorRole === USER_ROLE.SUPER_ADMIN) {
+    return [USER_ROLE.SUPER_ADMIN, USER_ROLE.ADMIN, USER_ROLE.EDITOR, USER_ROLE.USER];
+  }
+  if (actorRole === USER_ROLE.ADMIN) {
+    return [USER_ROLE.EDITOR, USER_ROLE.USER];
+  }
+  return [];
+}
+
+function buildAdminUsersWhere(actor, search, roleFilter) {
+  const ownerEmails = Array.from(getOwnerEmails());
+  const manageableRoles = getManageableRoles(actor);
+  const filters = [];
+
+  if (manageableRoles && manageableRoles.length === 0) {
+    return { id: "__no_manageable_users__" };
+  }
+
+  if (roleFilter !== "all") {
+    if (
+      roleFilter === USER_ROLE.OWNER &&
+      getEffectiveRole(actor) !== USER_ROLE.OWNER
+    ) {
+      return { id: "__no_manageable_users__" };
+    }
+
+    if (manageableRoles && !manageableRoles.includes(roleFilter)) {
+      return { id: "__no_manageable_users__" };
+    }
+
+    if (roleFilter === USER_ROLE.OWNER) {
+      filters.push({
+        OR: [
+          { role: USER_ROLE.OWNER.toUpperCase() },
+          ...(ownerEmails.length ? [{ email: { in: ownerEmails } }] : []),
+        ],
+      });
+    } else {
+      filters.push({ role: roleFilter.toUpperCase() });
+    }
+  } else if (manageableRoles) {
+    filters.push({
+      role: { in: manageableRoles.map((role) => role.toUpperCase()) },
+    });
+  }
+
+  if (getEffectiveRole(actor) !== USER_ROLE.OWNER && ownerEmails.length) {
+    filters.push({ email: { notIn: ownerEmails } });
+  }
+
+  if (search) {
+    const normalizedSearch = search.toLowerCase();
+    const explicitlyMatchedRole = [
+      USER_ROLE.OWNER,
+      USER_ROLE.SUPER_ADMIN,
+      USER_ROLE.ADMIN,
+      USER_ROLE.EDITOR,
+      USER_ROLE.USER,
+    ].includes(normalizedSearch)
+      ? normalizedSearch
+      : null;
+    const matchedRoles = [
+      ...new Set(
+        [explicitlyMatchedRole]
+          .concat(
+            [
+              USER_ROLE.OWNER,
+              USER_ROLE.SUPER_ADMIN,
+              USER_ROLE.ADMIN,
+              USER_ROLE.EDITOR,
+              USER_ROLE.USER,
+            ].filter(
+              (role) =>
+                role.includes(normalizedSearch) ||
+                getRoleLabel(role).toLowerCase().includes(normalizedSearch),
+            ),
+          ),
+      ),
+    ].filter(Boolean);
+
+    const searchFilters = [
+      {
+        name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        email: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+    ];
+
+    if (matchedRoles.length) {
+      searchFilters.push({
+        role: {
+          in: matchedRoles.map((role) => role.toUpperCase()),
+        },
+      });
+      if (matchedRoles.includes(USER_ROLE.OWNER) && ownerEmails.length) {
+        searchFilters.push({ email: { in: ownerEmails } });
+      }
+    }
+
+    filters.push({ OR: searchFilters });
+  }
+
+  return filters.length ? { AND: filters } : {};
 }
 
 const ADMIN_USER_LIST_SELECT = {
@@ -2195,44 +2311,33 @@ app.get(
   requireUserManagement,
   async (req, res) => {
     try {
-      const { page, limit } = parsePaginationParams(req.query, {
-        defaultLimit: 20,
-        maxLimit: 50,
+      const { page, limit, skip } = parsePaginationParams(req.query, {
+        defaultLimit: 15,
+        maxLimit: 30,
       });
       const search = normalizeSearchQuery(req.query.q);
       const roleFilter =
         req.query.role && req.query.role !== "all"
           ? normalizeRole(req.query.role)
           : "all";
-      const users = await prisma.user.findMany({
-        select: ADMIN_USER_LIST_SELECT,
-        orderBy: { createdAt: "asc" },
-      });
-      const filteredUsers = users
-        .filter((user) => canManageTarget(req.user, user))
-        .filter((user) => {
-          if (roleFilter !== "all" && normalizeRole(user.role) !== roleFilter) {
-            return false;
-          }
-
-          if (!search) return true;
-          const normalizedSearch = search.toLowerCase();
-          return [user.name, user.email, getRoleLabel(user.role)]
-            .filter(Boolean)
-            .some((value) =>
-              String(value).toLowerCase().includes(normalizedSearch),
-            );
-        });
-      const pagination = buildPaginationMeta(filteredUsers.length, page, limit);
-      const start = (pagination.page - 1) * pagination.limit;
-      const pagedUsers = filteredUsers
-        .slice(start, start + pagination.limit)
-        .map((user) => sanitizeUser(user));
+      const where = buildAdminUsersWhere(req.user, search, roleFilter);
+      const [total, users] = await Promise.all([
+        prisma.user.count({ where }),
+        prisma.user.findMany({
+          where,
+          skip,
+          take: limit,
+          select: ADMIN_USER_LIST_SELECT,
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
 
       return res.json({
         viewer: sanitizeUser(req.user),
-        users: pagedUsers,
-        pagination,
+        users: users
+          .filter((user) => canManageTarget(req.user, user))
+          .map((user) => sanitizeUser(user)),
+        pagination: buildPaginationMeta(total, page, limit),
       });
     } catch (error) {
       return handleApiError(
@@ -2306,8 +2411,8 @@ app.put(
 
 app.get("/api/projects", requireAuth, async (req, res) => {
   const { page, limit, skip } = parsePaginationParams(req.query, {
-    defaultLimit: 10,
-    maxLimit: 50,
+    defaultLimit: 8,
+    maxLimit: 24,
   });
   const where = { userId: req.user.id };
   const [total, projects] = await Promise.all([
@@ -2356,8 +2461,8 @@ app.get("/api/projects", requireAuth, async (req, res) => {
 
 app.get("/api/history", requireAuth, async (req, res) => {
   const { page, limit, skip } = parsePaginationParams(req.query, {
-    defaultLimit: 20,
-    maxLimit: 50,
+    defaultLimit: 12,
+    maxLimit: 24,
   });
   const where = { userId: req.user.id };
   const [total, runs] = await Promise.all([
@@ -2435,7 +2540,7 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
       updatedAt: true,
       crawlRuns: {
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 12,
         select: {
           id: true,
           status: true,
