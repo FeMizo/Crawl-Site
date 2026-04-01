@@ -48,7 +48,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
+    fetch("/api/auth/me?includeCounts=1")
       .then(async (response) => {
         if (response.status === 401) {
           clearSessionUser();

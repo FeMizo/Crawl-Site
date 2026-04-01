@@ -177,12 +177,20 @@ function sanitizeUser(user) {
   };
 }
 
-async function buildMePayload(user) {
+async function buildMePayload(user, options = {}) {
+  const includeCounts = options.includeCounts === true;
+
   if (!user) {
-    return {
-      user: null,
-      counts: { projects: 0, crawlRuns: 0 },
-    };
+    return includeCounts
+      ? {
+          user: null,
+          counts: { projects: 0, crawlRuns: 0 },
+        }
+      : { user: null };
+  }
+
+  if (!includeCounts) {
+    return { user: sanitizeUser(user) };
   }
 
   const [projectCount, crawlRunCount] = await Promise.all([
@@ -273,6 +281,54 @@ function normalizeProjectName(name, targetUrl) {
     return "Proyecto";
   }
 }
+
+function parsePaginationParams(query, options = {}) {
+  const defaultLimit = Number.isInteger(options.defaultLimit)
+    ? options.defaultLimit
+    : 20;
+  const maxLimit = Number.isInteger(options.maxLimit) ? options.maxLimit : 50;
+  const pageValue = parseInt(String(query?.page || "1"), 10);
+  const limitValue = parseInt(String(query?.limit || defaultLimit), 10);
+  const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
+  const limit = Number.isFinite(limitValue) && limitValue > 0
+    ? Math.min(limitValue, maxLimit)
+    : defaultLimit;
+
+  return {
+    page,
+    limit,
+    skip: (page - 1) * limit,
+  };
+}
+
+function buildPaginationMeta(total, page, limit) {
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 0;
+  const pageCount = safeTotal > 0 ? Math.ceil(safeTotal / limit) : 1;
+  const safePage = Math.min(page, pageCount);
+
+  return {
+    page: safePage,
+    limit,
+    total: safeTotal,
+    pageCount,
+    hasPrev: safePage > 1,
+    hasNext: safePage < pageCount,
+  };
+}
+
+function normalizeSearchQuery(value, maxLength = 120) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+const ADMIN_USER_LIST_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  phoneCountry: true,
+  phoneNumber: true,
+  createdAt: true,
+};
 
 //  URL utils
 function normalizeUrl(url) {
@@ -2028,11 +2084,13 @@ app.post("/api/auth/logout", (req, res) => {
 });
 
 app.get("/api/auth/me", async (req, res) => {
+  const includeCounts = req.query.includeCounts === "1";
+
   if (req.query.optional === "1") {
     try {
       const token = req.cookies?.auth_token;
       if (!token) {
-        return res.json(await buildMePayload(null));
+        return res.json(await buildMePayload(null, { includeCounts }));
       }
 
       const payload = jwt.verify(token, getJwtSecret());
@@ -2040,7 +2098,7 @@ app.get("/api/auth/me", async (req, res) => {
         where: { id: payload.userId },
       });
 
-      return res.json(await buildMePayload(user));
+      return res.json(await buildMePayload(user, { includeCounts }));
     } catch (error) {
       if (
         error?.name !== "JsonWebTokenError" &&
@@ -2051,12 +2109,12 @@ app.get("/api/auth/me", async (req, res) => {
           method: req.method,
         });
       }
-      return res.json(await buildMePayload(null));
+      return res.json(await buildMePayload(null, { includeCounts }));
     }
   }
 
   return requireAuth(req, res, async () => {
-    res.json(await buildMePayload(req.user));
+    res.json(await buildMePayload(req.user, { includeCounts }));
   });
 });
 
@@ -2137,14 +2195,44 @@ app.get(
   requireUserManagement,
   async (req, res) => {
     try {
+      const { page, limit } = parsePaginationParams(req.query, {
+        defaultLimit: 20,
+        maxLimit: 50,
+      });
+      const search = normalizeSearchQuery(req.query.q);
+      const roleFilter =
+        req.query.role && req.query.role !== "all"
+          ? normalizeRole(req.query.role)
+          : "all";
       const users = await prisma.user.findMany({
+        select: ADMIN_USER_LIST_SELECT,
         orderBy: { createdAt: "asc" },
       });
+      const filteredUsers = users
+        .filter((user) => canManageTarget(req.user, user))
+        .filter((user) => {
+          if (roleFilter !== "all" && normalizeRole(user.role) !== roleFilter) {
+            return false;
+          }
+
+          if (!search) return true;
+          const normalizedSearch = search.toLowerCase();
+          return [user.name, user.email, getRoleLabel(user.role)]
+            .filter(Boolean)
+            .some((value) =>
+              String(value).toLowerCase().includes(normalizedSearch),
+            );
+        });
+      const pagination = buildPaginationMeta(filteredUsers.length, page, limit);
+      const start = (pagination.page - 1) * pagination.limit;
+      const pagedUsers = filteredUsers
+        .slice(start, start + pagination.limit)
+        .map((user) => sanitizeUser(user));
 
       return res.json({
-        users: users
-          .filter((user) => canManageTarget(req.user, user))
-          .map((user) => sanitizeUser(user)),
+        viewer: sanitizeUser(req.user),
+        users: pagedUsers,
+        pagination,
       });
     } catch (error) {
       return handleApiError(
@@ -2217,26 +2305,43 @@ app.put(
 );
 
 app.get("/api/projects", requireAuth, async (req, res) => {
-  const projects = await prisma.project.findMany({
-    where: { userId: req.user.id },
-    include: {
-      _count: { select: { crawlRuns: true } },
-      crawlRuns: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          createdAt: true,
-          total: true,
-          withIssues: true,
-          status: true,
+  const { page, limit, skip } = parsePaginationParams(req.query, {
+    defaultLimit: 10,
+    maxLimit: 50,
+  });
+  const where = { userId: req.user.id };
+  const [total, projects] = await Promise.all([
+    prisma.project.count({ where }),
+    prisma.project.findMany({
+      where,
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        targetUrl: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { crawlRuns: true } },
+        crawlRuns: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            createdAt: true,
+            total: true,
+            withIssues: true,
+            status: true,
+          },
         },
       },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      orderBy: { updatedAt: "desc" },
+    }),
+  ]);
 
   res.json({
+    viewer: sanitizeUser(req.user),
+    pagination: buildPaginationMeta(total, page, limit),
     projects: projects.map((project) => ({
       id: project.id,
       name: project.name,
@@ -2250,22 +2355,40 @@ app.get("/api/projects", requireAuth, async (req, res) => {
 });
 
 app.get("/api/history", requireAuth, async (req, res) => {
-  const runs = await prisma.crawlRun.findMany({
-    where: { userId: req.user.id },
-    orderBy: { createdAt: "desc" },
-    take: 30,
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          targetUrl: true,
+  const { page, limit, skip } = parsePaginationParams(req.query, {
+    defaultLimit: 20,
+    maxLimit: 50,
+  });
+  const where = { userId: req.user.id };
+  const [total, runs] = await Promise.all([
+    prisma.crawlRun.count({ where }),
+    prisma.crawlRun.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        projectId: true,
+        sourceUrl: true,
+        total: true,
+        withIssues: true,
+        status: true,
+        createdAt: true,
+        project: {
+          select: {
+            id: true,
+            name: true,
+            targetUrl: true,
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   res.json({
+    viewer: sanitizeUser(req.user),
+    pagination: buildPaginationMeta(total, page, limit),
     runs: runs.map((run) => ({
       id: run.id,
       projectId: run.projectId,
@@ -2304,7 +2427,12 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
       id: req.params.projectId,
       userId: req.user.id,
     },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      targetUrl: true,
+      createdAt: true,
+      updatedAt: true,
       crawlRuns: {
         orderBy: { createdAt: "desc" },
         take: 20,
@@ -2326,7 +2454,10 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Proyecto no encontrado" });
   }
 
-  res.json({ project });
+  res.json({
+    viewer: sanitizeUser(req.user),
+    project,
+  });
 });
 
 app.put("/api/projects/:projectId", requireAuth, async (req, res) => {

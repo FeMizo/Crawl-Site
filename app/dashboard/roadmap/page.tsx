@@ -29,7 +29,7 @@ export default function RoadmapPage() {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/auth/me", { cache: "no-store" })
+    fetch("/api/auth/me")
       .then(async (response) => {
         if (response.status === 401) {
           clearSessionUser();

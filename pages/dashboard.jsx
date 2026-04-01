@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Script from "next/script";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -31,11 +31,12 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [activeRunId, setActiveRunId] = useState("");
+  const runCacheRef = useRef(new Map());
 
   useEffect(() => {
     if (legacyMarkupCache) return undefined;
     let active = true;
-    fetch("/api/legacy-markup", { cache: "no-store" })
+    fetch("/api/legacy-markup")
       .then((r) => {
         if (!r.ok) throw new Error("No se pudo cargar la interfaz");
         return r.text();
@@ -66,29 +67,25 @@ export default function DashboardPage() {
       };
     }
 
-    Promise.all([
-      fetch("/api/auth/me"),
-      fetch(`/api/projects/${projectId}`),
-    ])
-      .then(async ([meResponse, projectResponse]) => {
-        if (meResponse.status === 401 || projectResponse.status === 401) {
+    fetch(`/api/projects/${projectId}`)
+      .then(async (projectResponse) => {
+        if (projectResponse.status === 401) {
           clearSessionUser();
           router.replace(
             `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
           );
           return null;
         }
-        const meData = await meResponse.json();
         const projectData = await projectResponse.json();
         if (!projectResponse.ok) {
           throw new Error(projectData.error || "No se pudo cargar el proyecto");
         }
-        return { meData, projectData };
+        return projectData;
       })
-      .then((data) => {
-        if (!active || !data) return;
-        setSessionUser(data.meData?.user || null);
-        const projectPayload = data.projectData.project;
+      .then((projectData) => {
+        if (!active || !projectData) return;
+        setSessionUser(projectData.viewer || null);
+        const projectPayload = projectData.project;
         const projectRuns = Array.isArray(projectPayload?.crawlRuns)
           ? projectPayload.crawlRuns
           : [];
@@ -125,7 +122,14 @@ export default function DashboardPage() {
   }, [canInit, project]);
 
   useEffect(() => {
-    if (!project || !activeRunId || typeof window.loadSeoCrawlerRun !== "function") return;
+    if (!project || !activeRunId || !appReady || typeof window.loadSeoCrawlerRun !== "function") return;
+
+    const cachedRun = runCacheRef.current.get(activeRunId);
+    if (cachedRun) {
+      window.loadSeoCrawlerRun(cachedRun);
+      return;
+    }
+
     fetch(`/api/projects/${project.id}/runs/${activeRunId}`)
       .then(async (response) => {
         const data = await response.json();
@@ -133,12 +137,17 @@ export default function DashboardPage() {
         return data;
       })
       .then((data) => {
+        runCacheRef.current.set(activeRunId, data.run);
         window.loadSeoCrawlerRun(data.run);
       })
       .catch((err) => {
         setLoadError(err.message || "No se pudo cargar el historial");
       });
-  }, [activeRunId, project]);
+  }, [activeRunId, appReady, project]);
+
+  useEffect(() => {
+    runCacheRef.current.clear();
+  }, [project?.id]);
 
   const renameProject = async () => {
     if (!project) return;

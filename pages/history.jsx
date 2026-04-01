@@ -8,6 +8,15 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import useSessionUser from "../hooks/useSessionUser";
 
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: 20,
+  total: 0,
+  pageCount: 1,
+  hasPrev: false,
+  hasNext: false,
+};
+
 function formatDate(value) {
   if (!value) return "Sin fecha";
   return new Date(value).toLocaleString("es-MX");
@@ -19,30 +28,32 @@ export default function HistoryPage() {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch("/api/auth/me").then(async (response) => {
+    setLoading(true);
+    setError("");
+
+    fetch(`/api/history?page=${page}&limit=${DEFAULT_PAGINATION.limit}`)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
         if (response.status === 401) {
           clearSessionUser();
           router.replace("/login?next=/history");
           return null;
         }
-        return response.json();
-      }),
-      fetch("/api/history").then(async (response) => {
         if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
           throw new Error(data.error || "No se pudo cargar el historial");
         }
-        return response.json();
-      }),
-    ])
-      .then(([meData, historyData]) => {
-        if (!active) return;
-        setSessionUser(meData?.user || null);
-        setRuns(historyData?.runs || []);
+        return data;
+      })
+      .then((historyData) => {
+        if (!active || !historyData) return;
+        setSessionUser(historyData.viewer || null);
+        setRuns(historyData.runs || []);
+        setPagination(historyData.pagination || DEFAULT_PAGINATION);
       })
       .catch((err) => {
         if (active) setError(err.message || "No se pudo cargar el historial");
@@ -54,7 +65,7 @@ export default function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, setSessionUser]);
+  }, [clearSessionUser, page, router, setSessionUser]);
 
   return (
     <>
@@ -100,6 +111,35 @@ export default function HistoryPage() {
             </Card>
           ) : null}
         </div>
+        {!loading && pagination.pageCount > 1 ? (
+          <div className="pagination-row">
+            <Button
+              type="button"
+              variant="outline"
+              tone="secondary"
+              size="sm"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={!pagination.hasPrev}
+            >
+              Anterior
+            </Button>
+            <span className="pagination-text">
+              Pagina {pagination.page} de {pagination.pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              tone="secondary"
+              size="sm"
+              onClick={() =>
+                setPage((current) => Math.min(pagination.pageCount, current + 1))
+              }
+              disabled={!pagination.hasNext}
+            >
+              Siguiente
+            </Button>
+          </div>
+        ) : null}
         <style jsx>{`
           .feedback {
             color: var(--text2);
@@ -113,6 +153,17 @@ export default function HistoryPage() {
             gap: 18px;
             min-width: 0;
             align-items: start;
+          }
+          .pagination-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+          }
+          .pagination-text {
+            color: var(--text2);
+            font-size: 13px;
           }
           .history-card {
             display: grid;

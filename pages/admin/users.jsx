@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
@@ -20,6 +20,15 @@ const ROLE_OPTIONS = [
   USER_ROLE.USER,
 ];
 
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: 20,
+  total: 0,
+  pageCount: 1,
+  hasPrev: false,
+  hasNext: false,
+};
+
 function formatDate(value) {
   if (!value) return "Sin fecha";
   return new Date(value).toLocaleString("es-MX");
@@ -38,22 +47,48 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [savingUserId, setSavingUserId] = useState("");
+  const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
+  const previousFiltersRef = useRef({ query: "", roleFilter: "all" });
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setQuery(queryInput.trim().slice(0, 120));
+    }, 250);
+
+    return () => window.clearTimeout(handle);
+  }, [queryInput]);
 
   useEffect(() => {
     let active = true;
+    const filtersChanged =
+      previousFiltersRef.current.query !== query ||
+      previousFiltersRef.current.roleFilter !== roleFilter;
 
-    Promise.all([
-      fetch("/api/auth/me").then(async (response) => {
-        if (response.status === 401) {
-          clearSessionUser();
-          router.replace("/login?next=/admin/users");
-          return null;
-        }
-        return response.json();
-      }),
-      fetch("/api/admin/users").then(async (response) => {
+    if (filtersChanged && page !== 1) {
+      previousFiltersRef.current = { query, roleFilter };
+      setPage(1);
+      return () => {
+        active = false;
+      };
+    }
+
+    previousFiltersRef.current = { query, roleFilter };
+    setLoading(true);
+    setError("");
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(DEFAULT_PAGINATION.limit),
+    });
+    if (query) params.set("q", query);
+    if (roleFilter !== "all") params.set("role", roleFilter);
+
+    fetch(`/api/admin/users?${params.toString()}`)
+      .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) {
           clearSessionUser();
@@ -67,12 +102,12 @@ export default function AdminUsersPage() {
           throw new Error(data.error || "No se pudo cargar el listado de usuarios.");
         }
         return data;
-      }),
-    ])
-      .then(([meData, usersData]) => {
-        if (!active) return;
-        setSessionUser(meData?.user || null);
-        setUsers(usersData?.users || []);
+      })
+      .then((usersData) => {
+        if (!active || !usersData) return;
+        setSessionUser(usersData.viewer || null);
+        setUsers(usersData.users || []);
+        setPagination(usersData.pagination || DEFAULT_PAGINATION);
       })
       .catch((err) => {
         if (active) setError(err.message || "No se pudo cargar el listado.");
@@ -84,28 +119,12 @@ export default function AdminUsersPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, setSessionUser]);
+  }, [clearSessionUser, page, query, roleFilter, router, setSessionUser]);
 
   const assignableRoles = useMemo(
     () => new Set(sessionUser?.permissions?.assignableRoles || []),
     [sessionUser],
   );
-
-  const filteredUsers = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return users.filter((user) => {
-      const matchesRole =
-        roleFilter === "all" || (user.role || USER_ROLE.USER) === roleFilter;
-      if (!matchesRole) return false;
-      if (!normalizedQuery) return true;
-
-      return [user.name, user.email, user.roleLabel]
-        .filter(Boolean)
-        .some((value) =>
-          String(value).toLowerCase().includes(normalizedQuery),
-        );
-    });
-  }, [query, roleFilter, users]);
 
   const updateUserRole = async (userId, role) => {
     setSavingUserId(userId);
@@ -162,8 +181,8 @@ export default function AdminUsersPage() {
               <p>Busca, filtra y ajusta permisos sin perder de vista el estado actual de cada cuenta.</p>
             </div>
             <div className="toolbar-metrics">
-              <Badge tone="secondary">{filteredUsers.length} visibles</Badge>
-              <Badge tone="primary">{users.length} totales</Badge>
+              <Badge tone="secondary">{users.length} visibles</Badge>
+              <Badge tone="primary">{pagination.total} totales</Badge>
             </div>
           </div>
 
@@ -172,15 +191,18 @@ export default function AdminUsersPage() {
               <span className="ui-field-label">Buscar</span>
               <input
                 className="ui-input"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
                 placeholder="Nombre, email o rol"
               />
             </label>
             <Select
               label="Filtrar por rol"
               value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value)}
+              onChange={(event) => {
+                setRoleFilter(event.target.value);
+                setPage(1);
+              }}
             >
               <option value="all">Todos</option>
               {ROLE_OPTIONS.map((role) => (
@@ -206,7 +228,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => {
+                {users.map((user) => {
                   const currentRole = user.assignedRole || USER_ROLE.USER;
                   const disabled =
                     !assignableRoles.size ||
@@ -267,7 +289,7 @@ export default function AdminUsersPage() {
                     </tr>
                   );
                 })}
-                {!loading && !filteredUsers.length ? (
+                {!loading && !users.length ? (
                   <tr>
                     <td colSpan={6}>
                       <div className="empty-state">
@@ -281,6 +303,36 @@ export default function AdminUsersPage() {
             </table>
           </div>
         </Card>
+
+        {!loading && pagination.pageCount > 1 ? (
+          <div className="pagination-row">
+            <Button
+              type="button"
+              variant="outline"
+              tone="secondary"
+              size="sm"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={!pagination.hasPrev}
+            >
+              Anterior
+            </Button>
+            <span className="pagination-text">
+              Pagina {pagination.page} de {pagination.pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              tone="secondary"
+              size="sm"
+              onClick={() =>
+                setPage((current) => Math.min(pagination.pageCount, current + 1))
+              }
+              disabled={!pagination.hasNext}
+            >
+              Siguiente
+            </Button>
+          </div>
+        ) : null}
 
         <style jsx>{`
           .feedback {
@@ -329,6 +381,17 @@ export default function AdminUsersPage() {
           }
           .table-wrap {
             overflow-x: auto;
+          }
+          .pagination-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+          }
+          .pagination-text {
+            color: var(--text2);
+            font-size: 13px;
           }
           .users-table {
             width: 100%;

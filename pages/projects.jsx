@@ -9,6 +9,15 @@ import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
 import useSessionUser from "../hooks/useSessionUser";
 
+const DEFAULT_PAGINATION = {
+  page: 1,
+  limit: 10,
+  total: 0,
+  pageCount: 1,
+  hasPrev: false,
+  hasNext: false,
+};
+
 function formatDate(value) {
   if (!value) return "Sin fecha";
   return new Date(value).toLocaleString("es-MX");
@@ -20,30 +29,33 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch("/api/auth/me").then(async (response) => {
+    setLoading(true);
+    setError("");
+
+    fetch(`/api/projects?page=${page}&limit=${DEFAULT_PAGINATION.limit}`)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
         if (response.status === 401) {
           clearSessionUser();
           router.replace("/login?next=/projects");
           return null;
         }
-        return response.json();
-      }),
-      fetch("/api/projects").then(async (response) => {
         if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
           throw new Error(data.error || "No se pudieron cargar los proyectos");
         }
-        return response.json();
-      }),
-    ])
-      .then(([meData, projectsData]) => {
-        if (!active) return;
-        setSessionUser(meData?.user || null);
-        setProjects(projectsData?.projects || []);
+        return data;
+      })
+      .then((projectsData) => {
+        if (!active || !projectsData) return;
+        setSessionUser(projectsData.viewer || null);
+        setProjects(projectsData.projects || []);
+        setPagination(projectsData.pagination || DEFAULT_PAGINATION);
       })
       .catch((err) => {
         if (active) setError(err.message || "No se pudieron cargar los proyectos");
@@ -55,7 +67,7 @@ export default function ProjectsPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, setSessionUser]);
+  }, [clearSessionUser, page, reloadKey, router, setSessionUser]);
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -72,9 +84,11 @@ export default function ProjectsPage() {
       setError(data.error || "No se pudo eliminar el proyecto");
       return;
     }
-    setProjects((current) =>
-      current.filter((project) => project.id !== projectId),
-    );
+    if (projects.length === 1 && page > 1) {
+      setPage((current) => Math.max(1, current - 1));
+      return;
+    }
+    setReloadKey((current) => current + 1);
   };
 
   return (
@@ -101,11 +115,11 @@ export default function ProjectsPage() {
         }
         aside={
           <div className="aside-stats">
-            <StatCard label="Proyectos" value={projects.length} hint="Espacios activos" tone="primary" icon={<Icon name="projects" size={14} />} />
+            <StatCard label="Proyectos" value={pagination.total} hint="Espacios activos" tone="primary" icon={<Icon name="projects" size={14} />} />
             <StatCard
               label="Rastreos"
               value={projects.reduce((acc, project) => acc + (project.runCount || 0), 0)}
-              hint="Historial acumulado"
+              hint="Pagina actual"
               tone="secondary"
               icon={<Icon name="history" size={14} />}
             />
@@ -158,6 +172,36 @@ export default function ProjectsPage() {
           ) : null}
         </section>
 
+        {!loading && pagination.pageCount > 1 ? (
+          <div className="pagination-row">
+            <Button
+              type="button"
+              variant="outline"
+              tone="secondary"
+              size="sm"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={!pagination.hasPrev}
+            >
+              Anterior
+            </Button>
+            <span className="pagination-text">
+              Pagina {pagination.page} de {pagination.pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              tone="secondary"
+              size="sm"
+              onClick={() =>
+                setPage((current) => Math.min(pagination.pageCount, current + 1))
+              }
+              disabled={!pagination.hasNext}
+            >
+              Siguiente
+            </Button>
+          </div>
+        ) : null}
+
         <style jsx>{`
           .aside-stats {
             display: grid;
@@ -174,6 +218,17 @@ export default function ProjectsPage() {
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 18px;
             min-width: 0;
+          }
+          .pagination-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+          }
+          .pagination-text {
+            color: var(--text2);
+            font-size: 13px;
           }
           .project-card {
             display: grid;
