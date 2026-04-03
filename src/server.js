@@ -521,6 +521,15 @@ async function loadRunDuplicatesForResponse(runId) {
   return rows.map(mapStoredRunDuplicate).filter(Boolean);
 }
 
+function normalizeRunSourceType(sourceType) {
+  const value = String(sourceType || "crawl").trim();
+  return value || "crawl";
+}
+
+function serializeRunStatus(status) {
+  return String(status || "COMPLETED").toLowerCase();
+}
+
 async function loadStoredRunPageChunk(runId, page, limit) {
   const where = { runId };
   const total = await prisma.crawlRunPage.count({ where });
@@ -2586,6 +2595,7 @@ app.get("/api/history", requireAuth, async (req, res) => {
         id: true,
         projectId: true,
         sourceUrl: true,
+        sourceType: true,
         total: true,
         withIssues: true,
         status: true,
@@ -2609,9 +2619,11 @@ app.get("/api/history", requireAuth, async (req, res) => {
       id: run.id,
       projectId: run.projectId,
       sourceUrl: run.sourceUrl,
+      sourceType: normalizeRunSourceType(run.sourceType),
+      source: normalizeRunSourceType(run.sourceType),
       total: run.total,
       withIssues: run.withIssues,
-      status: run.status,
+      status: serializeRunStatus(run.status),
       createdAt: run.createdAt,
       project: run.project,
     })),
@@ -2656,7 +2668,7 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
           id: true,
           status: true,
           sourceUrl: true,
-          source: true,
+          sourceType: true,
           total: true,
           withIssues: true,
           downloadName: true,
@@ -2673,7 +2685,18 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
   setPrivateApiCache(res, 20, 90);
   res.json({
     viewer: sanitizeUser(req.user),
-    project,
+    project: {
+      ...project,
+      crawlRuns: project.crawlRuns.map((run) => {
+        const sourceType = normalizeRunSourceType(run.sourceType);
+        return {
+          ...run,
+          sourceType,
+          source: sourceType,
+          status: serializeRunStatus(run.status),
+        };
+      }),
+    },
   });
 });
 
@@ -2732,15 +2755,13 @@ app.get(
       select: {
         id: true,
         sourceUrl: true,
-        source: true,
+        sourceType: true,
         maxPages: true,
         rateDelay: true,
         checkExt: true,
         total: true,
         withIssues: true,
         stats: true,
-        duplicates: true,
-        pages: true,
         downloadName: true,
         status: true,
         createdAt: true,
@@ -2757,16 +2778,16 @@ app.get(
       return res.status(404).json({ error: "Historial no encontrado" });
     }
 
-    const legacyPages = Array.isArray(run.pages) ? run.pages : [];
-    const legacyDuplicates = Array.isArray(run.duplicates) ? run.duplicates : [];
+    const sourceType = normalizeRunSourceType(run.sourceType);
     const normalizedRun = {
       ...run,
-      pageCount: run._count.storedPages || legacyPages.length,
-      duplicateCount: run._count.storedDups || legacyDuplicates.length,
+      sourceType,
+      source: sourceType,
+      status: serializeRunStatus(run.status),
+      pageCount: run._count.storedPages,
+      duplicateCount: run._count.storedDups,
     };
     delete normalizedRun._count;
-    delete normalizedRun.pages;
-    delete normalizedRun.duplicates;
 
     setPrivateApiCache(res, 15, 60);
     res.json({ run: normalizedRun });
@@ -2783,11 +2804,7 @@ app.get(
         projectId: req.params.projectId,
         userId: req.user.id,
       },
-      select: {
-        id: true,
-        pages: true,
-        _count: { select: { storedPages: true } },
-      },
+      select: { id: true },
     });
 
     if (!run) {
@@ -2799,22 +2816,9 @@ app.get(
       maxLimit: 200,
     });
 
-    if (run._count.storedPages > 0) {
-      const payload = await loadStoredRunPageChunk(run.id, page, limit);
-      setPrivateApiCache(res, 30, 120);
-      return res.json(payload);
-    }
-
-    const legacyPages = Array.isArray(run.pages)
-      ? run.pages.map(normalizeStoredRunPage).filter(Boolean)
-      : [];
-    const pagination = buildPaginationMeta(legacyPages.length, page, limit);
-    const start = (pagination.page - 1) * pagination.limit;
+    const payload = await loadStoredRunPageChunk(run.id, page, limit);
     setPrivateApiCache(res, 30, 120);
-    return res.json({
-      items: legacyPages.slice(start, start + pagination.limit),
-      pagination,
-    });
+    return res.json(payload);
   },
 );
 
@@ -2828,11 +2832,7 @@ app.get(
         projectId: req.params.projectId,
         userId: req.user.id,
       },
-      select: {
-        id: true,
-        duplicates: true,
-        _count: { select: { storedDups: true } },
-      },
+      select: { id: true },
     });
 
     if (!run) {
@@ -2844,25 +2844,9 @@ app.get(
       maxLimit: 200,
     });
 
-    if (run._count.storedDups > 0) {
-      const payload = await loadStoredRunDuplicateChunk(run.id, page, limit);
-      setPrivateApiCache(res, 30, 120);
-      return res.json(payload);
-    }
-
-    const legacyDuplicates = Array.isArray(run.duplicates)
-      ? run.duplicates.map((item) => ({
-          title: String(item?.title || ""),
-          urls: Array.isArray(item?.urls) ? item.urls : [],
-        }))
-      : [];
-    const pagination = buildPaginationMeta(legacyDuplicates.length, page, limit);
-    const start = (pagination.page - 1) * pagination.limit;
+    const payload = await loadStoredRunDuplicateChunk(run.id, page, limit);
     setPrivateApiCache(res, 30, 120);
-    return res.json({
-      items: legacyDuplicates.slice(start, start + pagination.limit),
-      pagination,
-    });
+    return res.json(payload);
   },
 );
 
@@ -2879,16 +2863,8 @@ app.get(
       select: {
         id: true,
         sourceUrl: true,
-        duplicates: true,
-        pages: true,
         downloadName: true,
         createdAt: true,
-        _count: {
-          select: {
-            storedPages: true,
-            storedDups: true,
-          },
-        },
       },
     });
 
@@ -2897,16 +2873,8 @@ app.get(
     }
 
     const crawlLang = req.query.lang === "en" ? "en" : "es";
-    const results = run._count.storedPages > 0
-      ? await loadRunPagesForResponse(run.id)
-      : Array.isArray(run.pages)
-        ? run.pages.map(normalizeStoredRunPage).filter(Boolean)
-        : [];
-    const duplicates = run._count.storedDups > 0
-      ? await loadRunDuplicatesForResponse(run.id)
-      : Array.isArray(run.duplicates)
-        ? run.duplicates
-        : [];
+    const results = await loadRunPagesForResponse(run.id);
+    const duplicates = await loadRunDuplicatesForResponse(run.id);
     const buffer = await generateExcelBuffer(
       results,
       run.sourceUrl,
@@ -3273,17 +3241,15 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
           userId: req.user.id,
           projectId: project.id,
           sourceUrl: startUrl,
-          source,
+          sourceType: source,
           maxPages,
           rateDelay,
           checkExt,
           total: results.length,
           withIssues,
           stats,
-          duplicates: null,
-          pages: null,
           downloadName,
-          status: "completed",
+          status: "COMPLETED",
         },
         select: { id: true },
       });
