@@ -1,6 +1,6 @@
 {
   "name": "seo-crawler",
-  "version": "2.13.9",
+  "version": "2.13.10",
   "private": true,
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
@@ -12,6 +12,7 @@
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d",
     "db:push": "prisma db push",
+    "db:restore-local": "powershell -ExecutionPolicy Bypass -File scripts/restore-local-db.ps1",
     "db:seed": "prisma db seed",
     "prisma:generate": "prisma generate",
     "roles:promote": "node scripts/promote-user-role.js",
