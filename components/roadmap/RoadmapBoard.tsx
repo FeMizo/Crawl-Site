@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import AddTaskForm from "./AddTaskForm";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
 import Eyebrow from "../ui/Eyebrow";
 import Icon from "../ui/Icon";
 import StatCard from "../ui/StatCard";
+import RoadmapFilters, { type TaskStatusFilter } from "./RoadmapFilters";
+import RoadmapPhaseCard from "./RoadmapPhaseCard";
 import type { RoadmapDataDto, RoadmapTaskStatus } from "../../types/roadmap";
 
 type RoadmapApiResponse = {
@@ -16,15 +17,6 @@ type RoadmapApiResponse = {
   };
   error?: string;
 };
-
-type TaskStatusFilter = RoadmapTaskStatus | "all";
-
-const STATUS_FILTERS: Array<{ value: TaskStatusFilter; label: string }> = [
-  { value: "all", label: "Todas" },
-  { value: "done", label: "Done" },
-  { value: "partial", label: "Partial" },
-  { value: "pending", label: "Pending" },
-];
 
 async function requestRoadmap(
   input: string,
@@ -122,6 +114,7 @@ export default function RoadmapBoard() {
   const phases = roadmap?.phases ?? [];
   const source = roadmap?.source;
   const evaluatedAt = roadmap?.evaluatedAt;
+
   const totalVisibleTasks = useMemo(
     () => phases.reduce((acc, phase) => acc + phase.tasks.length, 0),
     [phases],
@@ -205,18 +198,33 @@ export default function RoadmapBoard() {
     setBusyTaskId(taskId);
     setError("");
 
+    // Optimistic update: flip checkbox immediately
+    setRoadmap((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        phases: prev.phases.map((phase) => ({
+          ...phase,
+          tasks: phase.tasks.map((task) =>
+            task.id === taskId
+              ? { ...task, completed, status: (completed ? "done" : "pending") as RoadmapTaskStatus }
+              : task,
+          ),
+        })),
+      };
+    });
+
     try {
       await requestRoadmap(`/api/roadmap/tasks/${taskId}`, {
         method: "PATCH",
         body: JSON.stringify({ completed }),
       });
-      await loadRoadmap();
+      await loadRoadmap(); // Recalculate progress from server
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo actualizar la tarea",
+        err instanceof Error ? err.message : "No se pudo actualizar la tarea",
       );
+      await loadRoadmap(); // Revert optimistic update on error
     } finally {
       setBusyTaskId("");
     }
@@ -282,6 +290,7 @@ export default function RoadmapBoard() {
           icon={<Icon name="tasks" size={14} />}
         />
       </div>
+
       {source ? (
         <p className="analysis-meta">
           Fuente activa: <strong>{source.type}</strong> ({source.location})
@@ -299,64 +308,17 @@ export default function RoadmapBoard() {
         </div>
       </Card>
 
-      <Card className="filters-card" padding="sm">
-        <div className="filters-head">
-          <Eyebrow icon={<Icon name="filter" size={12} />}>Filtros</Eyebrow>
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="outline"
-              tone="secondary"
-              size="sm"
-              onClick={clearFilters}
-            >
-              Limpiar
-            </Button>
-          ) : null}
-        </div>
-        <div className="filters-grid">
-          <label className="ui-field">
-            <span className="ui-field-label">Busqueda</span>
-            <input
-              className="ui-input"
-              type="search"
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              placeholder="Buscar por tarea, nota o archivo..."
-            />
-          </label>
-          <label className="ui-field">
-            <span className="ui-field-label">Estado</span>
-            <select
-              className="ui-select"
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as TaskStatusFilter)
-              }
-            >
-              {STATUS_FILTERS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="ui-field">
-            <span className="ui-field-label">Fase</span>
-            <select
-              className="ui-select"
-              value={phaseFilter}
-              onChange={(event) => setPhaseFilter(event.target.value)}
-            >
-              {phaseOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </Card>
+      <RoadmapFilters
+        statusFilter={statusFilter}
+        phaseFilter={phaseFilter}
+        queryInput={queryInput}
+        phaseOptions={phaseOptions}
+        hasActiveFilters={hasActiveFilters}
+        onStatusChange={setStatusFilter}
+        onPhaseChange={setPhaseFilter}
+        onQueryChange={setQueryInput}
+        onClear={clearFilters}
+      />
 
       <Card className="phase-form-card">
         <form className="phase-form" onSubmit={handleCreatePhase}>
@@ -392,105 +354,16 @@ export default function RoadmapBoard() {
 
       <div className="phase-grid">
         {phases.map((phase) => (
-          <Card key={phase.id} className="phase-card">
-            <div className="phase-head">
-              <div className="phase-meta">
-                <span className="phase-pill">Fase {phase.position + 1}</span>
-                <h3>{phase.title}</h3>
-                {phase.description ? <p>{phase.description}</p> : null}
-              </div>
-              <div className="phase-counter">{phase.progress.percent}%</div>
-            </div>
-
-            <div className="progress-track">
-              <span
-                className="progress-fill"
-                style={{ width: `${phase.progress.percent}%` }}
-              />
-            </div>
-
-            <div className="phase-tally">
-              {phase.progress.completed} done | {phase.progress.partial} partial
-              {" | "}
-              {phase.progress.pending} pending
-            </div>
-
-            <AddTaskForm
-              phaseId={phase.id}
-              canEdit={canEdit}
-              onSubmit={handleCreateTask}
-            />
-
-            <div className="task-list">
-              {phase.tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className={`task-item status-${task.status}${
-                    task.status === "done"
-                      ? " done"
-                      : task.status === "partial"
-                        ? " partial"
-                        : ""
-                  }`}
-                >
-                  <div className="task-body">
-                    <label className="task-check">
-                      <input
-                        type="checkbox"
-                        checked={task.status === "done"}
-                        onChange={(event) =>
-                          handleToggleTask(task.id, event.target.checked)
-                        }
-                        disabled={
-                          !canEdit ||
-                          busyTaskId === task.id ||
-                          task.statusSource === "auto"
-                        }
-                      />
-                      <span>{task.title}</span>
-                    </label>
-                    <div className="task-meta">
-                      <span className={`task-status ${task.status}`}>
-                        {task.status.toUpperCase()}
-                      </span>
-                      <span className="task-source">
-                        {task.statusSource === "auto" ? "AUTO" : "MANUAL"}
-                      </span>
-                    </div>
-                    {task.note ? <p className="task-note">{task.note}</p> : null}
-                    {task.evidence.length ? (
-                      <div className="task-evidence">
-                        {task.evidence.slice(0, 3).map((item) => (
-                          <span key={`${task.id}-${item.file}-${item.note || ""}`}>
-                            {item.file}
-                            {item.note ? ` | ${item.note}` : ""}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    tone="danger"
-                    size="sm"
-                    onClick={() => handleDeleteTask(task.id)}
-                    disabled={!canEdit || busyTaskId === task.id}
-                    iconLeft={<Icon name="trash" size={13} />}
-                  >
-                    Eliminar
-                  </Button>
-                </div>
-              ))}
-              {!phase.tasks.length ? (
-                <p className="task-empty">
-                  {hasActiveFilters
-                    ? "Ninguna tarea coincide con los filtros."
-                    : "Sin tareas en esta fase."}
-                </p>
-              ) : null}
-            </div>
-          </Card>
+          <RoadmapPhaseCard
+            key={phase.id}
+            phase={phase}
+            canEdit={canEdit}
+            busyTaskId={busyTaskId}
+            hasActiveFilters={hasActiveFilters}
+            onCreateTask={handleCreateTask}
+            onToggleTask={handleToggleTask}
+            onDeleteTask={handleDeleteTask}
+          />
         ))}
 
         {!phases.length ? (
@@ -580,21 +453,8 @@ export default function RoadmapBoard() {
           border-radius: inherit;
           background: linear-gradient(90deg, #3f8cff, #6bb5ff);
         }
-        .filters-card,
         .phase-form-card {
           border-style: dashed;
-        }
-        .filters-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
-        .filters-grid {
-          display: grid;
-          gap: 10px;
-          grid-template-columns: minmax(0, 1fr) repeat(2, minmax(180px, 220px));
         }
         .phase-form {
           display: grid;
@@ -607,182 +467,14 @@ export default function RoadmapBoard() {
           grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
           min-width: 0;
         }
-        .phase-card {
-          display: grid;
-          gap: 12px;
-          min-width: 0;
-        }
         .phase-card.empty p {
           margin: 0;
           color: var(--text2);
-        }
-        .phase-head {
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          align-items: flex-start;
-        }
-        .phase-meta {
-          min-width: 0;
-          display: grid;
-          gap: 6px;
-        }
-        .phase-pill {
-          display: inline-flex;
-          width: fit-content;
-          min-height: 22px;
-          align-items: center;
-          justify-content: center;
-          padding: 0 10px;
-          border-radius: 999px;
-          background: var(--adim);
-          border: 1px solid rgba(77, 141, 255, 0.35);
-          color: #77abff;
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-        .phase-meta h3 {
-          margin: 0;
-          font-family: "Syne", "Manrope", sans-serif;
-          font-size: 1.25rem;
-          overflow-wrap: anywhere;
-        }
-        .phase-meta p {
-          margin: 0;
-          color: var(--text2);
-          font-size: 14px;
-          overflow-wrap: anywhere;
-        }
-        .phase-counter {
-          min-width: 60px;
-          text-align: right;
-          color: #77abff;
-          font-family: "Syne", "Manrope", sans-serif;
-          font-weight: 700;
-          font-size: 1.15rem;
-        }
-        .phase-tally {
-          font-size: 13px;
-          color: var(--text2);
-        }
-        .task-list {
-          display: grid;
-          gap: 8px;
-        }
-        .task-item {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          align-items: start;
-          gap: 10px;
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          background: var(--bg);
-          padding: 10px;
-        }
-        .task-item.done {
-          border-color: rgba(63, 140, 255, 0.35);
-          background: rgba(63, 140, 255, 0.08);
-        }
-        .task-item.partial {
-          border-color: rgba(255, 193, 92, 0.4);
-          background: rgba(255, 193, 92, 0.1);
-        }
-        .task-body {
-          min-width: 0;
-          display: grid;
-          gap: 6px;
-        }
-        .task-check {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-          cursor: pointer;
-        }
-        .task-check input {
-          width: 16px;
-          height: 16px;
-          margin: 0;
-          accent-color: var(--accent);
-        }
-        .task-check span {
-          color: var(--text);
-          font-size: 14px;
-          overflow-wrap: anywhere;
-        }
-        .task-item.done .task-check span {
-          text-decoration: line-through;
-          color: var(--muted);
-        }
-        .task-meta {
-          display: inline-flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        .task-status,
-        .task-source {
-          display: inline-flex;
-          min-height: 20px;
-          align-items: center;
-          justify-content: center;
-          padding: 0 8px;
-          border-radius: 999px;
-          border: 1px solid var(--border2);
-          font-size: 10px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: var(--text2);
-          background: var(--bg2);
-        }
-        .task-status.done {
-          color: var(--ok);
-          border-color: rgba(66, 211, 146, 0.45);
-          background: rgba(66, 211, 146, 0.12);
-        }
-        .task-status.partial {
-          color: var(--warn);
-          border-color: rgba(255, 193, 92, 0.45);
-          background: rgba(255, 193, 92, 0.12);
-        }
-        .task-status.pending {
-          color: var(--muted);
-        }
-        .task-note {
-          margin: 0;
-          color: var(--text2);
-          font-size: 12px;
-          overflow-wrap: anywhere;
-        }
-        .task-evidence {
-          display: grid;
-          gap: 4px;
-          min-width: 0;
-        }
-        .task-evidence span {
-          color: var(--muted);
-          font-size: 11px;
-          overflow-wrap: anywhere;
-        }
-        .task-empty {
-          margin: 0;
-          color: var(--muted);
-          font-size: 14px;
         }
         .read-only {
           margin: 0;
           color: var(--warn);
           font-size: 12px;
-        }
-        @media (max-width: 840px) {
-          .filters-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        @media (max-width: 720px) {
-          .task-item {
-            grid-template-columns: 1fr;
-          }
         }
       `}</style>
     </div>

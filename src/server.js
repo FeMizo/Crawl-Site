@@ -61,7 +61,7 @@ function readDotEnvFile(filePath) {
 }
 
 function preferLocalDatabaseInDevelopment() {
-  if (process.env.NODE_ENV === "production") return;
+  if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "test") return;
 
   const currentUrl = String(process.env.dashboard_DATABASE_URL || "");
   if (!/neon\.tech/i.test(currentUrl)) return;

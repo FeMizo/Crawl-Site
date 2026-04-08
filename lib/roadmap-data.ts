@@ -221,11 +221,29 @@ function mapPhase(phase: {
 }
 
 export async function getRoadmapData(filters?: RoadmapTaskFilterInput): Promise<RoadmapDataDto> {
+  const phaseId = normalizeRoadmapPhaseId(filters?.phaseId);
+
   const phases = await prisma.roadmapPhase.findMany({
+    where: phaseId ? { id: phaseId } : undefined,
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    include: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      position: true,
+      createdAt: true,
+      updatedAt: true,
       tasks: {
         orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          phaseId: true,
+          title: true,
+          completed: true,
+          position: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
     },
   });
