@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
 import Eyebrow from "../ui/Eyebrow";
@@ -60,6 +60,8 @@ function buildRoadmapUrl(filters: {
 export default function RoadmapBoard() {
   const [roadmap, setRoadmap] = useState<RoadmapDataDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [phaseLoadingIds, setPhaseLoadingIds] = useState<Set<string>>(new Set());
+  const loadGenRef = useRef(0);
   const [error, setError] = useState("");
   const [phaseTitle, setPhaseTitle] = useState("");
   const [phaseDescription, setPhaseDescription] = useState("");
@@ -81,11 +83,75 @@ export default function RoadmapBoard() {
   }, [queryInput]);
 
   const loadRoadmap = useCallback(async () => {
-    const payload = await requestRoadmap(
-      buildRoadmapUrl({ statusFilter, phaseFilter, query }),
-    );
-    setRoadmap(payload.data);
-    setCanEdit(payload.permissions?.canEdit ?? true);
+    const gen = ++loadGenRef.current;
+    const currentFilters = { statusFilter, phaseFilter, query };
+
+    function computeProgress(phases: RoadmapDataDto["phases"]) {
+      let completed = 0, partial = 0, total = 0;
+      for (const p of phases) {
+        completed += p.progress.completed;
+        partial += p.progress.partial;
+        total += p.progress.total;
+      }
+      const pending = Math.max(0, total - completed - partial);
+      const weighted = completed + partial * 0.5;
+      return {
+        completed, partial, pending, total,
+        percent: total > 0 ? Math.round((weighted / total) * 100) : 0,
+      };
+    }
+
+    async function loadPhaseData(phaseId: string) {
+      setPhaseLoadingIds((prev) => new Set(prev).add(phaseId));
+      try {
+        const url = buildRoadmapUrl({
+          statusFilter: currentFilters.statusFilter,
+          phaseFilter: phaseId,
+          query: currentFilters.query,
+        });
+        const payload = await requestRoadmap(url);
+        if (gen !== loadGenRef.current) return;
+        const loaded = payload.data.phases[0];
+        if (!loaded) return;
+        setRoadmap((prev) => {
+          if (!prev) return prev;
+          const phases = prev.phases.map((p) => (p.id === phaseId ? loaded : p));
+          return {
+            ...prev,
+            phases,
+            progress: computeProgress(phases),
+            source: payload.data.source,
+            evaluatedAt: payload.data.evaluatedAt,
+          };
+        });
+      } finally {
+        if (gen === loadGenRef.current) {
+          setPhaseLoadingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(phaseId);
+            return next;
+          });
+        }
+      }
+    }
+
+    // When a specific phase is filtered, load it directly (no need for shells)
+    if (currentFilters.phaseFilter !== "all") {
+      const payload = await requestRoadmap(buildRoadmapUrl(currentFilters));
+      if (gen !== loadGenRef.current) return;
+      setRoadmap(payload.data);
+      setCanEdit(payload.permissions?.canEdit ?? true);
+      return;
+    }
+
+    // Step 1: load phase shells (fast — no tasks, no analysis)
+    const shellPayload = await requestRoadmap("/api/roadmap?phasesOnly=true");
+    if (gen !== loadGenRef.current) return;
+    setRoadmap(shellPayload.data);
+    setCanEdit(shellPayload.permissions?.canEdit ?? true);
+
+    // Step 2: load each phase's tasks in parallel
+    await Promise.all(shellPayload.data.phases.map((p) => loadPhaseData(p.id)));
   }, [phaseFilter, query, statusFilter]);
 
   useEffect(() => {
@@ -360,6 +426,7 @@ export default function RoadmapBoard() {
             canEdit={canEdit}
             busyTaskId={busyTaskId}
             hasActiveFilters={hasActiveFilters}
+            loadingTasks={phaseLoadingIds.has(phase.id)}
             onCreateTask={handleCreateTask}
             onToggleTask={handleToggleTask}
             onDeleteTask={handleDeleteTask}

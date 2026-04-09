@@ -47,6 +47,7 @@ export type RoadmapTaskFilterInput = {
   status?: RoadmapTaskStatus | "all";
   query?: string;
   phaseId?: string;
+  phasesOnly?: boolean;
 };
 
 function normalizeRoadmapStatus(value: unknown): RoadmapTaskStatus | "all" {
@@ -222,6 +223,32 @@ function mapPhase(phase: {
 
 export async function getRoadmapData(filters?: RoadmapTaskFilterInput): Promise<RoadmapDataDto> {
   const phaseId = normalizeRoadmapPhaseId(filters?.phaseId);
+  const phasesOnly = filters?.phasesOnly === true;
+
+  if (phasesOnly) {
+    const phases = await prisma.roadmapPhase.findMany({
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        position: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const mappedPhases = phases.map((phase) =>
+      mapPhase({ ...phase, tasks: [] }),
+    );
+
+    return {
+      phases: mappedPhases,
+      progress: { completed: 0, partial: 0, pending: 0, total: 0, percent: 0 },
+      source: { type: "database", location: "prisma" },
+      evaluatedAt: new Date().toISOString(),
+    };
+  }
 
   const phases = await prisma.roadmapPhase.findMany({
     where: phaseId ? { id: phaseId } : undefined,

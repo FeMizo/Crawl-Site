@@ -13,10 +13,12 @@ export async function GET(request: Request) {
       const status = url.searchParams.get("status") || "all";
       const query = url.searchParams.get("q") || "";
       const phaseId = url.searchParams.get("phaseId") || "";
+      const phasesOnly = url.searchParams.get("phasesOnly") === "true";
       const data = await getRoadmapData({
         status: status as "all" | "done" | "partial" | "pending",
         query,
         phaseId,
+        phasesOnly,
       });
       return { data, permissions: { canEdit } };
     },

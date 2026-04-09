@@ -10,6 +10,7 @@ type Props = {
   canEdit: boolean;
   busyTaskId: string;
   hasActiveFilters: boolean;
+  loadingTasks?: boolean;
   onCreateTask: (phaseId: string, title: string) => Promise<void>;
   onToggleTask: (taskId: string, completed: boolean) => void;
   onDeleteTask: (taskId: string) => Promise<void>;
@@ -20,6 +21,7 @@ export default function RoadmapPhaseCard({
   canEdit,
   busyTaskId,
   hasActiveFilters,
+  loadingTasks,
   onCreateTask,
   onToggleTask,
   onDeleteTask,
@@ -48,23 +50,29 @@ export default function RoadmapPhaseCard({
       <AddTaskForm phaseId={phase.id} canEdit={canEdit} onSubmit={onCreateTask} />
 
       <div className="task-list">
-        {phase.tasks.map((task) => (
-          <RoadmapTaskItem
-            key={task.id}
-            task={task}
-            canEdit={canEdit}
-            busy={busyTaskId === task.id}
-            onToggle={onToggleTask}
-            onDelete={onDeleteTask}
-          />
-        ))}
-        {!phase.tasks.length ? (
-          <p className="task-empty">
-            {hasActiveFilters
-              ? "Ninguna tarea coincide con los filtros."
-              : "Sin tareas en esta fase."}
-          </p>
-        ) : null}
+        {loadingTasks ? (
+          <p className="task-empty task-loading">Cargando tareas...</p>
+        ) : (
+          <>
+            {phase.tasks.map((task) => (
+              <RoadmapTaskItem
+                key={task.id}
+                task={task}
+                canEdit={canEdit}
+                busy={busyTaskId === task.id}
+                onToggle={onToggleTask}
+                onDelete={onDeleteTask}
+              />
+            ))}
+            {!phase.tasks.length ? (
+              <p className="task-empty">
+                {hasActiveFilters
+                  ? "Ninguna tarea coincide con los filtros."
+                  : "Sin tareas en esta fase."}
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
 
       <style jsx>{`
@@ -131,6 +139,14 @@ export default function RoadmapPhaseCard({
           margin: 0;
           color: var(--muted);
           font-size: 14px;
+        }
+        .task-loading {
+          opacity: 0.6;
+          animation: pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 0.3; }
         }
         .progress-track {
           position: relative;
