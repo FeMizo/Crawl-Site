@@ -198,6 +198,10 @@ const L = {
     sgTipImageIssues:
       "Cantidad de paginas con imagenes sin alt, sin width/height o rotas",
     sgTipDuplicates: "Cantidad de titulos duplicados detectados",
+    sgGrpOverview: "Resumen",
+    sgGrpContent: "Contenido SEO",
+    sgGrpPerf: "Rendimiento",
+    sgGrpSecurity: "Seguridad",
   },
   en: {
     heroTitle: "New crawl",
@@ -395,6 +399,10 @@ const L = {
     sgTipImageIssues:
       "Number of pages with missing-alt, missing width/height, or broken images",
     sgTipDuplicates: "Number of duplicate titles found",
+    sgGrpOverview: "Overview",
+    sgGrpContent: "SEO Content",
+    sgGrpPerf: "Performance",
+    sgGrpSecurity: "Security",
   },
 };
 let lang =
@@ -938,7 +946,7 @@ async function applySavedRun(run) {
     if (el) el.style.display = d || "block";
   };
   show("cw");
-  show("sg", "grid");
+  show("sg", "flex");
   show("mainLayout", "flex");
   currentWorkspace = previousWorkspace || "seo";
   currentTab = previousTab || "all";
@@ -1065,7 +1073,7 @@ function startCrawl() {
     progressWrap.classList.remove("is-complete");
   }
   show("cw");
-  show("sg", "grid");
+  show("sg", "flex");
   show("mainLayout", "flex");
   restoreWorkspaceState();
 

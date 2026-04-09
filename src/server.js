@@ -4640,10 +4640,6 @@ async function generateExcelBuffer(
     ws4.views = [
       { showGridLines: false, state: "frozen", xSplit: 0, ySplit: 1 },
     ];
-    ws4.columns = [
-      { header: T("Ttulo", "Title"), key: "title", width: 55 },
-      { header: "URLs", key: "urls", width: 80 },
-    ];
     styleHeader(ws4);
     duplicates.forEach((d, i) => {
       const r = ws4.addRow({ title: d.title, urls: d.urls.join("\n") });
