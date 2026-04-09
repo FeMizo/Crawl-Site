@@ -24,18 +24,44 @@ enum CrawlStatus {
   CANCELLED
 }
 
+enum PlanType {
+  FREE
+  STARTER
+  PRO
+  AGENCY
+}
+
 model User {
-  id           String     @id @default(cuid())
+  id           String        @id @default(cuid())
   name         String?
-  email        String     @unique
-  role         UserRole   @default(USER)
+  email        String        @unique
+  role         UserRole      @default(USER)
   phoneCountry String?
   phoneNumber  String?
   passwordHash String
   projects     Project[]
   crawlRuns    CrawlRun[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  subscription Subscription?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Subscription {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             PlanType  @default(FREE)
+  stripeCustomerId String?
+  stripeSubId      String?
+  maxProjects      Int       @default(1)
+  maxPagesPerCrawl Int       @default(50)
+  maxCrawlsPerMonth Int      @default(2)
+  maxHistoryRuns   Int       @default(1)
+  features         String[]  @default([])
+  expiresAt        DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Project {

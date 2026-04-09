@@ -191,17 +191,27 @@ async function buildMePayload(user, options = {}) {
   }
 
   if (!includeCounts) {
-    return { user: sanitizeUser(user) };
+    const sub = await getUserSubscription(user.id);
+    return { user: sanitizeUser(user), subscription: { plan: sub.plan, features: sub.features } };
   }
 
-  const [projectCount, crawlRunCount] = await Promise.all([
+  const [projectCount, crawlRunCount, sub] = await Promise.all([
     prisma.project.count({ where: { userId: user.id } }),
     prisma.crawlRun.count({ where: { userId: user.id } }),
+    getUserSubscription(user.id),
   ]);
 
   return {
     user: sanitizeUser(user),
     counts: { projects: projectCount, crawlRuns: crawlRunCount },
+    subscription: {
+      plan: sub.plan,
+      maxProjects: sub.maxProjects,
+      maxPagesPerCrawl: sub.maxPagesPerCrawl,
+      maxCrawlsPerMonth: sub.maxCrawlsPerMonth,
+      features: sub.features,
+      expiresAt: sub.expiresAt,
+    },
   };
 }
 
@@ -270,6 +280,127 @@ function requireUserManagement(req, res, next) {
       .json({ error: "No tienes permisos para administrar usuarios" });
   }
   return next();
+}
+
+// --- Plan limits ---
+const PLAN_DEFAULTS = {
+  FREE:    { maxProjects: 1,  maxPagesPerCrawl: 50,   maxCrawlsPerMonth: 2,   maxHistoryRuns: 1,   features: [] },
+  STARTER: { maxProjects: 5,  maxPagesPerCrawl: 500,  maxCrawlsPerMonth: 10,  maxHistoryRuns: 10,  features: ["excel_report"] },
+  PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl"] },
+  AGENCY:  { maxProjects: 999, maxPagesPerCrawl: 10000, maxCrawlsPerMonth: 999, maxHistoryRuns: 999, features: ["excel_report", "architecture", "performance", "scheduled_crawl", "api_access", "white_label", "multi_user"] },
+};
+
+async function getUserSubscription(userId) {
+  let sub = null;
+  try {
+    sub = await prisma.subscription.findUnique({ where: { userId } });
+  } catch {
+    // Table may not exist yet (pre-migration)
+  }
+  if (!sub) return { plan: "FREE", ...PLAN_DEFAULTS.FREE };
+  const planKey = sub.plan || "FREE";
+  const defaults = PLAN_DEFAULTS[planKey] || PLAN_DEFAULTS.FREE;
+  return {
+    id: sub.id,
+    plan: planKey,
+    maxProjects: sub.maxProjects || defaults.maxProjects,
+    maxPagesPerCrawl: sub.maxPagesPerCrawl || defaults.maxPagesPerCrawl,
+    maxCrawlsPerMonth: sub.maxCrawlsPerMonth || defaults.maxCrawlsPerMonth,
+    maxHistoryRuns: sub.maxHistoryRuns || defaults.maxHistoryRuns,
+    features: sub.features?.length ? sub.features : defaults.features,
+    expiresAt: sub.expiresAt,
+    cancelledAt: sub.cancelledAt,
+    stripeCustomerId: sub.stripeCustomerId,
+    stripeSubId: sub.stripeSubId,
+  };
+}
+
+function hasFeature(subscription, feature) {
+  return subscription.features.includes(feature);
+}
+
+function isPlanExpired(subscription) {
+  if (!subscription.expiresAt) return false;
+  return new Date(subscription.expiresAt) < new Date();
+}
+
+async function requirePlanLimit(type) {
+  return async (req, res, next) => {
+    try {
+      const sub = await getUserSubscription(req.user.id);
+      if (isPlanExpired(sub) && sub.plan !== "FREE") {
+        sub.plan = "FREE";
+        Object.assign(sub, PLAN_DEFAULTS.FREE);
+      }
+      req.subscription = sub;
+
+      if (type === "project") {
+        const projectCount = await prisma.project.count({ where: { userId: req.user.id } });
+        if (projectCount >= sub.maxProjects) {
+          return res.status(403).json({
+            error: "Lmite de proyectos alcanzado",
+            errorEn: "Project limit reached",
+            limit: sub.maxProjects,
+            plan: sub.plan,
+            upgrade: true,
+          });
+        }
+      }
+
+      if (type === "crawl") {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const crawlCount = await prisma.crawlRun.count({
+          where: {
+            userId: req.user.id,
+            createdAt: { gte: monthStart },
+          },
+        });
+        if (crawlCount >= sub.maxCrawlsPerMonth) {
+          return res.status(403).json({
+            error: "Lmite de crawls mensuales alcanzado",
+            errorEn: "Monthly crawl limit reached",
+            limit: sub.maxCrawlsPerMonth,
+            current: crawlCount,
+            plan: sub.plan,
+            upgrade: true,
+          });
+        }
+      }
+
+      if (type === "feature") {
+        const feature = req.query.feature || req.body?.feature;
+        if (feature && !hasFeature(sub, feature)) {
+          return res.status(403).json({
+            error: "Funcin no disponible en tu plan",
+            errorEn: "Feature not available in your plan",
+            feature,
+            plan: sub.plan,
+            upgrade: true,
+          });
+        }
+      }
+
+      next();
+    } catch (error) {
+      handleApiError(res, req, "plan-limit", error, "Error verificando plan");
+    }
+  };
+}
+
+async function attachSubscription(req, res, next) {
+  try {
+    const sub = await getUserSubscription(req.user.id);
+    if (isPlanExpired(sub) && sub.plan !== "FREE") {
+      sub.plan = "FREE";
+      Object.assign(sub, PLAN_DEFAULTS.FREE);
+    }
+    req.subscription = sub;
+    next();
+  } catch (error) {
+    handleApiError(res, req, "attach-subscription", error, "Error cargando plan");
+  }
 }
 
 function normalizeProjectName(name, targetUrl) {
@@ -1677,6 +1808,84 @@ function extractMeta(body, pageUrl) {
     : "";
   const pageLang = langMatch ? langMatch[1] : "";
 
+  // --- Enhanced SEO extraction ---
+
+  // Resource counts (CSS, JS, inline)
+  const externalCss = [...body.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi)].length;
+  const externalJs = [...body.matchAll(/<script[^>]+src=["'][^"']+["'][^>]*>/gi)].length;
+  const inlineScripts = [...body.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi)].length;
+  const inlineStyles = [...body.matchAll(/<style\b[^>]*>[\s\S]*?<\/style>/gi)].length;
+
+  // Page weight (HTML body size in bytes)
+  const htmlSizeBytes = Buffer.byteLength(body, "utf8");
+
+  // Render-blocking resources in <head>
+  const headMatch = body.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  const headContent = headMatch ? headMatch[1] : "";
+  const renderBlockingCss = [...headContent.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi)]
+    .filter((m) => !/\bmedia=["']print["']/i.test(m[0])).length;
+  const renderBlockingJs = [...headContent.matchAll(/<script[^>]+src=["'][^"']+["'][^>]*>/gi)]
+    .filter((m) => !/\b(async|defer)\b/i.test(m[0])).length;
+
+  // Viewport meta
+  const hasViewport = /<meta[^>]+name=["']viewport["']/i.test(body);
+
+  // Charset
+  const hasCharset = /<meta[^>]+charset=/i.test(body) ||
+    /<meta[^>]+http-equiv=["']content-type["']/i.test(body);
+
+  // Open Graph tags
+  const ogTitle = (body.match(/<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']*)["']/i) ||
+    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:title["']/i) || [])[1] || "";
+  const ogDesc = (body.match(/<meta[^>]+property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
+    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:description["']/i) || [])[1] || "";
+  const ogImage = (body.match(/<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']*)["']/i) ||
+    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:image["']/i) || [])[1] || "";
+  const ogType = (body.match(/<meta[^>]+property=["']og:type["'][^>]*content=["']([^"']*)["']/i) ||
+    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:type["']/i) || [])[1] || "";
+  const hasOg = !!(ogTitle || ogDesc || ogImage);
+
+  // Twitter Card
+  const twitterCard = (body.match(/<meta[^>]+name=["']twitter:card["'][^>]*content=["']([^"']*)["']/i) ||
+    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']twitter:card["']/i) || [])[1] || "";
+  const hasTwitterCard = !!twitterCard;
+
+  // Structured data (JSON-LD)
+  const jsonLdBlocks = [...body.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  const structuredDataTypes = [];
+  for (const m of jsonLdBlocks) {
+    try {
+      const parsed = JSON.parse(m[1]);
+      const t = parsed["@type"];
+      if (t) structuredDataTypes.push(Array.isArray(t) ? t[0] : t);
+    } catch {}
+  }
+  const hasStructuredData = jsonLdBlocks.length > 0;
+
+  // Hreflang
+  const hreflangMatches = [...body.matchAll(/<link[^>]+hreflang=["']([^"']+)["'][^>]*href=["']([^"']*)["']/gi)];
+  const hreflangs = hreflangMatches.map((m) => ({ lang: m[1], url: m[2] }));
+
+  // Resource hints (preload, prefetch, dns-prefetch, preconnect)
+  const preloadCount = [...body.matchAll(/<link[^>]+rel=["']preload["']/gi)].length;
+  const prefetchCount = [...body.matchAll(/<link[^>]+rel=["']prefetch["']/gi)].length;
+  const preconnectCount = [...body.matchAll(/<link[^>]+rel=["']preconnect["']/gi)].length;
+  const dnsPrefetchCount = [...body.matchAll(/<link[^>]+rel=["']dns-prefetch["']/gi)].length;
+
+  // Word count (approximate, from visible text)
+  const visibleText = body
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const wordCount = visibleText ? visibleText.split(/\s+/).length : 0;
+
+  // Internal links on this page (for architecture analysis)
+  const internalLinks = allLinks.filter((l) => {
+    try { return new URL(l).origin === new URL(pageUrl).origin; } catch { return false; }
+  });
+
   return {
     title,
     description,
@@ -1707,6 +1916,25 @@ function extractMeta(body, pageUrl) {
     pageLang,
     titleLen: title.length,
     descLen: description.length,
+    // Enhanced fields
+    resources: {
+      externalCss,
+      externalJs,
+      inlineScripts,
+      inlineStyles,
+      renderBlockingCss,
+      renderBlockingJs,
+    },
+    htmlSizeBytes,
+    hasViewport,
+    hasCharset,
+    og: { title: ogTitle, description: ogDesc, image: ogImage, type: ogType, hasOg },
+    twitter: { card: twitterCard, hasTwitterCard },
+    structuredData: { types: structuredDataTypes, hasStructuredData, count: jsonLdBlocks.length },
+    hreflangs,
+    resourceHints: { preload: preloadCount, prefetch: prefetchCount, preconnect: preconnectCount, dnsPrefetch: dnsPrefetchCount },
+    wordCount,
+    internalLinks,
   };
 }
 
@@ -2083,9 +2311,223 @@ function getIssues(page, crawlLang = "es") {
         ),
         group: "errors",
       });
+
+    // --- Enhanced issue types ---
+
+    // Missing viewport (mobile-friendliness)
+    if (!m.hasViewport)
+      issues.push({
+        type: "no_viewport",
+        label: T("Sin meta viewport", "No viewport meta tag"),
+        group: "technical",
+      });
+
+    // Missing charset
+    if (!m.hasCharset)
+      issues.push({
+        type: "no_charset",
+        label: T("Sin charset definido", "No charset defined"),
+        group: "technical",
+      });
+
+    // Missing Open Graph
+    if (!m.og?.hasOg)
+      issues.push({
+        type: "no_og",
+        label: T("Sin Open Graph tags", "No Open Graph tags"),
+        group: "social",
+      });
+
+    // Missing Twitter Card
+    if (!m.twitter?.hasTwitterCard)
+      issues.push({
+        type: "no_twitter_card",
+        label: T("Sin Twitter Card", "No Twitter Card"),
+        group: "social",
+      });
+
+    // No structured data
+    if (!m.structuredData?.hasStructuredData)
+      issues.push({
+        type: "no_structured_data",
+        label: T("Sin datos estructurados (JSON-LD)", "No structured data (JSON-LD)"),
+        group: "technical",
+      });
+
+    // Render-blocking resources
+    if ((m.resources?.renderBlockingJs || 0) > 0)
+      issues.push({
+        type: "render_blocking_js",
+        label: T(
+          `${m.resources.renderBlockingJs} script(s) bloquean renderizado`,
+          `${m.resources.renderBlockingJs} render-blocking script(s)`,
+        ),
+        group: "performance",
+      });
+    if ((m.resources?.renderBlockingCss || 0) > 2)
+      issues.push({
+        type: "render_blocking_css",
+        label: T(
+          `${m.resources.renderBlockingCss} CSS bloquean renderizado`,
+          `${m.resources.renderBlockingCss} render-blocking CSS`,
+        ),
+        group: "performance",
+      });
+
+    // Low word count (thin content)
+    if ((m.wordCount || 0) > 0 && m.wordCount < 300)
+      issues.push({
+        type: "thin_content",
+        label: T(
+          `Contenido escaso (${m.wordCount} palabras)`,
+          `Thin content (${m.wordCount} words)`,
+        ),
+        group: "content",
+      });
+
+    // Large HTML size
+    if ((m.htmlSizeBytes || 0) > 200000)
+      issues.push({
+        type: "large_html",
+        label: T(
+          `HTML pesado (${Math.round(m.htmlSizeBytes / 1024)} KB)`,
+          `Large HTML (${Math.round(m.htmlSizeBytes / 1024)} KB)`,
+        ),
+        group: "performance",
+      });
   }
 
   return issues;
+}
+
+// --- Site Architecture Analysis ---
+function buildSiteArchitecture(results, startUrl) {
+  const normalizeKey = (u) => {
+    try {
+      const p = new URL(u);
+      return (p.origin + p.pathname).replace(/\/+$/, "").toLowerCase();
+    } catch { return u.toLowerCase(); }
+  };
+
+  const startKey = normalizeKey(startUrl);
+  const crawledKeys = new Set(results.map((r) => normalizeKey(r.finalUrl || r.url)));
+
+  // Build adjacency: which pages link to which (internal only)
+  const outlinks = new Map(); // page -> Set of internal pages it links to
+  const inlinks = new Map();  // page -> Set of internal pages linking to it
+
+  for (const key of crawledKeys) {
+    outlinks.set(key, new Set());
+    inlinks.set(key, new Set());
+  }
+
+  for (const r of results) {
+    const pageKey = normalizeKey(r.finalUrl || r.url);
+    const internal = r.meta?.internalLinks || [];
+    for (const link of internal) {
+      const linkKey = normalizeKey(link);
+      if (crawledKeys.has(linkKey) && linkKey !== pageKey) {
+        outlinks.get(pageKey)?.add(linkKey);
+        if (!inlinks.has(linkKey)) inlinks.set(linkKey, new Set());
+        inlinks.get(linkKey)?.add(pageKey);
+      }
+    }
+  }
+
+  // BFS depth from start URL
+  const depths = new Map();
+  depths.set(startKey, 0);
+  const bfsQueue = [startKey];
+  let head = 0;
+  while (head < bfsQueue.length) {
+    const current = bfsQueue[head++];
+    const currentDepth = depths.get(current);
+    for (const neighbor of (outlinks.get(current) || [])) {
+      if (!depths.has(neighbor)) {
+        depths.set(neighbor, currentDepth + 1);
+        bfsQueue.push(neighbor);
+      }
+    }
+  }
+
+  // Build per-page architecture data
+  const pageArchitecture = results.map((r) => {
+    const key = normalizeKey(r.finalUrl || r.url);
+    const depth = depths.has(key) ? depths.get(key) : -1;
+    const inlinkCount = inlinks.get(key)?.size || 0;
+    const outlinkCount = outlinks.get(key)?.size || 0;
+    return {
+      url: r.url,
+      depth,
+      inlinks: inlinkCount,
+      outlinks: outlinkCount,
+      isOrphan: depth === -1 || (depth > 0 && inlinkCount === 0),
+    };
+  });
+
+  // Orphan pages (no internal pages link to them, excluding start)
+  const orphanPages = pageArchitecture.filter((p) => p.isOrphan).map((p) => p.url);
+
+  // Section/directory scores
+  const sectionMap = new Map();
+  for (const r of results) {
+    try {
+      const u = new URL(r.finalUrl || r.url);
+      const parts = u.pathname.split("/").filter(Boolean);
+      const section = parts.length > 0 ? `/${parts[0]}/` : "/";
+      if (!sectionMap.has(section)) sectionMap.set(section, { pages: 0, issues: 0, totalSeoScore: 0 });
+      const s = sectionMap.get(section);
+      s.pages++;
+      s.issues += (r.issues?.length || 0) > 0 ? 1 : 0;
+      const seoScore = ((r.seoQuality?.titleScore || 0) + (r.seoQuality?.descScore || 0)) / 2;
+      s.totalSeoScore += seoScore;
+    } catch {}
+  }
+  const sectionScores = [];
+  for (const [section, data] of sectionMap) {
+    sectionScores.push({
+      section,
+      pages: data.pages,
+      pagesWithIssues: data.issues,
+      avgSeoScore: Math.round(data.totalSeoScore / data.pages),
+      healthPercent: Math.round(((data.pages - data.issues) / data.pages) * 100),
+    });
+  }
+  sectionScores.sort((a, b) => a.avgSeoScore - b.avgSeoScore);
+
+  // Depth distribution
+  const depthDistribution = {};
+  for (const p of pageArchitecture) {
+    const d = p.depth === -1 ? "unreachable" : String(p.depth);
+    depthDistribution[d] = (depthDistribution[d] || 0) + 1;
+  }
+
+  // Pages with most inlinks (top 10)
+  const topInlinked = [...pageArchitecture]
+    .sort((a, b) => b.inlinks - a.inlinks)
+    .slice(0, 10)
+    .map((p) => ({ url: p.url, inlinks: p.inlinks }));
+
+  // Pages with fewest inlinks (bottom 10, excluding start)
+  const leastInlinked = [...pageArchitecture]
+    .filter((p) => normalizeKey(p.url) !== startKey)
+    .sort((a, b) => a.inlinks - b.inlinks)
+    .slice(0, 10)
+    .map((p) => ({ url: p.url, inlinks: p.inlinks, depth: p.depth }));
+
+  const maxDepth = Math.max(0, ...pageArchitecture.map((p) => p.depth).filter((d) => d >= 0));
+
+  return {
+    totalPages: results.length,
+    maxDepth,
+    orphanPages,
+    orphanCount: orphanPages.length,
+    depthDistribution,
+    sectionScores,
+    topInlinked,
+    leastInlinked,
+    pages: pageArchitecture,
+  };
 }
 
 const brokenLinkCache = new Map();
@@ -2638,6 +3080,19 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   const allowed = await ensureUrlAllowed(targetUrl);
   if (!allowed) return res.status(400).json({ error: "URL no permitida" });
 
+  // Plan limit check: max projects
+  const sub = await getUserSubscription(req.user.id);
+  const projectCount = await prisma.project.count({ where: { userId: req.user.id } });
+  if (projectCount >= sub.maxProjects) {
+    return res.status(403).json({
+      error: "Lmite de proyectos alcanzado",
+      errorEn: "Project limit reached",
+      limit: sub.maxProjects,
+      plan: sub.plan,
+      upgrade: true,
+    });
+  }
+
   const project = await prisma.project.create({
     data: {
       userId: req.user.id,
@@ -2854,6 +3309,17 @@ app.get(
   "/api/projects/:projectId/runs/:runId/report",
   requireAuth,
   async (req, res) => {
+    // Plan feature check: excel_report
+    const sub = await getUserSubscription(req.user.id);
+    if (!hasFeature(sub, "excel_report")) {
+      return res.status(403).json({
+        error: "Reportes Excel no disponibles en tu plan",
+        errorEn: "Excel reports not available in your plan",
+        plan: sub.plan,
+        upgrade: true,
+      });
+    }
+
     const run = await prisma.crawlRun.findFirst({
       where: {
         id: req.params.runId,
@@ -2909,10 +3375,180 @@ app.get("/api/site-info", requireAuth, async (req, res) => {
   }
 });
 
+// --- Subscription / Plan API ---
+
+// GET /api/subscription - Get current user's plan info
+app.get("/api/subscription", requireAuth, async (req, res) => {
+  try {
+    const sub = await getUserSubscription(req.user.id);
+
+    // Count usage this month
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const [projectCount, crawlCount] = await Promise.all([
+      prisma.project.count({ where: { userId: req.user.id } }),
+      prisma.crawlRun.count({
+        where: { userId: req.user.id, createdAt: { gte: monthStart } },
+      }),
+    ]);
+
+    return res.json({
+      subscription: {
+        plan: sub.plan,
+        maxProjects: sub.maxProjects,
+        maxPagesPerCrawl: sub.maxPagesPerCrawl,
+        maxCrawlsPerMonth: sub.maxCrawlsPerMonth,
+        maxHistoryRuns: sub.maxHistoryRuns,
+        features: sub.features,
+        expiresAt: sub.expiresAt,
+        cancelledAt: sub.cancelledAt,
+      },
+      usage: {
+        projects: projectCount,
+        crawlsThisMonth: crawlCount,
+      },
+      limits: {
+        projectsRemaining: Math.max(0, sub.maxProjects - projectCount),
+        crawlsRemaining: Math.max(0, sub.maxCrawlsPerMonth - crawlCount),
+      },
+      plans: PLAN_DEFAULTS,
+    });
+  } catch (error) {
+    handleApiError(res, req, "subscription/get", error, "Error obteniendo plan");
+  }
+});
+
+// GET /api/subscription/plans - List all available plans (public info)
+app.get("/api/subscription/plans", (req, res) => {
+  const plans = Object.entries(PLAN_DEFAULTS).map(([key, limits]) => ({
+    plan: key,
+    ...limits,
+    price: { FREE: 0, STARTER: 29, PRO: 79, AGENCY: 199 }[key] || 0,
+    currency: "USD",
+  }));
+  res.json({ plans });
+});
+
+// POST /api/subscription/upgrade - Upgrade plan (admin/manual for now, Stripe later)
+app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
+  try {
+    const newPlan = String(req.body?.plan || "").toUpperCase();
+    if (!PLAN_DEFAULTS[newPlan]) {
+      return res.status(400).json({ error: "Plan invlido" });
+    }
+
+    const defaults = PLAN_DEFAULTS[newPlan];
+    const sub = await prisma.subscription.upsert({
+      where: { userId: req.user.id },
+      create: {
+        userId: req.user.id,
+        plan: newPlan,
+        maxProjects: defaults.maxProjects,
+        maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+        maxHistoryRuns: defaults.maxHistoryRuns,
+        features: defaults.features,
+        expiresAt: newPlan === "FREE" ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        plan: newPlan,
+        maxProjects: defaults.maxProjects,
+        maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+        maxHistoryRuns: defaults.maxHistoryRuns,
+        features: defaults.features,
+        expiresAt: newPlan === "FREE" ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        cancelledAt: null,
+      },
+    });
+
+    return res.json({
+      message: `Plan actualizado a ${newPlan}`,
+      subscription: {
+        plan: sub.plan,
+        maxProjects: sub.maxProjects,
+        maxPagesPerCrawl: sub.maxPagesPerCrawl,
+        maxCrawlsPerMonth: sub.maxCrawlsPerMonth,
+        maxHistoryRuns: sub.maxHistoryRuns,
+        features: sub.features,
+        expiresAt: sub.expiresAt,
+      },
+    });
+  } catch (error) {
+    handleApiError(res, req, "subscription/upgrade", error, "Error actualizando plan");
+  }
+});
+
+// POST /api/subscription/cancel - Cancel subscription (revert to FREE)
+app.post("/api/subscription/cancel", requireAuth, async (req, res) => {
+  try {
+    const existing = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+    });
+    if (!existing || existing.plan === "FREE") {
+      return res.status(400).json({ error: "No hay suscripcin activa para cancelar" });
+    }
+
+    await prisma.subscription.update({
+      where: { userId: req.user.id },
+      data: { cancelledAt: new Date() },
+    });
+
+    return res.json({ message: "Suscripcin cancelada. El plan seguir activo hasta la fecha de expiracin." });
+  } catch (error) {
+    handleApiError(res, req, "subscription/cancel", error, "Error cancelando plan");
+  }
+});
+
+// ADMIN: PUT /api/admin/users/:userId/plan - Admin assign plan to user
+app.put("/api/admin/users/:userId/plan", requireAuth, requireUserManagement, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    const newPlan = String(req.body?.plan || "").toUpperCase();
+    if (!PLAN_DEFAULTS[newPlan]) {
+      return res.status(400).json({ error: "Plan invlido" });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!targetUser) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const defaults = PLAN_DEFAULTS[newPlan];
+    const daysValid = parseInt(req.body?.days) || 30;
+
+    const sub = await prisma.subscription.upsert({
+      where: { userId: targetUserId },
+      create: {
+        userId: targetUserId,
+        plan: newPlan,
+        maxProjects: defaults.maxProjects,
+        maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+        maxHistoryRuns: defaults.maxHistoryRuns,
+        features: defaults.features,
+        expiresAt: newPlan === "FREE" ? null : new Date(Date.now() + daysValid * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        plan: newPlan,
+        maxProjects: defaults.maxProjects,
+        maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+        maxHistoryRuns: defaults.maxHistoryRuns,
+        features: defaults.features,
+        expiresAt: newPlan === "FREE" ? null : new Date(Date.now() + daysValid * 24 * 60 * 60 * 1000),
+        cancelledAt: null,
+      },
+    });
+
+    return res.json({ message: `Plan de ${targetUser.email} actualizado a ${newPlan}`, subscription: sub });
+  } catch (error) {
+    handleApiError(res, req, "admin/plan", error, "Error asignando plan");
+  }
+});
+
 //  SSE: Crawl
 app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const startUrl = req.query.url;
-  const maxPages = Math.min(parseInt(req.query.max) || 50, 500);
   const source = req.query.source || "crawl";
   const rateDelay = parseInt(req.query.rate) || 0;
   const checkExt = req.query.external === "1";
@@ -2921,6 +3557,26 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
 
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
   if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
+
+  // Plan limit: monthly crawls + maxPages cap
+  const sub = await getUserSubscription(req.user.id);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const crawlCount = await prisma.crawlRun.count({
+    where: { userId: req.user.id, createdAt: { gte: monthStart } },
+  });
+  if (crawlCount >= sub.maxCrawlsPerMonth) {
+    return res.status(403).json({
+      error: "Lmite de crawls mensuales alcanzado",
+      errorEn: "Monthly crawl limit reached",
+      limit: sub.maxCrawlsPerMonth,
+      current: crawlCount,
+      plan: sub.plan,
+      upgrade: true,
+    });
+  }
+  const maxPages = Math.min(parseInt(req.query.max) || 50, sub.maxPagesPerCrawl);
   const ok = await ensureUrlAllowed(startUrl);
   if (!ok) return res.status(400).json({ error: "URL no permitida" });
   let baseOrigin;
@@ -3163,6 +3819,17 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         pageLang: meta?.pageLang || "",
         brokenExternalLinks,
         seoQuality,
+        // Enhanced fields
+        resources: meta?.resources || null,
+        htmlSizeBytes: meta?.htmlSizeBytes || 0,
+        hasViewport: meta?.hasViewport || false,
+        hasCharset: meta?.hasCharset || false,
+        og: meta?.og || null,
+        twitter: meta?.twitter || null,
+        structuredData: meta?.structuredData || null,
+        hreflangs: meta?.hreflangs || [],
+        resourceHints: meta?.resourceHints || null,
+        wordCount: meta?.wordCount || 0,
         issues: page.issues.map((i) => ({
           label: i.label,
           type: i.type,
@@ -3188,6 +3855,12 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const duplicates = [];
   for (const [title, urls] of titleMap.entries()) {
     if (urls.length > 1) duplicates.push({ title, urls });
+  }
+
+  // --- Site Architecture Analysis ---
+  const architecture = buildSiteArchitecture(results, startUrl);
+  if (!cancelled) {
+    send("architecture", architecture);
   }
 
   if (!cancelled) {
@@ -3230,6 +3903,19 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
       duplicates: duplicates.length,
       headingSkips: results.filter((r) => r.meta?.headingSkips?.length > 0)
         .length,
+      // Enhanced stats
+      noViewport: results.filter((r) => r.issues.some((i) => i.type === "no_viewport")).length,
+      noCharset: results.filter((r) => r.issues.some((i) => i.type === "no_charset")).length,
+      noOg: results.filter((r) => r.issues.some((i) => i.type === "no_og")).length,
+      noTwitterCard: results.filter((r) => r.issues.some((i) => i.type === "no_twitter_card")).length,
+      noStructuredData: results.filter((r) => r.issues.some((i) => i.type === "no_structured_data")).length,
+      renderBlockingJs: results.filter((r) => r.issues.some((i) => i.type === "render_blocking_js")).length,
+      renderBlockingCss: results.filter((r) => r.issues.some((i) => i.type === "render_blocking_css")).length,
+      thinContent: results.filter((r) => r.issues.some((i) => i.type === "thin_content")).length,
+      largeHtml: results.filter((r) => r.issues.some((i) => i.type === "large_html")).length,
+      orphanPages: architecture.orphanCount,
+      maxDepth: architecture.maxDepth,
+      architecture,
       domainInfo: domainInfo || null,
       robots: { disallowed, hasSitemap, sitemapUrls, rawContent },
     };
@@ -3496,6 +4182,72 @@ async function generateExcelBuffer(
       C.warnBg,
       null,
     ],
+    [null],
+    [T("🔒 Social & Datos ", "🔒 Social & Data "), "", null, null],
+    [
+      T("Sin Open Graph", "No Open Graph"),
+      results.filter((r) => r.issues?.some((i) => i.type === "no_og")).length,
+      C.warnBg,
+      null,
+    ],
+    [
+      T("Sin Twitter Card", "No Twitter Card"),
+      results.filter((r) => r.issues?.some((i) => i.type === "no_twitter_card")).length,
+      C.warnBg,
+      null,
+    ],
+    [
+      T("Sin datos estructurados", "No structured data"),
+      results.filter((r) => r.issues?.some((i) => i.type === "no_structured_data")).length,
+      C.warnBg,
+      null,
+    ],
+    [null],
+    [T("⚡ Rendimiento ", "⚡ Performance "), "", null, null],
+    [
+      T("Carga lenta (≥3s)", "Slow load (≥3s)"),
+      results.filter((r) => (r.loadTimeMs || 0) >= 3000).length,
+      C.errorBg,
+      null,
+    ],
+    [
+      T("JS bloqueante", "Render-blocking JS"),
+      results.filter((r) => r.issues?.some((i) => i.type === "render_blocking_js")).length,
+      C.warnBg,
+      null,
+    ],
+    [
+      T("CSS bloqueante (>2)", "Render-blocking CSS (>2)"),
+      results.filter((r) => r.issues?.some((i) => i.type === "render_blocking_css")).length,
+      C.warnBg,
+      null,
+    ],
+    [
+      T("HTML pesado (>200KB)", "Large HTML (>200KB)"),
+      results.filter((r) => r.issues?.some((i) => i.type === "large_html")).length,
+      C.warnBg,
+      null,
+    ],
+    [
+      T("Contenido escaso (<300 palabras)", "Thin content (<300 words)"),
+      results.filter((r) => r.issues?.some((i) => i.type === "thin_content")).length,
+      C.warnBg,
+      null,
+    ],
+    [null],
+    [T("🏗️ Arquitectura ", "🏗️ Architecture "), "", null, null],
+    [
+      T("Sin viewport", "No viewport"),
+      results.filter((r) => r.issues?.some((i) => i.type === "no_viewport")).length,
+      C.warnBg,
+      null,
+    ],
+    [
+      T("Sin charset", "No charset"),
+      results.filter((r) => r.issues?.some((i) => i.type === "no_charset")).length,
+      C.warnBg,
+      null,
+    ],
   ];
 
   let row = 5;
@@ -3554,6 +4306,13 @@ async function generateExcelBuffer(
     { header: T("Problemas", "Issues"), key: "issues", width: 60 },
     { header: T("Score ttulo", "Title score"), key: "tscore", width: 11 },
     { header: T("Score desc", "Desc score"), key: "dscore", width: 11 },
+    { header: T("Palabras", "Words"), key: "words", width: 10 },
+    { header: T("HTML KB", "HTML KB"), key: "htmlkb", width: 10 },
+    { header: T("Tiempo ms", "Load ms"), key: "loadms", width: 10 },
+    { header: "OG", key: "og", width: 6 },
+    { header: "JSON-LD", key: "jsonld", width: 8 },
+    { header: "Viewport", key: "viewport", width: 9 },
+    { header: T("JS bloq.", "Block JS"), key: "blockjs", width: 9 },
   ];
   styleHeader(ws2);
   results.forEach((p, i) => {
@@ -3575,6 +4334,13 @@ async function generateExcelBuffer(
       issues: p.issues.map((x) => x.label).join("  ") || "OK",
       tscore: p.seoQuality?.titleScore || 0,
       dscore: p.seoQuality?.descScore || 0,
+      words: p.meta?.wordCount || 0,
+      htmlkb: p.meta?.htmlSizeBytes ? Math.round(p.meta.htmlSizeBytes / 1024) : 0,
+      loadms: p.loadTimeMs || 0,
+      og: p.meta?.og?.hasOg ? "✓" : "✗",
+      jsonld: p.meta?.structuredData?.hasStructuredData ? "✓" : "✗",
+      viewport: p.meta?.hasViewport ? "✓" : "✗",
+      blockjs: p.meta?.resources?.renderBlockingJs || 0,
     });
     const bg =
       p.statusCode === 404
@@ -3630,6 +4396,87 @@ async function generateExcelBuffer(
       const r = ws4.addRow({ title: d.title, urls: d.urls.join("\n") });
       r.height = 18 * d.urls.length;
       styleRow(r, i % 2 === 0 ? C.purpleBg : "FFFFFF");
+    });
+  }
+
+  // --- Architecture sheet ---
+  const wsArch = wb.addWorksheet(T("Arquitectura", "Architecture"));
+  wsArch.views = [{ showGridLines: false, state: "frozen", xSplit: 0, ySplit: 1 }];
+  wsArch.columns = [
+    { header: "URL", key: "url", width: 55 },
+    { header: T("Profundidad", "Depth"), key: "depth", width: 12 },
+    { header: T("Inlinks", "Inlinks"), key: "inlinks", width: 10 },
+    { header: T("Outlinks", "Outlinks"), key: "outlinks", width: 10 },
+    { header: T("Hurfana", "Orphan"), key: "orphan", width: 10 },
+    { header: T("Palabras", "Words"), key: "words", width: 10 },
+    { header: T("HTML KB", "HTML KB"), key: "htmlkb", width: 10 },
+    { header: T("Tiempo ms", "Load ms"), key: "loadms", width: 10 },
+    { header: "OG", key: "og", width: 6 },
+    { header: "Twitter", key: "tw", width: 8 },
+    { header: "JSON-LD", key: "jsonld", width: 8 },
+    { header: T("Hreflangs", "Hreflangs"), key: "hreflangs", width: 10 },
+  ];
+  styleHeader(wsArch);
+
+  // Build architecture lookup from results
+  const archData = buildSiteArchitecture(results, siteUrl);
+  const archMap = new Map();
+  for (const p of archData.pages) archMap.set(p.url, p);
+
+  results.forEach((p, i) => {
+    const arch = archMap.get(p.url) || {};
+    const r = wsArch.addRow({
+      url: p.url,
+      depth: arch.depth != null ? (arch.depth === -1 ? T("Inalcanzable", "Unreachable") : arch.depth) : "-",
+      inlinks: arch.inlinks || 0,
+      outlinks: arch.outlinks || 0,
+      orphan: arch.isOrphan ? "✓" : "",
+      words: p.meta?.wordCount || 0,
+      htmlkb: p.meta?.htmlSizeBytes ? Math.round(p.meta.htmlSizeBytes / 1024) : 0,
+      loadms: p.loadTimeMs || 0,
+      og: p.meta?.og?.hasOg ? "✓" : "✗",
+      tw: p.meta?.twitter?.hasTwitterCard ? "✓" : "✗",
+      jsonld: p.meta?.structuredData?.hasStructuredData ? "✓" : "✗",
+      hreflangs: p.meta?.hreflangs?.length || 0,
+    });
+    const bg = arch.isOrphan
+      ? C.errorBg
+      : arch.depth > 3
+        ? C.warnBg
+        : i % 2 === 0
+          ? "FFFFFF"
+          : C.alt;
+    styleRow(r, bg);
+  });
+
+  // --- Section Scores sheet ---
+  if (archData.sectionScores?.length > 0) {
+    const wsSec = wb.addWorksheet(T("Secciones", "Sections"));
+    wsSec.views = [{ showGridLines: false, state: "frozen", xSplit: 0, ySplit: 1 }];
+    wsSec.columns = [
+      { header: T("Seccin", "Section"), key: "section", width: 30 },
+      { header: T("Pginas", "Pages"), key: "pages", width: 10 },
+      { header: T("Con problemas", "With issues"), key: "issues", width: 14 },
+      { header: T("Score SEO prom.", "Avg SEO score"), key: "avgseo", width: 14 },
+      { header: T("Salud %", "Health %"), key: "health", width: 10 },
+    ];
+    styleHeader(wsSec);
+    archData.sectionScores.forEach((s, i) => {
+      const r = wsSec.addRow({
+        section: s.section,
+        pages: s.pages,
+        issues: s.pagesWithIssues,
+        avgseo: s.avgSeoScore,
+        health: s.healthPercent,
+      });
+      const bg = s.healthPercent < 50
+        ? C.errorBg
+        : s.healthPercent < 80
+          ? C.warnBg
+          : i % 2 === 0
+            ? "FFFFFF"
+            : C.alt;
+      styleRow(r, bg);
     });
   }
 
