@@ -38,15 +38,19 @@ export default function PhoneField({
             >
               {PHONE_COUNTRIES.map((option) => (
                 <option key={option.code} value={option.code}>
-                  {`${option.flag} ${option.label} (${option.prefix})`}
+                  {option.label}
                 </option>
               ))}
             </select>
+            <span
+              className="ui-phone-country-flag"
+              aria-hidden="true"
+              style={{
+                backgroundImage: `url(https://flagcdn.com/w20/${selectedCountry.code.toLowerCase()}.png)`,
+              }}
+            />
           </span>
           <span className="ui-phone-input-wrap">
-            <span className="ui-phone-prefix" aria-hidden="true">
-              {selectedCountry.flag} {selectedCountry.prefix}
-            </span>
             <input
               id={`${generatedId}-phone`}
               type="tel"
@@ -69,7 +73,7 @@ export default function PhoneField({
         .ui-phone-shell {
           min-height: 50px;
           display: grid;
-          grid-template-columns: minmax(138px, 172px) minmax(0, 1fr);
+          grid-template-columns: minmax(108px, 122px) minmax(0, 1fr);
           min-width: 0;
           border-radius: var(--radius-control);
           border: 1px solid var(--border2);
@@ -105,11 +109,15 @@ export default function PhoneField({
           border: 0;
           background: transparent;
           color: var(--text);
-          padding: 0 34px 0 14px;
+          padding: 0 34px 0 38px;
           outline: none;
           font-size: 14px;
           appearance: none;
           cursor: pointer;
+        }
+        .ui-phone-country-select option {
+          color: #0f172a;
+          background: #f8fafc;
         }
         .ui-phone-country-wrap::after {
           content: "";
@@ -122,6 +130,20 @@ export default function PhoneField({
           border-bottom: 1.8px solid currentColor;
           color: var(--text2);
           transform: translateY(-65%) rotate(45deg);
+          pointer-events: none;
+        }
+        .ui-phone-country-flag {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          width: 18px;
+          height: 12px;
+          border-radius: 2px;
+          background-color: var(--bg4);
+          background-position: center;
+          background-size: cover;
+          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+          transform: translateY(-50%);
           pointer-events: none;
         }
         .ui-phone-input-wrap {
@@ -147,7 +169,6 @@ export default function PhoneField({
           border-radius: 0;
           background: transparent;
           box-shadow: none;
-          padding-left: 88px;
         }
         .ui-phone-input:focus {
           border: 0;
@@ -155,7 +176,7 @@ export default function PhoneField({
         }
         @media (max-width: 640px) {
           .ui-phone-shell {
-            grid-template-columns: minmax(118px, 142px) minmax(0, 1fr);
+            grid-template-columns: minmax(88px, 102px) minmax(0, 1fr);
           }
           .ui-phone-input {
             padding-left: 92px;

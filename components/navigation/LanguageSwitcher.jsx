@@ -8,7 +8,11 @@ export default function LanguageSwitcher({ lang, onChange }) {
         title="Espanol"
         aria-label="Cambiar a espanol"
       >
-        <span className="lang-emoji" aria-hidden="true">🇲🇽</span>
+        <span
+          className="lang-flag"
+          aria-hidden="true"
+          style={{ backgroundImage: "url(https://flagcdn.com/w20/mx.png)" }}
+        />
       </button>
       <button
         type="button"
@@ -17,7 +21,11 @@ export default function LanguageSwitcher({ lang, onChange }) {
         title="English"
         aria-label="Switch to English"
       >
-        <span className="lang-emoji" aria-hidden="true">🇺🇸</span>
+        <span
+          className="lang-flag"
+          aria-hidden="true"
+          style={{ backgroundImage: "url(https://flagcdn.com/w20/us.png)" }}
+        />
       </button>
     </div>
   );
