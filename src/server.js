@@ -114,6 +114,13 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
     return res.status(400).json({ error: "Invalid signature" });
   }
 
+  // Resolve plan key from a Stripe price ID
+  function planFromPriceId(priceId) {
+    if (!priceId) return null;
+    const entry = Object.entries(STRIPE_PRICES).find(([, pid]) => pid === priceId);
+    return entry ? entry[0] : null;
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -135,7 +142,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
             maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
             maxHistoryRuns: defaults.maxHistoryRuns,
             features: defaults.features,
-            expiresAt: null, // Stripe manages billing cycle
+            expiresAt: null,
             cancelledAt: null,
           },
           update: {
@@ -151,7 +158,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
             cancelledAt: null,
           },
         });
-        console.log(`Stripe: ${userId} upgraded to ${plan}`);
+        console.log(`Stripe checkout.session.completed: user ${userId} -> ${plan}`);
         break;
       }
 
@@ -162,19 +169,32 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         });
         if (!existing) break;
 
-        if (subscription.cancel_at_period_end) {
-          await prisma.subscription.update({
-            where: { id: existing.id },
-            data: { cancelledAt: new Date() },
-          });
-          console.log(`Stripe: subscription ${subscription.id} will cancel at period end`);
-        } else if (existing.cancelledAt) {
-          await prisma.subscription.update({
-            where: { id: existing.id },
-            data: { cancelledAt: null },
-          });
-          console.log(`Stripe: subscription ${subscription.id} reactivated`);
+        // Detect plan change via price ID (e.g. upgrade/downgrade from portal)
+        const currentPriceId = subscription.items?.data?.[0]?.price?.id;
+        const newPlan = planFromPriceId(currentPriceId);
+        const planData = newPlan && PLAN_DEFAULTS[newPlan] ? { plan: newPlan, ...PLAN_DEFAULTS[newPlan] } : {};
+
+        // Detect status
+        const isActive = subscription.status === "active";
+        const isPastDue = subscription.status === "past_due";
+        const willCancel = subscription.cancel_at_period_end;
+
+        const updateData = {
+          ...planData,
+          cancelledAt: willCancel ? (existing.cancelledAt || new Date()) : null,
+        };
+
+        // If past_due, keep plan but log warning
+        if (isPastDue) {
+          console.warn(`Stripe: subscription ${subscription.id} is past_due`);
         }
+
+        await prisma.subscription.update({
+          where: { id: existing.id },
+          data: updateData,
+        });
+
+        console.log(`Stripe customer.subscription.updated: sub ${subscription.id} status=${subscription.status} plan=${newPlan || "unchanged"} cancelAtPeriodEnd=${willCancel}`);
         break;
       }
 
@@ -199,7 +219,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
             cancelledAt: new Date(),
           },
         });
-        console.log(`Stripe: subscription ${subscription.id} deleted, reverted to FREE`);
+        console.log(`Stripe customer.subscription.deleted: sub ${subscription.id} -> FREE`);
         break;
       }
 
@@ -209,7 +229,26 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
           where: { stripeCustomerId: invoice.customer },
         });
         if (existing) {
-          console.warn(`Stripe: payment failed for customer ${invoice.customer} (user sub ${existing.id})`);
+          console.warn(`Stripe invoice.payment_failed: customer ${invoice.customer} sub ${existing.id} attempt=${invoice.attempt_count}`);
+        }
+        break;
+      }
+
+      case "invoice.paid": {
+        // Renew: clear cancelledAt if it was set due to failed payments
+        const invoice = event.data.object;
+        if (invoice.subscription) {
+          const existing = await prisma.subscription.findFirst({
+            where: { stripeSubId: invoice.subscription },
+          });
+          if (existing && existing.cancelledAt && !invoice.lines?.data?.[0]?.price?.recurring) {
+            // Only clear if subscription is still active (not cancel_at_period_end)
+            await prisma.subscription.update({
+              where: { id: existing.id },
+              data: { cancelledAt: null },
+            });
+            console.log(`Stripe invoice.paid: cleared cancelledAt for sub ${invoice.subscription}`);
+          }
         }
         break;
       }

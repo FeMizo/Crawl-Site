@@ -15,6 +15,12 @@
     },
     "pages/api/site-info.js": {
       "maxDuration": 60
+    },
+    "pages/api/subscription/[[...slug]].js": {
+      "maxDuration": 30
+    },
+    "pages/api/stripe/webhook.js": {
+      "maxDuration": 30
     }
   }
 }
