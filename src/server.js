@@ -17,6 +17,7 @@ const helmet = require("helmet");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const net = require("net");
+const Stripe = require("stripe");
 const { PrismaClient } = require("@prisma/client");
 const {
   normalizeEmail,
@@ -97,6 +98,129 @@ function getJwtSecret() {
   );
   return "change-this-local-secret";
 }
+
+// Stripe webhook needs raw body — must be registered BEFORE express.json()
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return res.status(501).json({ error: "Stripe not configured" });
+  }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const sig = req.headers["stripe-signature"];
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Stripe webhook signature failed:", err.message);
+    return res.status(400).json({ error: "Invalid signature" });
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        const userId = session.metadata?.userId;
+        const plan = session.metadata?.plan;
+        if (!userId || !plan || !PLAN_DEFAULTS[plan]) break;
+
+        const defaults = PLAN_DEFAULTS[plan];
+        await prisma.subscription.upsert({
+          where: { userId },
+          create: {
+            userId,
+            plan,
+            stripeCustomerId: session.customer,
+            stripeSubId: session.subscription,
+            maxProjects: defaults.maxProjects,
+            maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+            maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+            maxHistoryRuns: defaults.maxHistoryRuns,
+            features: defaults.features,
+            expiresAt: null, // Stripe manages billing cycle
+            cancelledAt: null,
+          },
+          update: {
+            plan,
+            stripeCustomerId: session.customer,
+            stripeSubId: session.subscription,
+            maxProjects: defaults.maxProjects,
+            maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+            maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+            maxHistoryRuns: defaults.maxHistoryRuns,
+            features: defaults.features,
+            expiresAt: null,
+            cancelledAt: null,
+          },
+        });
+        console.log(`Stripe: ${userId} upgraded to ${plan}`);
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        const subscription = event.data.object;
+        const existing = await prisma.subscription.findFirst({
+          where: { stripeSubId: subscription.id },
+        });
+        if (!existing) break;
+
+        if (subscription.cancel_at_period_end) {
+          await prisma.subscription.update({
+            where: { id: existing.id },
+            data: { cancelledAt: new Date() },
+          });
+          console.log(`Stripe: subscription ${subscription.id} will cancel at period end`);
+        } else if (existing.cancelledAt) {
+          await prisma.subscription.update({
+            where: { id: existing.id },
+            data: { cancelledAt: null },
+          });
+          console.log(`Stripe: subscription ${subscription.id} reactivated`);
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        const existing = await prisma.subscription.findFirst({
+          where: { stripeSubId: subscription.id },
+        });
+        if (!existing) break;
+
+        const freeDefaults = PLAN_DEFAULTS.FREE;
+        await prisma.subscription.update({
+          where: { id: existing.id },
+          data: {
+            plan: "FREE",
+            stripeSubId: null,
+            maxProjects: freeDefaults.maxProjects,
+            maxPagesPerCrawl: freeDefaults.maxPagesPerCrawl,
+            maxCrawlsPerMonth: freeDefaults.maxCrawlsPerMonth,
+            maxHistoryRuns: freeDefaults.maxHistoryRuns,
+            features: freeDefaults.features,
+            cancelledAt: new Date(),
+          },
+        });
+        console.log(`Stripe: subscription ${subscription.id} deleted, reverted to FREE`);
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object;
+        const existing = await prisma.subscription.findFirst({
+          where: { stripeCustomerId: invoice.customer },
+        });
+        if (existing) {
+          console.warn(`Stripe: payment failed for customer ${invoice.customer} (user sub ${existing.id})`);
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Stripe webhook handler error:", error);
+    res.status(500).json({ error: "Webhook handler failed" });
+  }
+});
 
 app.use(express.json());
 app.use(cookieParser());
@@ -289,6 +413,33 @@ const PLAN_DEFAULTS = {
   PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl"] },
   AGENCY:  { maxProjects: 999, maxPagesPerCrawl: 10000, maxCrawlsPerMonth: 999, maxHistoryRuns: 999, features: ["excel_report", "architecture", "performance", "scheduled_crawl", "api_access", "white_label", "multi_user"] },
 };
+
+// Stripe price IDs from env — map plan names to Stripe Price IDs
+const STRIPE_PRICES = {
+  STARTER: process.env.STRIPE_PRICE_STARTER,
+  PRO: process.env.STRIPE_PRICE_PRO,
+  AGENCY: process.env.STRIPE_PRICE_AGENCY,
+};
+
+const PLAN_DISPLAY_PRICES = { FREE: 0, STARTER: 499, PRO: 1299, AGENCY: 2999 };
+const PLAN_CURRENCY = "MXN";
+
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
+
+async function getOrCreateStripeCustomer(stripe, user, existingSub) {
+  if (existingSub?.stripeCustomerId) {
+    return existingSub.stripeCustomerId;
+  }
+  const customer = await stripe.customers.create({
+    email: user.email,
+    name: user.name || undefined,
+    metadata: { userId: user.id },
+  });
+  return customer.id;
+}
 
 async function getUserSubscription(userId) {
   let sub = null;
@@ -3403,6 +3554,7 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
         features: sub.features,
         expiresAt: sub.expiresAt,
         cancelledAt: sub.cancelledAt,
+        stripeManaged: !!sub.stripeSubId,
       },
       usage: {
         projects: projectCount,
@@ -3413,6 +3565,7 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
         crawlsRemaining: Math.max(0, sub.maxCrawlsPerMonth - crawlCount),
       },
       plans: PLAN_DEFAULTS,
+      stripeEnabled: !!getStripe(),
     });
   } catch (error) {
     handleApiError(res, req, "subscription/get", error, "Error obteniendo plan");
@@ -3424,18 +3577,141 @@ app.get("/api/subscription/plans", (req, res) => {
   const plans = Object.entries(PLAN_DEFAULTS).map(([key, limits]) => ({
     plan: key,
     ...limits,
-    price: { FREE: 0, STARTER: 29, PRO: 79, AGENCY: 199 }[key] || 0,
-    currency: "USD",
+    price: PLAN_DISPLAY_PRICES[key] || 0,
+    currency: PLAN_CURRENCY,
+    hasStripePrice: !!STRIPE_PRICES[key],
   }));
   res.json({ plans });
 });
 
-// POST /api/subscription/upgrade - Upgrade plan (admin/manual for now, Stripe later)
+// POST /api/subscription/checkout - Create Stripe Checkout session
+app.post("/api/subscription/checkout", requireAuth, async (req, res) => {
+  try {
+    const newPlan = String(req.body?.plan || "").toUpperCase();
+    if (!PLAN_DEFAULTS[newPlan] || newPlan === "FREE") {
+      return res.status(400).json({ error: "Plan invlido para checkout" });
+    }
+
+    const stripe = getStripe();
+    if (!stripe || !STRIPE_PRICES[newPlan]) {
+      return res.status(501).json({ error: "Stripe no configurado para este plan" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const currentSub = await getUserSubscription(req.user.id);
+    const customerId = await getOrCreateStripeCustomer(stripe, user, currentSub);
+
+    // Save the Stripe customer ID early
+    try {
+      await prisma.subscription.upsert({
+        where: { userId: req.user.id },
+        create: { userId: req.user.id, plan: "FREE", stripeCustomerId: customerId, ...PLAN_DEFAULTS.FREE },
+        update: { stripeCustomerId: customerId },
+      });
+    } catch { /* table may not exist */ }
+
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: STRIPE_PRICES[newPlan], quantity: 1 }],
+      metadata: { userId: req.user.id, plan: newPlan },
+      success_url: `${appUrl}/dashboard/subscription?session_id={CHECKOUT_SESSION_ID}&success=1`,
+      cancel_url: `${appUrl}/dashboard/subscription?cancelled=1`,
+      subscription_data: {
+        metadata: { userId: req.user.id, plan: newPlan },
+      },
+    });
+
+    return res.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    handleApiError(res, req, "subscription/checkout", error, "Error creando sesin de pago");
+  }
+});
+
+// POST /api/subscription/portal - Open Stripe Customer Portal
+app.post("/api/subscription/portal", requireAuth, async (req, res) => {
+  try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(501).json({ error: "Stripe no configurado" });
+    }
+
+    const sub = await getUserSubscription(req.user.id);
+    if (!sub.stripeCustomerId) {
+      return res.status(400).json({ error: "No tienes cuenta de facturacin" });
+    }
+
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const session = await stripe.billingPortal.sessions.create({
+      customer: sub.stripeCustomerId,
+      return_url: `${appUrl}/dashboard/subscription`,
+    });
+
+    return res.json({ url: session.url });
+  } catch (error) {
+    handleApiError(res, req, "subscription/portal", error, "Error abriendo portal de facturacin");
+  }
+});
+
+// POST /api/subscription/cancel - Cancel subscription via Stripe or direct
+app.post("/api/subscription/cancel", requireAuth, async (req, res) => {
+  try {
+    const existing = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+    });
+    if (!existing || existing.plan === "FREE") {
+      return res.status(400).json({ error: "No hay suscripcin activa para cancelar" });
+    }
+
+    const stripe = getStripe();
+    // If managed by Stripe, cancel at period end
+    if (stripe && existing.stripeSubId) {
+      await stripe.subscriptions.update(existing.stripeSubId, {
+        cancel_at_period_end: true,
+      });
+      await prisma.subscription.update({
+        where: { userId: req.user.id },
+        data: { cancelledAt: new Date() },
+      });
+      return res.json({ message: "Suscripcin se cancelar al final del periodo de facturacin." });
+    }
+
+    // No Stripe — direct cancel (admin-assigned plans)
+    const freeDefaults = PLAN_DEFAULTS.FREE;
+    await prisma.subscription.update({
+      where: { userId: req.user.id },
+      data: {
+        plan: "FREE",
+        cancelledAt: new Date(),
+        maxProjects: freeDefaults.maxProjects,
+        maxPagesPerCrawl: freeDefaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: freeDefaults.maxCrawlsPerMonth,
+        maxHistoryRuns: freeDefaults.maxHistoryRuns,
+        features: freeDefaults.features,
+      },
+    });
+    return res.json({ message: "Suscripcin cancelada. Plan revertido a FREE." });
+  } catch (error) {
+    handleApiError(res, req, "subscription/cancel", error, "Error cancelando plan");
+  }
+});
+
+// POST /api/subscription/upgrade - Admin/manual upgrade (no Stripe)
 app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
   try {
     const newPlan = String(req.body?.plan || "").toUpperCase();
     if (!PLAN_DEFAULTS[newPlan]) {
       return res.status(400).json({ error: "Plan invlido" });
+    }
+
+    // If Stripe is configured for paid plans, redirect to checkout
+    const stripe = getStripe();
+    if (stripe && newPlan !== "FREE" && STRIPE_PRICES[newPlan]) {
+      return res.status(400).json({
+        error: "Usa /api/subscription/checkout para planes de pago",
+        checkoutRequired: true,
+      });
     }
 
     const defaults = PLAN_DEFAULTS[newPlan];
@@ -3449,7 +3725,6 @@ app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
         maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
         maxHistoryRuns: defaults.maxHistoryRuns,
         features: defaults.features,
-        expiresAt: newPlan === "FREE" ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
       update: {
         plan: newPlan,
@@ -3458,7 +3733,6 @@ app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
         maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
         maxHistoryRuns: defaults.maxHistoryRuns,
         features: defaults.features,
-        expiresAt: newPlan === "FREE" ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         cancelledAt: null,
       },
     });
@@ -3477,27 +3751,6 @@ app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
     });
   } catch (error) {
     handleApiError(res, req, "subscription/upgrade", error, "Error actualizando plan");
-  }
-});
-
-// POST /api/subscription/cancel - Cancel subscription (revert to FREE)
-app.post("/api/subscription/cancel", requireAuth, async (req, res) => {
-  try {
-    const existing = await prisma.subscription.findUnique({
-      where: { userId: req.user.id },
-    });
-    if (!existing || existing.plan === "FREE") {
-      return res.status(400).json({ error: "No hay suscripcin activa para cancelar" });
-    }
-
-    await prisma.subscription.update({
-      where: { userId: req.user.id },
-      data: { cancelledAt: new Date() },
-    });
-
-    return res.json({ message: "Suscripcin cancelada. El plan seguir activo hasta la fecha de expiracin." });
-  } catch (error) {
-    handleApiError(res, req, "subscription/cancel", error, "Error cancelando plan");
   }
 });
 
