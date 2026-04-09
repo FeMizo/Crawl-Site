@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:17
     container_name: seo_crawler_db
     restart: unless-stopped
     environment:
@@ -8,9 +8,14 @@ services:
       POSTGRES_PASSWORD: seo_pass
       POSTGRES_DB: seo_crawler
     ports:
-      - "5433:5432"
+      - "127.0.0.1:55433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seo_user -d seo_crawler"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     volumes:
-      - seo_crawler_pgdata:/var/lib/postgresql/data
+      - seo_crawler_pgdata_v17:/var/lib/postgresql/data
 
 volumes:
-  seo_crawler_pgdata:
+  seo_crawler_pgdata_v17:
