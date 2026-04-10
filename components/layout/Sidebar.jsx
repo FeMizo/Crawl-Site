@@ -5,6 +5,7 @@ import Card from "../ui/Card";
 import FaviconMark from "../ui/FaviconMark";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
+import PlanWidget from "./PlanWidget";
 import { tUi } from "../../lib/ui-language";
 
 const { getRoleLabel } = require("../../lib/user-roles");
@@ -111,6 +112,12 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
       {aside ? (
         <Card className="dashboard-side-card" padding="sm">
           {aside}
+        </Card>
+      ) : null}
+
+      {user ? (
+        <Card className="dashboard-side-card" padding="sm">
+          <PlanWidget user={user} />
         </Card>
       ) : null}
     </aside>
