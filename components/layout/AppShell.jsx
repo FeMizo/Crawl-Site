@@ -59,7 +59,12 @@ export default function AppShell({
     <main className="dashboard-shell-page">
       <div className={`dashboard-shell${showSidebar ? "" : " no-sidebar"}`}>
         {showSidebar ? (
-          <Sidebar activeKey={activeKey} user={user} aside={aside} lang={lang} />
+          <Sidebar
+            activeKey={activeKey}
+            user={user}
+            aside={aside}
+            lang={lang}
+          />
         ) : null}
         <div className="dashboard-main">
           <TopHeader
@@ -71,6 +76,7 @@ export default function AppShell({
             onLangChange={applyLang}
             onThemeChange={applyTheme}
             actions={actions}
+            user={user}
           />
           <PageContainer className={contentClassName}>{children}</PageContainer>
         </div>
@@ -304,14 +310,6 @@ export default function AppShell({
           display: inline-flex;
           align-items: center;
           gap: 8px;
-        }
-        .dashboard-user-card {
-          display: flex;
-          align-items: start;
-          gap: 12px;
-          flex-wrap: wrap;
-          min-width: 0;
-          align-self: start;
         }
         .user-dot {
           width: 28px;

@@ -1,4 +1,5 @@
 import PreferenceToggles from "../navigation/PreferenceToggles";
+import UserMenu from "./UserMenu";
 
 export default function TopHeader({
   eyebrow,
@@ -9,6 +10,7 @@ export default function TopHeader({
   onLangChange,
   onThemeChange,
   actions,
+  user,
 }) {
   return (
     <header className="dashboard-top-header">
@@ -25,6 +27,7 @@ export default function TopHeader({
           onThemeChange={onThemeChange}
         />
         {actions ? <div className="hdr-actions">{actions}</div> : null}
+        {user ? <UserMenu user={user} /> : null}
       </div>
     </header>
   );

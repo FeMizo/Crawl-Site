@@ -69,12 +69,6 @@ export default function ProjectsPage() {
     };
   }, [clearSessionUser, page, reloadKey, router, setSessionUser]);
 
-  const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    clearSessionUser();
-    router.push("/login");
-  };
-
   const deleteProject = async (projectId) => {
     const confirmed = window.confirm("Esto eliminara el proyecto y su historial. Continuar?");
     if (!confirmed) return;
@@ -104,14 +98,9 @@ export default function ProjectsPage() {
         title="Proyectos guardados"
         description="Todos los proyectos, accesos y acciones viven dentro del mismo panel principal."
         actions={
-          <>
-            <Button href="/" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
-              Nuevo proyecto
-            </Button>
-            <Button type="button" onClick={logout} variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
-              Cerrar sesion
-            </Button>
-          </>
+          <Button href="/" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
+            Nuevo proyecto
+          </Button>
         }
         aside={
           <div className="aside-stats">

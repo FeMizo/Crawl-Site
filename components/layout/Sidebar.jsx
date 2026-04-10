@@ -108,21 +108,6 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         ))}
       </nav>
 
-      <Card className="dashboard-user-card" padding="sm">
-        <div className="user-dot">
-          <Icon name="user" size={13} />
-        </div>
-        <div>
-          <div className="user-name">{userDisplay}</div>
-          <div className="user-plan">{userSummary}</div>
-        </div>
-        {user ? (
-          <Badge tone="primary">{tUi(lang, "statusActive")}</Badge>
-        ) : (
-          <Badge tone="secondary">{tUi(lang, "statusGuest")}</Badge>
-        )}
-      </Card>
-
       {aside ? (
         <Card className="dashboard-side-card" padding="sm">
           {aside}
