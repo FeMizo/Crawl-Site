@@ -166,6 +166,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         const subscription = event.data.object;
         const existing = await prisma.subscription.findFirst({
           where: { stripeSubId: subscription.id },
+          select: { id: true, cancelledAt: true },
         });
         if (!existing) break;
 
@@ -202,6 +203,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         const subscription = event.data.object;
         const existing = await prisma.subscription.findFirst({
           where: { stripeSubId: subscription.id },
+          select: { id: true },
         });
         if (!existing) break;
 
@@ -227,6 +229,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         const invoice = event.data.object;
         const existing = await prisma.subscription.findFirst({
           where: { stripeCustomerId: invoice.customer },
+          select: { id: true },
         });
         if (existing) {
           console.warn(`Stripe invoice.payment_failed: customer ${invoice.customer} sub ${existing.id} attempt=${invoice.attempt_count}`);
@@ -240,6 +243,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         if (invoice.subscription) {
           const existing = await prisma.subscription.findFirst({
             where: { stripeSubId: invoice.subscription },
+            select: { id: true, cancelledAt: true },
           });
           if (existing && existing.cancelledAt && !invoice.lines?.data?.[0]?.price?.recurring) {
             // Only clear if subscription is still active (not cancel_at_period_end)
@@ -2806,7 +2810,7 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: phone.error });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (existing) {
       return res.status(409).json({ error: "Ese email ya esta registrado" });
     }
@@ -2889,7 +2893,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
         .status(400)
         .json({ error: "La contrasena debe tener al menos 8 caracteres" });
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (user) {
       const passwordHash = await bcrypt.hash(password, 10);
       await prisma.user.update({
@@ -2926,7 +2930,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
         .status(400)
         .json({ error: "La contrasena debe tener al menos 8 caracteres" });
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -3272,9 +3276,11 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   const allowed = await ensureUrlAllowed(targetUrl);
   if (!allowed) return res.status(400).json({ error: "URL no permitida" });
 
-  // Plan limit check: max projects
-  const sub = await getUserSubscription(req.user.id);
-  const projectCount = await prisma.project.count({ where: { userId: req.user.id } });
+  // Plan limit check: max projects (parallel fetch)
+  const [sub, projectCount] = await Promise.all([
+    getUserSubscription(req.user.id),
+    prisma.project.count({ where: { userId: req.user.id } }),
+  ]);
   if (projectCount >= sub.maxProjects) {
     return res.status(403).json({
       error: "Lmite de proyectos alcanzado",
@@ -3350,6 +3356,7 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
 app.put("/api/projects/:projectId", requireAuth, async (req, res) => {
   const existing = await prisma.project.findFirst({
     where: { id: req.params.projectId, userId: req.user.id },
+    select: { id: true, name: true, targetUrl: true },
   });
   if (!existing) {
     return res.status(404).json({ error: "Proyecto no encontrado" });
@@ -3852,14 +3859,14 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
   if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
 
-  // Plan limit: monthly crawls + maxPages cap
-  const sub = await getUserSubscription(req.user.id);
+  // Plan limit: monthly crawls + maxPages cap (parallel fetch)
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
-  const crawlCount = await prisma.crawlRun.count({
-    where: { userId: req.user.id, createdAt: { gte: monthStart } },
-  });
+  const [sub, crawlCount] = await Promise.all([
+    getUserSubscription(req.user.id),
+    prisma.crawlRun.count({ where: { userId: req.user.id, createdAt: { gte: monthStart } } }),
+  ]);
   if (crawlCount >= sub.maxCrawlsPerMonth) {
     return res.status(403).json({
       error: "Lmite de crawls mensuales alcanzado",
@@ -3882,6 +3889,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: req.user.id },
+    select: { id: true, targetUrl: true, name: true },
   });
   if (!project)
     return res.status(404).json({ error: "Proyecto no encontrado" });

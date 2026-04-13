@@ -63,6 +63,9 @@ model Subscription {
   cancelledAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  @@index([stripeSubId])
+  @@index([stripeCustomerId])
 }
 
 model Project {
