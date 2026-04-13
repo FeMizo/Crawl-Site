@@ -1067,9 +1067,11 @@ function startCrawl() {
   show("pw");
   show("sl");
   const progressWrap = document.getElementById("pw");
+  const progressBar = document.getElementById("pb");
   const statusWrap = document.getElementById("sl");
+  const cancelBtn = document.getElementById("sl-cancel");
   if (progressWrap) {
-    progressWrap.classList.add("is-active");
+    progressWrap.classList.add("is-indeterminate");
     progressWrap.classList.remove("is-complete");
   }
   show("cw");
@@ -1099,23 +1101,47 @@ function startCrawl() {
     lang,
     projectId,
   });
-  const es = new EventSource(`/api/crawl?${qs}`);
+
+  const maxPages = parseInt(max) || 50;
+
+  const setProgress = (done) => {
+    if (!progressBar || !progressWrap) return;
+    const pct = Math.min(100, Math.round((done / maxPages) * 100));
+    if (pct > 0 && progressWrap.classList.contains("is-indeterminate")) {
+      progressWrap.classList.remove("is-indeterminate");
+    }
+    progressBar.style.width = `${pct}%`;
+  };
+
   const hideProgress = (complete = false) => {
     if (progressWrap) {
-      progressWrap.classList.remove("is-active");
+      progressWrap.classList.remove("is-indeterminate");
       if (complete) {
         progressWrap.classList.add("is-complete");
         setTimeout(() => {
           progressWrap.style.display = "none";
           progressWrap.classList.remove("is-complete");
-        }, 260);
+          if (progressBar) progressBar.style.width = "0%";
+        }, 600);
       } else {
         progressWrap.classList.remove("is-complete");
         progressWrap.style.display = "none";
+        if (progressBar) progressBar.style.width = "0%";
       }
     }
     if (statusWrap) statusWrap.style.display = "none";
   };
+
+  const es = new EventSource(`/api/crawl?${qs}`);
+
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      es.close();
+      hideProgress(false);
+      btn.disabled = false;
+      updateCrawlButtonLabel();
+    };
+  }
 
   es.addEventListener("robots", (e) => {
     const robots = JSON.parse(e.data);
@@ -1129,10 +1155,9 @@ function startCrawl() {
     const p = JSON.parse(e.data);
     crawlState.pages.push(p);
     addPage(p);
-    sv(
-      "stxt",
-      `${T("analyzing")}... ${p.total}  ${p.queued} ${T("queueLabel")}`,
-    );
+    sv("stxt", `${T("analyzing")}... ${p.total} / ${maxPages}  |  ${p.queued} ${T("queueLabel")}`);
+    sv("sl-url", p.url || "");
+    setProgress(p.total);
     sv("vT", p.total);
     updateAggregateSgStats();
   });
@@ -1160,6 +1185,7 @@ function startCrawl() {
     crawlState.duplicates = d.duplicates || [];
     if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
     updateDownloadUi(d.downloadUrl, d.fileName, d.total, d.withIssues);
+    setProgress(d.total);
     hideProgress(true);
     btn.disabled = false;
     updateCrawlButtonLabel();
