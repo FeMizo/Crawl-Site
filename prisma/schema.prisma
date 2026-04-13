@@ -26,6 +26,7 @@ enum CrawlStatus {
 
 enum PlanType {
   FREE
+  BASIC
   STARTER
   PRO
   AGENCY

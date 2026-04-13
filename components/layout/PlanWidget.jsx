@@ -3,12 +3,13 @@ import Icon from "../ui/Icon";
 
 const PLAN_COLORS = {
   FREE: { bar: "#64b5f6", badge: "var(--text2)", badgeBg: "var(--bg3)", badgeBorder: "var(--border2)" },
+  BASIC: { bar: "#f59e0b", badge: "#fbbf24", badgeBg: "rgba(245,158,11,0.14)", badgeBorder: "rgba(245,158,11,0.4)" },
   STARTER: { bar: "#4d8dff", badge: "#77abff", badgeBg: "rgba(77,141,255,0.14)", badgeBorder: "rgba(77,141,255,0.4)" },
   PRO: { bar: "#00ff88", badge: "var(--accent)", badgeBg: "var(--adim)", badgeBorder: "rgba(0,255,136,0.3)" },
   AGENCY: { bar: "#c084fc", badge: "#c084fc", badgeBg: "rgba(192,132,252,0.14)", badgeBorder: "rgba(192,132,252,0.4)" },
 };
 
-const PLAN_LABEL = { FREE: "Gratis", STARTER: "Starter", PRO: "Pro", AGENCY: "Agency" };
+const PLAN_LABEL = { FREE: "Gratis", BASIC: "Basic", STARTER: "Starter", PRO: "Pro", AGENCY: "Agency" };
 
 function Bar({ used, max, color }) {
   const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;

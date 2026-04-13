@@ -448,6 +448,7 @@ function requireUserManagement(req, res, next) {
 // --- Plan limits ---
 const PLAN_DEFAULTS = {
   FREE:    { maxProjects: 1,  maxPagesPerCrawl: 50,   maxCrawlsPerMonth: 2,   maxHistoryRuns: 1,   features: [] },
+  BASIC:   { maxProjects: 1,  maxPagesPerCrawl: 30,   maxCrawlsPerMonth: 5,   maxHistoryRuns: 1,   features: [] },
   STARTER: { maxProjects: 5,  maxPagesPerCrawl: 500,  maxCrawlsPerMonth: 10,  maxHistoryRuns: 10,  features: ["excel_report"] },
   PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl"] },
   AGENCY:  { maxProjects: 999, maxPagesPerCrawl: 10000, maxCrawlsPerMonth: 999, maxHistoryRuns: 999, features: ["excel_report", "architecture", "performance", "scheduled_crawl", "api_access", "white_label", "multi_user"] },
@@ -455,12 +456,13 @@ const PLAN_DEFAULTS = {
 
 // Stripe price IDs from env — map plan names to Stripe Price IDs
 const STRIPE_PRICES = {
+  BASIC: process.env.STRIPE_PRICE_BASIC,
   STARTER: process.env.STRIPE_PRICE_STARTER,
   PRO: process.env.STRIPE_PRICE_PRO,
   AGENCY: process.env.STRIPE_PRICE_AGENCY,
 };
 
-const PLAN_DISPLAY_PRICES = { FREE: 0, STARTER: 499, PRO: 1299, AGENCY: 2999 };
+const PLAN_DISPLAY_PRICES = { FREE: 0, BASIC: 229, STARTER: 499, PRO: 1299, AGENCY: 2999 };
 const PLAN_CURRENCY = "MXN";
 
 function getStripe() {
