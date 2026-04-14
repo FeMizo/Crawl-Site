@@ -3167,6 +3167,41 @@ app.put(
   },
 );
 
+// DELETE /api/admin/users/:userId - Delete user and all their data (cascade)
+app.delete(
+  "/api/admin/users/:userId",
+  requireAuth,
+  requireUserManagement,
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      if (req.user.id === userId) {
+        return res.status(403).json({ error: "No puedes eliminar tu propia cuenta desde aqui" });
+      }
+
+      const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!targetUser) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      if (!canManageTarget(req.user, targetUser)) {
+        return res.status(403).json({ error: "No tienes permisos para eliminar ese usuario" });
+      }
+
+      if (getEffectiveRole(targetUser) === USER_ROLE.OWNER) {
+        return res.status(403).json({ error: "No se puede eliminar al propietario" });
+      }
+
+      await prisma.user.delete({ where: { id: userId } });
+
+      return res.json({ ok: true });
+    } catch (error) {
+      return handleApiError(res, req, "admin/users:delete", error, "No se pudo eliminar el usuario");
+    }
+  },
+);
+
 app.get("/api/projects", requireAuth, async (req, res) => {
   const { page, limit, skip } = parsePaginationParams(req.query, {
     defaultLimit: 8,

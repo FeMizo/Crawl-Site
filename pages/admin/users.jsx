@@ -47,6 +47,7 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [savingUserId, setSavingUserId] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState("");
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -120,6 +121,24 @@ export default function AdminUsersPage() {
       active = false;
     };
   }, [clearSessionUser, page, query, roleFilter, router, setSessionUser]);
+
+  const deleteUser = async (userId, userLabel) => {
+    if (!window.confirm(`Eliminar a ${userLabel} y todos sus datos? Esta accion no se puede deshacer.`)) return;
+    setDeletingUserId(userId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo eliminar el usuario.");
+      setUsers((current) => current.filter((u) => u.id !== userId));
+      setMessage("Usuario eliminado correctamente.");
+    } catch (err) {
+      setError(err.message || "No se pudo eliminar el usuario.");
+    } finally {
+      setDeletingUserId("");
+    }
+  };
 
   const assignableRoles = useMemo(
     () => new Set(sessionUser?.permissions?.assignableRoles || []),
@@ -231,10 +250,12 @@ export default function AdminUsersPage() {
               <tbody>
                 {users.map((user) => {
                   const currentRole = user.assignedRole || USER_ROLE.USER;
+                  const isOwner = user.role === USER_ROLE.OWNER;
+                  const isSelf = user.id === sessionUser?.id;
                   const disabled =
                     !assignableRoles.size ||
-                    user.id === sessionUser?.id ||
-                    user.role === USER_ROLE.OWNER;
+                    isSelf ||
+                    isOwner;
 
                   return (
                     <tr key={user.id}>
@@ -279,12 +300,22 @@ export default function AdminUsersPage() {
                             ))}
                           </select>
                           <span className="action-hint">
-                            {user.id === sessionUser?.id
+                            {isSelf
                               ? "No puedes editar tu propio rol."
-                              : user.role === USER_ROLE.OWNER
+                              : isOwner
                                 ? "Propietario protegido por servidor."
                                 : "Cambio inmediato al guardar."}
                           </span>
+                          {!isSelf && !isOwner && (
+                            <button
+                              type="button"
+                              className="delete-btn"
+                              disabled={deletingUserId === user.id}
+                              onClick={() => deleteUser(user.id, user.name || user.email)}
+                            >
+                              {deletingUserId === user.id ? "Eliminando..." : "Eliminar"}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -436,6 +467,27 @@ export default function AdminUsersPage() {
           }
           .inline-select {
             min-width: 180px;
+          }
+          .delete-btn {
+            appearance: none;
+            background: transparent;
+            border: 1px solid rgba(248, 113, 113, 0.4);
+            border-radius: 8px;
+            color: var(--error, #f87171);
+            cursor: pointer;
+            font-family: "Manrope", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 5px 10px;
+            transition: all 0.15s;
+          }
+          .delete-btn:hover:not(:disabled) {
+            background: rgba(248, 113, 113, 0.12);
+            border-color: var(--error, #f87171);
+          }
+          .delete-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
           }
           .empty-state {
             padding: 24px 8px;
