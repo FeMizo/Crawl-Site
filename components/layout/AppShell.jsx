@@ -143,7 +143,7 @@ export default function AppShell({
           position: sticky;
           top: 0;
           z-index: 40;
-          padding: var(--space-4) var(--space-3);
+          padding: var(--space-4) 0;
           margin: 0 0 var(--space-4);
           border-bottom: 1px solid var(--border);
           display: flex;
@@ -152,8 +152,9 @@ export default function AppShell({
           align-items: flex-start;
           flex-wrap: wrap;
           min-width: 0;
-          background: transparent;
-          backdrop-filter: none;
+          background: color-mix(in srgb, var(--bg) 82%, transparent);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
         }
         .header-copy {
           min-width: 0;
@@ -252,6 +253,10 @@ export default function AppShell({
         .dashboard-nav a:hover {
           border-color: var(--border2);
           color: var(--text);
+        }
+        .dashboard-nav a:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: -2px;
         }
         .dashboard-nav a.on {
           background: rgba(77, 141, 255, 0.14);
@@ -404,6 +409,14 @@ export default function AppShell({
           color: var(--accent);
           background: var(--adim);
         }
+        .hbtn:active {
+          transform: scale(0.96);
+          opacity: 0.9;
+        }
+        .hbtn:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
         .lang-btn {
           min-width: 46px;
           padding: 8px 10px;
@@ -451,6 +464,15 @@ export default function AppShell({
           pointer-events: none;
           transform: none;
           box-shadow: none;
+        }
+        .ui-btn:active:not(:disabled):not([aria-disabled="true"]) {
+          transform: translateY(0);
+          box-shadow: none;
+          opacity: 0.88;
+        }
+        .ui-btn:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
         .ui-btn-sm {
           min-height: 34px;
@@ -581,38 +603,27 @@ export default function AppShell({
           box-shadow: 0 0 0 4px var(--adim);
         }
         .ui-stat-card {
-          position: relative;
-          overflow: hidden;
           display: grid;
           gap: var(--space-1);
           min-width: 0;
         }
-        .ui-stat-card::before {
-          content: "";
-          position: absolute;
-          inset: 0 auto auto 0;
-          width: 100%;
-          height: 3px;
-          background: #4d8dff;
-        }
-        .ui-stat-primary::before {
-          background: #4d8dff;
-        }
-        .ui-stat-secondary::before {
-          background: var(--accent);
-        }
-        .ui-stat-danger::before {
-          background: var(--error);
-        }
         .ui-stat-icon {
           display: inline-flex;
-          width: 24px;
-          height: 24px;
+          width: 26px;
+          height: 26px;
           align-items: center;
           justify-content: center;
-          border-radius: 999px;
+          border-radius: 8px;
           background: rgba(77, 141, 255, 0.12);
           color: #77abff;
+        }
+        .ui-stat-secondary .ui-stat-icon {
+          background: var(--adim);
+          color: var(--accent);
+        }
+        .ui-stat-danger .ui-stat-icon {
+          background: var(--edim);
+          color: var(--error);
         }
         .ui-stat-label {
           color: var(--muted);
@@ -651,7 +662,7 @@ export default function AppShell({
             padding: 0 var(--space-3) var(--space-5);
           }
           .dashboard-top-header {
-            padding: var(--space-3) var(--space-2);
+            padding: var(--space-3) 0;
           }
           .dashboard-top-header,
           .hdr-r,

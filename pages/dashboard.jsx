@@ -336,6 +336,33 @@ export default function DashboardPage() {
             cursor: pointer;
             display: grid;
             gap: 6px;
+            font-family: "Manrope", sans-serif;
+            transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+          }
+          .history-item span {
+            font-size: 12px;
+            color: var(--muted);
+          }
+          .history-item strong {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+          }
+          .history-item small {
+            font-size: 11px;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--muted);
+          }
+          .history-item:hover {
+            border-color: var(--border2);
+          }
+          .history-item:focus-visible {
+            outline: 2px solid rgba(77, 141, 255, 0.8);
+            outline-offset: -2px;
           }
           .history-item.active {
             border-color: rgba(77, 141, 255, 0.62);
@@ -344,11 +371,8 @@ export default function DashboardPage() {
               0 0 0 1px rgba(77, 141, 255, 0.5) inset,
               0 12px 24px rgba(32, 92, 179, 0.2);
           }
-          .history-item span,
-          .history-item small,
           .history-empty {
             color: var(--muted);
-            overflow-wrap: anywhere;
           }
           .legacy-surface {
             overflow: hidden;

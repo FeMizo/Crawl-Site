@@ -100,6 +100,14 @@ export default function UserMenu({ user }) {
           color: var(--accent);
           background: var(--adim);
         }
+        .user-menu-trigger:active {
+          transform: scale(0.97);
+          opacity: 0.9;
+        }
+        .user-menu-trigger:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
         .user-menu-dot {
           width: 22px;
           height: 22px;
@@ -122,6 +130,10 @@ export default function UserMenu({ user }) {
           flex: 0 0 auto;
           transition: transform 0.2s;
         }
+        @keyframes menu-in {
+          from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)   scale(1); }
+        }
         .user-menu-dropdown {
           position: absolute;
           top: calc(100% + 6px);
@@ -135,6 +147,8 @@ export default function UserMenu({ user }) {
           flex-direction: column;
           gap: 2px;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+          animation: menu-in 0.15s ease-out both;
+          transform-origin: top right;
         }
         .user-menu-item {
           display: flex;

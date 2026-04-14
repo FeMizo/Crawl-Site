@@ -15,7 +15,7 @@ export default function TopHeader({
   return (
     <header className="dashboard-top-header">
       <div className="header-copy">
-        <div className="page-kicker">{eyebrow}</div>
+        {eyebrow ? <div className="page-kicker">{eyebrow}</div> : null}
         <h1>{title}</h1>
         {description ? <p>{description}</p> : null}
       </div>
