@@ -259,7 +259,7 @@ export default function SubscriptionPage() {
           router.replace("/login?next=/subscription");
           return;
         }
-        setSessionUser(subJson ? (subJson.viewer || sessionUser) : sessionUser);
+        if (subJson?.viewer) setSessionUser(subJson.viewer);
         if (subJson) setSubData(subJson);
         if (plansJson?.plans) setPlans(plansJson.plans);
       })

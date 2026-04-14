@@ -3658,7 +3658,7 @@ app.post("/api/subscription/checkout", requireAuth, async (req, res) => {
       });
     } catch { /* table may not exist */ }
 
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -3752,7 +3752,7 @@ app.post("/api/subscription/portal", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "No tienes cuenta de facturacin" });
     }
 
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
       return_url: `${appUrl}/subscription`,
