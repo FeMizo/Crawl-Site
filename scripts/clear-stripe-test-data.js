@@ -1,26 +1,50 @@
 /**
  * clear-stripe-test-data.js
- * Clears stripeCustomerId and stripeSubId from all subscriptions so they
+ * Clears stripeCustomerId and stripeSubId from subscriptions so they
  * get re-created against the live Stripe account on next checkout.
  *
  * Usage:
- *   node scripts/clear-stripe-test-data.js
- *   node scripts/clear-stripe-test-data.js --dry-run
+ *   node scripts/clear-stripe-test-data.js                        # all users
+ *   node scripts/clear-stripe-test-data.js --email=foo@bar.com    # one user
+ *   node scripts/clear-stripe-test-data.js --dry-run              # preview only
  */
 
+const { loadEnvConfig } = require("@next/env");
 const { PrismaClient } = require("@prisma/client");
 
-const isDryRun = process.argv.includes("--dry-run");
+loadEnvConfig(process.cwd());
+
 const prisma = new PrismaClient();
+const isDryRun = process.argv.includes("--dry-run");
+
+function readArg(name) {
+  const prefix = `--${name}=`;
+  const direct = process.argv.find((a) => a.startsWith(prefix));
+  if (direct) return direct.slice(prefix.length);
+  const idx = process.argv.indexOf(`--${name}`);
+  if (idx >= 0) return process.argv[idx + 1] || "";
+  return "";
+}
 
 async function main() {
-  const affected = await prisma.subscription.findMany({
-    where: {
+  const email = readArg("email").trim().toLowerCase();
+
+  let where;
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) throw new Error(`No existe un usuario con email: ${email}`);
+    where = { userId: user.id };
+  } else {
+    where = {
       OR: [
         { stripeCustomerId: { not: null } },
         { stripeSubId: { not: null } },
       ],
-    },
+    };
+  }
+
+  const affected = await prisma.subscription.findMany({
+    where,
     select: { id: true, userId: true, plan: true, stripeCustomerId: true, stripeSubId: true },
   });
 
@@ -29,7 +53,7 @@ async function main() {
     return;
   }
 
-  console.log(`Found ${affected.length} subscription(s) with Stripe test data:`);
+  console.log(`Found ${affected.length} subscription(s):`);
   for (const s of affected) {
     console.log(`  userId=${s.userId}  plan=${s.plan}  customerId=${s.stripeCustomerId}  subId=${s.stripeSubId}`);
   }
@@ -40,16 +64,8 @@ async function main() {
   }
 
   const result = await prisma.subscription.updateMany({
-    where: {
-      OR: [
-        { stripeCustomerId: { not: null } },
-        { stripeSubId: { not: null } },
-      ],
-    },
-    data: {
-      stripeCustomerId: null,
-      stripeSubId: null,
-    },
+    where,
+    data: { stripeCustomerId: null, stripeSubId: null },
   });
 
   console.log(`\nCleared Stripe data from ${result.count} subscription(s).`);
@@ -57,5 +73,5 @@ async function main() {
 }
 
 main()
-  .catch((err) => { console.error(err); process.exit(1); })
+  .catch((err) => { console.error(err.message || err); process.exit(1); })
   .finally(() => prisma.$disconnect());
