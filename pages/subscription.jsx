@@ -33,12 +33,14 @@ function fmt(n) {
   return String(n);
 }
 
-function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, portalLoading }) {
+function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, portalLoading, onCancel, cancelling, cancelledAt }) {
   const isCurrent = plan.plan === currentPlan;
   const isFree = plan.plan === "FREE";
   const colors = PLAN_COLORS[plan.plan] || PLAN_COLORS.FREE;
   const hasBuyable = plan.hasStripePrice && !isCurrent && !isFree;
   const isCurrentPaid = isCurrent && stripeManaged;
+  const canDowngradeToFree = isFree && stripeManaged && !isCurrent;
+  const isPendingCancel = isCurrent && stripeManaged && !!cancelledAt;
 
   return (
     <div className={`plan-card${isCurrent ? " is-current" : ""}`} style={{ "--plan-accent": colors.accent }}>
@@ -77,7 +79,13 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
       )}
 
       <div className="plan-action">
-        {isCurrent && isCurrentPaid && (
+        {isPendingCancel && (
+          <div className="cancel-notice">
+            <Icon name="shield" size={12} />
+            Cancelacion pendiente — activo hasta fin de periodo
+          </div>
+        )}
+        {isCurrent && isCurrentPaid && !isPendingCancel && (
           <Button
             type="button"
             variant="outline"
@@ -104,10 +112,25 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
             loading={buying === plan.plan}
             iconLeft={<Icon name="plus" size={14} />}
           >
-            Contratar
+            {stripeManaged ? "Cambiar plan" : "Suscribirse"}
           </Button>
         )}
-        {!isCurrent && !hasBuyable && !isFree && (
+        {canDowngradeToFree && !cancelledAt && (
+          <Button
+            type="button"
+            variant="outline"
+            tone="danger"
+            onClick={onCancel}
+            loading={cancelling}
+            iconLeft={<Icon name="shield" size={14} />}
+          >
+            Cancelar suscripcion
+          </Button>
+        )}
+        {canDowngradeToFree && cancelledAt && (
+          <Button variant="outline" tone="secondary" disabled>Cancelacion programada</Button>
+        )}
+        {!isCurrent && !hasBuyable && !isFree && !canDowngradeToFree && (
           <Button variant="outline" tone="secondary" disabled>No disponible</Button>
         )}
       </div>
@@ -198,6 +221,18 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
           width: 100%;
           justify-content: center;
         }
+        .cancel-notice {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--error, #f87171);
+          padding: 8px 10px;
+          border-radius: 8px;
+          background: rgba(248,113,113,0.08);
+          border: 1px solid rgba(248,113,113,0.2);
+        }
       `}</style>
     </div>
   );
@@ -211,6 +246,7 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [buying, setBuying] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [banner, setBanner] = useState("");
 
@@ -293,6 +329,26 @@ export default function SubscriptionPage() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!window.confirm("¿Cancelar suscripcion? Tu plan seguira activo hasta el final del periodo de facturacion.")) return;
+    setCancelling(true);
+    setError("");
+    try {
+      const response = await fetch("/api/subscription/cancel", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo cancelar la suscripcion");
+      setSubData((prev) => ({
+        ...prev,
+        subscription: { ...prev.subscription, cancelledAt: new Date().toISOString() },
+      }));
+      setBanner("cancel-pending");
+    } catch (err) {
+      setError(err.message || "No se pudo cancelar la suscripcion");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handlePortal = async () => {
     setPortalLoading(true);
     setError("");
@@ -338,6 +394,13 @@ export default function SubscriptionPage() {
             <div className="sub-banner cancelled">
               <Icon name="shield" size={16} />
               <span>Proceso de pago cancelado. No se realizo ningun cargo.</span>
+              <button type="button" className="banner-close" onClick={() => setBanner("")}>x</button>
+            </div>
+          )}
+          {banner === "cancel-pending" && (
+            <div className="sub-banner cancelled">
+              <Icon name="shield" size={16} />
+              <span>Suscripcion cancelada. Tu plan seguira activo hasta el final del periodo de facturacion.</span>
               <button type="button" className="banner-close" onClick={() => setBanner("")}>x</button>
             </div>
           )}
@@ -403,6 +466,9 @@ export default function SubscriptionPage() {
                     stripeManaged={stripeManaged}
                     onPortal={handlePortal}
                     portalLoading={portalLoading}
+                    onCancel={handleCancel}
+                    cancelling={cancelling}
+                    cancelledAt={sub?.cancelledAt}
                   />
                 ))}
               </div>
