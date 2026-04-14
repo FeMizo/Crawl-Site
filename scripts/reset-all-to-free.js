@@ -49,12 +49,16 @@ async function main() {
     return;
   }
 
-  const result = await prisma.subscription.updateMany({
-    where: { NOT: { plan: "FREE" } },
-    data: FREE,
-  });
+  // updateMany doesn't support array fields (features: String[]), so update one by one
+  for (const s of affected) {
+    await prisma.subscription.update({
+      where: { id: s.id },
+      data: FREE,
+    });
+    console.log(`  ✓ userId=${s.userId} revertido a FREE`);
+  }
 
-  console.log(`\nRevertidos ${result.count} usuario(s) a FREE.`);
+  console.log(`\nRevertidos ${affected.length} usuario(s) a FREE.`);
 }
 
 main()
