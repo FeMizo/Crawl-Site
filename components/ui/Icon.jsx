@@ -168,6 +168,17 @@ const ICONS = {
       <path d="M10.5 8.1h8.2M10.5 13h8.2M10.5 17.9h8.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </>
   ),
+  plan: (
+    <>
+      <rect x="3.5" y="6.5" width="17" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3.5 10h17" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 14.5h4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="17" cy="14.5" r="1.5" fill="currentColor" opacity=".8" />
+    </>
+  ),
+  check: (
+    <path d="M4.5 12.5l5 5 10-10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  ),
 };
 
 export default function Icon({ name, size = 18, className = "" }) {

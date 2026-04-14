@@ -451,7 +451,7 @@ function requireUserManagement(req, res, next) {
 
 // --- Plan limits ---
 const PLAN_DEFAULTS = {
-  FREE:    { maxProjects: 1,  maxPagesPerCrawl: 50,   maxCrawlsPerMonth: 2,   maxHistoryRuns: 1,   features: [] },
+  FREE:    { maxProjects: 1,  maxPagesPerCrawl: 50,   maxCrawlsPerMonth: 1,   maxHistoryRuns: 1,   features: [] },
   BASIC:   { maxProjects: 1,  maxPagesPerCrawl: 30,   maxCrawlsPerMonth: 5,   maxHistoryRuns: 1,   features: [] },
   STARTER: { maxProjects: 5,  maxPagesPerCrawl: 500,  maxCrawlsPerMonth: 10,  maxHistoryRuns: 10,  features: ["excel_report"] },
   PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl"] },
@@ -3664,8 +3664,8 @@ app.post("/api/subscription/checkout", requireAuth, async (req, res) => {
       mode: "subscription",
       line_items: [{ price: STRIPE_PRICES[newPlan], quantity: 1 }],
       metadata: { userId: req.user.id, plan: newPlan },
-      success_url: `${appUrl}/dashboard/subscription?session_id={CHECKOUT_SESSION_ID}&success=1`,
-      cancel_url: `${appUrl}/dashboard/subscription?cancelled=1`,
+      success_url: `${appUrl}/subscription?session_id={CHECKOUT_SESSION_ID}&success=1`,
+      cancel_url: `${appUrl}/subscription?cancelled=1`,
       subscription_data: {
         metadata: { userId: req.user.id, plan: newPlan },
       },
@@ -3674,6 +3674,68 @@ app.post("/api/subscription/checkout", requireAuth, async (req, res) => {
     return res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
     handleApiError(res, req, "subscription/checkout", error, "Error creando sesin de pago");
+  }
+});
+
+// POST /api/subscription/verify-session - Verify a completed Stripe checkout session and activate plan
+app.post("/api/subscription/verify-session", requireAuth, async (req, res) => {
+  try {
+    const stripe = getStripe();
+    if (!stripe) return res.status(501).json({ error: "Stripe no configurado" });
+
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: "sessionId requerido" });
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Validate the session belongs to this user
+    const userId = session.metadata?.userId;
+    if (!userId || userId !== req.user.id) {
+      return res.status(403).json({ error: "Sesión no válida" });
+    }
+    if (session.payment_status !== "paid") {
+      return res.status(400).json({ error: "Pago no completado" });
+    }
+
+    const plan = session.metadata?.plan;
+    if (!plan || !PLAN_DEFAULTS[plan]) {
+      return res.status(400).json({ error: "Plan no reconocido" });
+    }
+
+    const defaults = PLAN_DEFAULTS[plan];
+    await prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        plan,
+        stripeCustomerId: session.customer,
+        stripeSubId: session.subscription,
+        maxProjects: defaults.maxProjects,
+        maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+        maxHistoryRuns: defaults.maxHistoryRuns,
+        features: defaults.features,
+        expiresAt: null,
+        cancelledAt: null,
+      },
+      update: {
+        plan,
+        stripeCustomerId: session.customer,
+        stripeSubId: session.subscription,
+        maxProjects: defaults.maxProjects,
+        maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+        maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+        maxHistoryRuns: defaults.maxHistoryRuns,
+        features: defaults.features,
+        expiresAt: null,
+        cancelledAt: null,
+      },
+    });
+
+    console.log(`verify-session: user ${userId} activated ${plan}`);
+    return res.json({ ok: true, plan });
+  } catch (error) {
+    handleApiError(res, req, "subscription/verify-session", error, "Error verificando sesión");
   }
 });
 
@@ -3693,7 +3755,7 @@ app.post("/api/subscription/portal", requireAuth, async (req, res) => {
     const appUrl = process.env.APP_URL || "http://localhost:3000";
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
-      return_url: `${appUrl}/dashboard/subscription`,
+      return_url: `${appUrl}/subscription`,
     });
 
     return res.json({ url: session.url });

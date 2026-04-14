@@ -39,6 +39,12 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
       icon: "history",
     },
     {
+      key: "subscription",
+      href: "/subscription",
+      label: tUi(lang, "navSubscription"),
+      icon: "plan",
+    },
+    {
       key: "settings",
       href: "/settings",
       label: tUi(lang, "navSettings"),

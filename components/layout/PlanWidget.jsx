@@ -102,7 +102,7 @@ export default function PlanWidget({ user }) {
           {PLAN_LABEL[plan] || plan}
         </span>
         {isFree && (
-          <a className="pw-upgrade-link" href="/settings">
+          <a className="pw-upgrade-link" href="/subscription">
             Mejorar
           </a>
         )}
@@ -120,13 +120,13 @@ export default function PlanWidget({ user }) {
           icon="run"
           label="Rastreos / mes"
           used={usage?.crawlsThisMonth ?? 0}
-          max={sub?.maxCrawlsPerMonth ?? 2}
+          max={sub?.maxCrawlsPerMonth ?? 1}
           color={colors.bar}
         />
       </div>
 
       {isFree && (
-        <a className="pw-upgrade-btn" href="/settings">
+        <a className="pw-upgrade-btn" href="/subscription">
           <Icon name="plus" size={13} />
           Ver planes
         </a>
