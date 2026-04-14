@@ -39,6 +39,16 @@ function getUserStatus(user) {
   return "Activo";
 }
 
+function getRoleTone(role) {
+  switch (role) {
+    case USER_ROLE.OWNER:       return "primary";
+    case USER_ROLE.SUPER_ADMIN: return "purple";
+    case USER_ROLE.ADMIN:       return "blue";
+    case USER_ROLE.EDITOR:      return "warning";
+    default:                    return "secondary";
+  }
+}
+
 export default function AdminUsersPage() {
   const router = useRouter();
   const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
@@ -268,7 +278,7 @@ export default function AdminUsersPage() {
                       <td className="cell-email">{user.email}</td>
                       <td>
                         <div className="role-stack">
-                          <Badge tone={user.role === USER_ROLE.OWNER ? "primary" : "secondary"}>
+                          <Badge tone={getRoleTone(user.role)}>
                             {user.roleLabel || getRoleLabel(user.role)}
                           </Badge>
                           <span>Asignado: {getRoleLabel(currentRole)}</span>

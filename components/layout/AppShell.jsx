@@ -360,6 +360,26 @@ export default function AppShell({
           color: var(--text2);
           border-color: var(--border2);
         }
+        .ui-badge-purple {
+          background: var(--pdim);
+          color: var(--purple);
+          border-color: rgba(206, 147, 216, 0.3);
+        }
+        .ui-badge-blue {
+          background: var(--bdim);
+          color: var(--blue);
+          border-color: rgba(100, 181, 246, 0.3);
+        }
+        .ui-badge-warning {
+          background: var(--wdim);
+          color: var(--warn);
+          border-color: rgba(255, 215, 64, 0.3);
+        }
+        .ui-badge-danger {
+          background: var(--edim);
+          color: var(--error);
+          border-color: rgba(255, 82, 82, 0.3);
+        }
         .hdr-r {
           display: flex;
           align-items: center;

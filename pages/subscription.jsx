@@ -33,19 +33,22 @@ const FEATURE_LABELS = {
   multi_user:      "Multi-usuario",
 };
 
+const PLAN_ORDER = { FREE: 0, BASIC: 1, STARTER: 2, PRO: 3, AGENCY: 4 };
+
 function fmt(n) {
   if (n >= 999) return "Ilimitado";
   return String(n);
 }
 
-function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, portalLoading, onCancel, cancelling, cancelledAt }) {
+function PlanCard({ plan, currentPlan, onChange, changing, stripeManaged, onPortal, portalLoading }) {
   const isCurrent = plan.plan === currentPlan;
   const isFree = plan.plan === "FREE";
   const colors = PLAN_COLORS[plan.plan] || PLAN_COLORS.FREE;
-  const hasBuyable = plan.hasStripePrice && !isCurrent && !isFree;
-  const isCurrentPaid = isCurrent && stripeManaged;
-  const canDowngradeToFree = isFree && stripeManaged && !isCurrent;
-  const isPendingCancel = isCurrent && stripeManaged && !!cancelledAt;
+  const currentRank = PLAN_ORDER[currentPlan] ?? 0;
+  const thisRank = PLAN_ORDER[plan.plan] ?? 0;
+  const isUpgrade = !isCurrent && thisRank > currentRank;
+  const isDowngrade = !isCurrent && thisRank < currentRank;
+  const hasPrice = plan.hasStripePrice;
 
   return (
     <div className={`plan-card${isCurrent ? " is-current" : ""}`} style={{ "--plan-accent": colors.accent }}>
@@ -54,6 +57,7 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
           {PLAN_LABEL[plan.plan] || plan.plan}
         </span>
         {isCurrent && <span className="current-tag">Tu plan actual</span>}
+        {isDowngrade && !isCurrent && <span className="downgrade-tag">Bajar de plan</span>}
       </div>
 
       <div className="plan-price">
@@ -84,13 +88,10 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
       )}
 
       <div className="plan-action">
-        {isPendingCancel && (
-          <div className="cancel-notice">
-            <Icon name="shield" size={12} />
-            Cancelacion pendiente — activo hasta fin de periodo
-          </div>
+        {isCurrent && isFree && (
+          <Button variant="outline" tone="secondary" disabled>Plan actual</Button>
         )}
-        {isCurrent && isCurrentPaid && !isPendingCancel && (
+        {isCurrent && !isFree && stripeManaged && (
           <Button
             type="button"
             variant="outline"
@@ -102,40 +103,47 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
             Gestionar facturacion
           </Button>
         )}
-        {isCurrent && !isCurrentPaid && !isFree && (
+        {isCurrent && !isFree && !stripeManaged && (
           <Button variant="outline" tone="secondary" disabled>Plan activo</Button>
         )}
-        {isCurrent && isFree && (
-          <Button variant="outline" tone="secondary" disabled>Plan actual</Button>
-        )}
-        {hasBuyable && (
+        {isUpgrade && hasPrice && (
           <Button
             type="button"
             variant="solid"
             tone="primary"
-            onClick={() => onBuy(plan.plan)}
-            loading={buying === plan.plan}
+            onClick={() => onChange(plan.plan)}
+            loading={changing === plan.plan}
             iconLeft={<Icon name="plus" size={14} />}
           >
-            {stripeManaged ? "Cambiar plan" : "Suscribirse"}
+            {stripeManaged ? "Subir de plan" : "Suscribirse"}
           </Button>
         )}
-        {canDowngradeToFree && !cancelledAt && (
+        {isUpgrade && !hasPrice && (
+          <Button variant="outline" tone="secondary" disabled>No disponible</Button>
+        )}
+        {isDowngrade && isFree && (
           <Button
             type="button"
             variant="outline"
             tone="danger"
-            onClick={onCancel}
-            loading={cancelling}
-            iconLeft={<Icon name="shield" size={14} />}
+            onClick={() => onChange("FREE")}
+            loading={changing === "FREE"}
           >
-            Cancelar suscripcion
+            Volver a gratis
           </Button>
         )}
-        {canDowngradeToFree && cancelledAt && (
-          <Button variant="outline" tone="secondary" disabled>Cancelacion programada</Button>
+        {isDowngrade && !isFree && hasPrice && (
+          <Button
+            type="button"
+            variant="outline"
+            tone="secondary"
+            onClick={() => onChange(plan.plan)}
+            loading={changing === plan.plan}
+          >
+            Cambiar a {PLAN_LABEL[plan.plan]}
+          </Button>
         )}
-        {!isCurrent && !hasBuyable && !isFree && !canDowngradeToFree && (
+        {isDowngrade && !isFree && !hasPrice && (
           <Button variant="outline" tone="secondary" disabled>No disponible</Button>
         )}
       </div>
@@ -226,17 +234,11 @@ function PlanCard({ plan, currentPlan, onBuy, buying, stripeManaged, onPortal, p
           width: 100%;
           justify-content: center;
         }
-        .cancel-notice {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
+        .downgrade-tag {
+          font-size: 10px;
           font-weight: 600;
-          color: var(--error, #f87171);
-          padding: 8px 10px;
-          border-radius: 8px;
-          background: rgba(248,113,113,0.08);
-          border: 1px solid rgba(248,113,113,0.2);
+          color: var(--muted);
+          letter-spacing: 0.06em;
         }
       `}</style>
     </div>
@@ -250,8 +252,7 @@ export default function SubscriptionPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [buying, setBuying] = useState("");
-  const [cancelling, setCancelling] = useState(false);
+  const [changing, setChanging] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
   const [banner, setBanner] = useState("");
 
@@ -315,42 +316,32 @@ export default function SubscriptionPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleBuy = async (plan) => {
-    setBuying(plan);
+  const handleChange = async (plan) => {
+    const isFree = plan === "FREE";
+    if (isFree && !window.confirm("¿Volver al plan gratuito? El cambio es inmediato y perdes el acceso a las funciones de pago.")) return;
+    setChanging(plan);
     setError("");
     try {
-      const response = await fetch("/api/subscription/checkout", {
+      const response = await fetch("/api/subscription/change", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "No se pudo iniciar el pago");
-      if (data.url) window.location.href = data.url;
+      if (!response.ok) throw new Error(data.error || "No se pudo cambiar el plan");
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      // Plan changed server-side — reload subscription data
+      const subRes = await fetch("/api/subscription");
+      const subJson = subRes.ok ? await subRes.json() : null;
+      if (subJson) setSubData(subJson);
+      setBanner("success");
     } catch (err) {
-      setError(err.message || "No se pudo iniciar el pago");
+      setError(err.message || "No se pudo cambiar el plan");
     } finally {
-      setBuying("");
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!window.confirm("¿Cancelar suscripcion? Tu plan seguira activo hasta el final del periodo de facturacion.")) return;
-    setCancelling(true);
-    setError("");
-    try {
-      const response = await fetch("/api/subscription/cancel", { method: "POST" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "No se pudo cancelar la suscripcion");
-      setSubData((prev) => ({
-        ...prev,
-        subscription: { ...prev.subscription, cancelledAt: new Date().toISOString() },
-      }));
-      setBanner("cancel-pending");
-    } catch (err) {
-      setError(err.message || "No se pudo cancelar la suscripcion");
-    } finally {
-      setCancelling(false);
+      setChanging("");
     }
   };
 
@@ -484,14 +475,11 @@ export default function SubscriptionPage() {
                     key={plan.plan}
                     plan={plan}
                     currentPlan={currentPlan}
-                    onBuy={handleBuy}
-                    buying={buying}
+                    onChange={handleChange}
+                    changing={changing}
                     stripeManaged={stripeManaged}
                     onPortal={handlePortal}
                     portalLoading={portalLoading}
-                    onCancel={handleCancel}
-                    cancelling={cancelling}
-                    cancelledAt={sub?.cancelledAt}
                   />
                 ))}
               </div>

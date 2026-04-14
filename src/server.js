@@ -3846,6 +3846,106 @@ app.post("/api/subscription/cancel", requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/subscription/change - Change plan (upgrade or downgrade, including to FREE)
+app.post("/api/subscription/change", requireAuth, async (req, res) => {
+  try {
+    const { plan: newPlan } = req.body;
+    if (!newPlan || !PLAN_DEFAULTS[newPlan]) {
+      return res.status(400).json({ error: "Plan no valido" });
+    }
+
+    const existing = await prisma.subscription.findUnique({ where: { userId: req.user.id } });
+    const currentPlan = existing?.plan || "FREE";
+
+    if (newPlan === currentPlan) {
+      return res.status(400).json({ error: "Ya tienes ese plan" });
+    }
+
+    // --- Downgrade to FREE: cancel Stripe sub immediately ---
+    if (newPlan === "FREE") {
+      const stripe = getStripe();
+      if (stripe && existing?.stripeSubId) {
+        await stripe.subscriptions.cancel(existing.stripeSubId);
+      }
+      const freeDefaults = PLAN_DEFAULTS.FREE;
+      await prisma.subscription.update({
+        where: { userId: req.user.id },
+        data: {
+          plan: "FREE",
+          stripeSubId: null,
+          maxProjects: freeDefaults.maxProjects,
+          maxPagesPerCrawl: freeDefaults.maxPagesPerCrawl,
+          maxCrawlsPerMonth: freeDefaults.maxCrawlsPerMonth,
+          maxHistoryRuns: freeDefaults.maxHistoryRuns,
+          features: freeDefaults.features,
+          cancelledAt: null,
+          expiresAt: null,
+        },
+      });
+      return res.json({ ok: true, plan: "FREE" });
+    }
+
+    // --- Switch between paid plans via Stripe subscription update ---
+    const stripe = getStripe();
+    const newPriceId = STRIPE_PRICES[newPlan];
+    if (!newPriceId) {
+      return res.status(400).json({ error: "Plan no disponible para compra" });
+    }
+
+    if (stripe && existing?.stripeSubId) {
+      // Update existing subscription items (pro-rated)
+      const stripeSub = await stripe.subscriptions.retrieve(existing.stripeSubId);
+      const itemId = stripeSub.items?.data?.[0]?.id;
+      if (!itemId) {
+        return res.status(400).json({ error: "No se encontro el item de suscripcion en Stripe" });
+      }
+      await stripe.subscriptions.update(existing.stripeSubId, {
+        items: [{ id: itemId, price: newPriceId }],
+        proration_behavior: "create_prorations",
+        metadata: { userId: req.user.id, plan: newPlan },
+      });
+      const defaults = PLAN_DEFAULTS[newPlan];
+      await prisma.subscription.update({
+        where: { userId: req.user.id },
+        data: {
+          plan: newPlan,
+          maxProjects: defaults.maxProjects,
+          maxPagesPerCrawl: defaults.maxPagesPerCrawl,
+          maxCrawlsPerMonth: defaults.maxCrawlsPerMonth,
+          maxHistoryRuns: defaults.maxHistoryRuns,
+          features: defaults.features,
+          cancelledAt: null,
+          expiresAt: null,
+        },
+      });
+      return res.json({ ok: true, plan: newPlan });
+    }
+
+    // No existing Stripe sub — create new checkout
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+    let customerId = existing?.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: req.user.email,
+        metadata: { userId: req.user.id },
+      });
+      customerId = customer.id;
+    }
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: newPriceId, quantity: 1 }],
+      metadata: { userId: req.user.id, plan: newPlan },
+      success_url: `${appUrl}/subscription?session_id={CHECKOUT_SESSION_ID}&success=1`,
+      cancel_url: `${appUrl}/subscription?cancelled=1`,
+      subscription_data: { metadata: { userId: req.user.id, plan: newPlan } },
+    });
+    return res.json({ url: session.url });
+  } catch (error) {
+    handleApiError(res, req, "subscription/change", error, "Error cambiando plan");
+  }
+});
+
 // POST /api/subscription/upgrade - Admin/manual upgrade (no Stripe)
 app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
   try {
