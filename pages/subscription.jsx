@@ -1,6 +1,11 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+
+function fmtDate(val) {
+  if (!val) return "—";
+  return new Date(val).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
+}
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -435,6 +440,24 @@ export default function SubscriptionPage() {
                       <span className="sub-stat-label">Paginas por rastreo</span>
                       <strong className="sub-stat-val">
                         {sub.maxPagesPerCrawl >= 9999 ? "∞" : sub.maxPagesPerCrawl}
+                      </strong>
+                    </div>
+                    <div className="sub-stat">
+                      <span className="sub-stat-label">Inicio del plan</span>
+                      <strong className="sub-stat-val">{fmtDate(sub.startedAt)}</strong>
+                    </div>
+                    <div className="sub-stat">
+                      <span className="sub-stat-label">Ultima actualizacion</span>
+                      <strong className="sub-stat-val">{fmtDate(sub.updatedAt)}</strong>
+                    </div>
+                    <div className="sub-stat">
+                      <span className="sub-stat-label">Vencimiento</span>
+                      <strong className="sub-stat-val">{fmtDate(sub.expiresAt)}</strong>
+                    </div>
+                    <div className="sub-stat">
+                      <span className="sub-stat-label">Cancelacion</span>
+                      <strong className="sub-stat-val" style={sub.cancelledAt ? { color: "var(--error, #f87171)" } : {}}>
+                        {fmtDate(sub.cancelledAt)}
                       </strong>
                     </div>
                   </div>

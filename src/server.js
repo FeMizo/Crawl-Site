@@ -506,6 +506,8 @@ async function getUserSubscription(userId) {
     features: sub.features?.length ? sub.features : defaults.features,
     expiresAt: sub.expiresAt,
     cancelledAt: sub.cancelledAt,
+    startedAt: sub.createdAt,
+    updatedAt: sub.updatedAt,
     stripeCustomerId: sub.stripeCustomerId,
     stripeSubId: sub.stripeSubId,
   };
@@ -3602,6 +3604,8 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
         features: sub.features,
         expiresAt: sub.expiresAt,
         cancelledAt: sub.cancelledAt,
+        startedAt: sub.startedAt,
+        updatedAt: sub.updatedAt,
         stripeManaged: !!sub.stripeSubId,
       },
       usage: {
