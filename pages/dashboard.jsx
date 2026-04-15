@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const lang = useUiLanguage();
   const t = (key) => tUi(lang, key);
-  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [markup, setMarkup] = useState(() => legacyMarkupCache);
   const [loadError, setLoadError] = useState("");
   const [appReady, setAppReady] = useState(false);
@@ -56,6 +56,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!sessionHydrated) return undefined;
     let active = true;
     const params = new URLSearchParams(window.location.search || "");
     const projectId = params.get("projectId");
@@ -108,7 +109,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, setSessionUser]);
+  }, [clearSessionUser, router, sessionHydrated, setSessionUser]);
 
   const canInit = useMemo(
     () => appReady && !!markup && !!project && typeof window !== "undefined",
@@ -122,7 +123,7 @@ export default function DashboardPage() {
   }, [canInit, project]);
 
   useEffect(() => {
-    if (!project || !activeRunId || !appReady || typeof window.loadSeoCrawlerRun !== "function") return;
+    if (!project || !activeRunId || !appReady || !markup || typeof window.loadSeoCrawlerRun !== "function") return;
 
     let active = true;
     const cachedRun = runCacheRef.current.get(activeRunId);
@@ -158,7 +159,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [activeRunId, appReady, project]);
+  }, [activeRunId, appReady, project, markup]);
 
   useEffect(() => {
     runCacheRef.current.clear();

@@ -25,7 +25,7 @@ function formatDate(value) {
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,6 +34,7 @@ export default function ProjectsPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (!sessionHydrated) return undefined;
     let active = true;
     setLoading(true);
     setError("");
@@ -67,7 +68,7 @@ export default function ProjectsPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, page, reloadKey, router, setSessionUser]);
+  }, [clearSessionUser, page, reloadKey, router, sessionHydrated, setSessionUser]);
 
   const deleteProject = async (projectId) => {
     const confirmed = window.confirm("Esto eliminara el proyecto y su historial. Continuar?");

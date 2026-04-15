@@ -2217,9 +2217,9 @@ function renderRobots(d) {
 let __seoCrawlerInited = false;
 window.loadSeoCrawlerRun = applySavedRun;
 window.initSeoCrawlerApp = function initSeoCrawlerApp() {
+  currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
   if (__seoCrawlerInited) return;
   __seoCrawlerInited = true;
-  currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
   const input = document.getElementById("urlInput");
   if (input)
     input.addEventListener("keydown", (e) => {
