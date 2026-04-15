@@ -30,6 +30,9 @@ export default function DashboardPage() {
   const [project, setProject] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const [editingName, setEditingName] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [activeRunId, setActiveRunId] = useState("");
   const runCacheRef = useRef(new Map());
 
@@ -58,6 +61,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!sessionHydrated) return undefined;
     let active = true;
+    setLoadError("");
     const params = new URLSearchParams(window.location.search || "");
     const projectId = params.get("projectId");
     const runId = params.get("runId") || "";
@@ -109,7 +113,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, sessionHydrated, setSessionUser]);
+  }, [clearSessionUser, router, sessionHydrated, setSessionUser, retryKey]);
 
   const canInit = useMemo(
     () => appReady && !!markup && !!project && typeof window !== "undefined",
@@ -165,20 +169,29 @@ export default function DashboardPage() {
     runCacheRef.current.clear();
   }, [project?.id]);
 
-  const renameProject = async () => {
+  const renameProject = () => {
     if (!project) return;
-    const nextName = window.prompt(t("promptRename"), project.name || "");
-    if (!nextName || nextName.trim() === project.name) return;
+    setEditingName(project.name || "");
+  };
+
+  const saveRename = async () => {
+    if (!project || editingName === null) return;
+    const nextName = editingName.trim();
+    if (!nextName || nextName === project.name) {
+      setEditingName(null);
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(`/api/projects/${project.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nextName.trim(), targetUrl: project.targetUrl }),
+        body: JSON.stringify({ name: nextName, targetUrl: project.targetUrl }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo renombrar");
       setProject((current) => ({ ...current, ...data.project }));
+      setEditingName(null);
     } catch (err) {
       setLoadError(err.message || "No se pudo renombrar");
     } finally {
@@ -188,8 +201,7 @@ export default function DashboardPage() {
 
   const deleteProject = async () => {
     if (!project) return;
-    const confirmed = window.confirm(t("confirmDelete"));
-    if (!confirmed) return;
+    setPendingDelete(false);
     setDeleting(true);
     try {
       const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
@@ -236,7 +248,7 @@ export default function DashboardPage() {
             <Button type="button" variant="outline" tone="secondary" onClick={renameProject} loading={saving} iconLeft={<Icon name="edit" size={15} />}>
               {t("btnRename")}
             </Button>
-            <Button type="button" variant="outline" tone="danger" onClick={deleteProject} loading={deleting} iconLeft={<Icon name="trash" size={15} />}>
+            <Button type="button" variant="outline" tone="danger" onClick={() => setPendingDelete(true)} loading={deleting} iconLeft={<Icon name="trash" size={15} />}>
               {t("btnDelete")}
             </Button>
           </>
@@ -248,6 +260,52 @@ export default function DashboardPage() {
           </div>
         }
       >
+        {pendingDelete ? (
+          <Card className="confirm-banner">
+            <div className="confirm-banner-body">
+              <div>
+                <strong>{t("confirmDeleteTitle")}</strong>
+                <p>{t("confirmDeleteWarning")}</p>
+              </div>
+              <div className="confirm-banner-actions">
+                <Button type="button" variant="outline" tone="secondary" size="sm" onClick={() => setPendingDelete(false)}>
+                  {t("btnCancel")}
+                </Button>
+                <Button type="button" variant="solid" tone="danger" size="sm" onClick={deleteProject} loading={deleting} iconLeft={<Icon name="trash" size={14} />}>
+                  {t("btnConfirmDelete")}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {editingName !== null ? (
+          <Card className="rename-banner">
+            <div className="rename-banner-body">
+              <label className="ui-field-label" htmlFor="rename-input">{t("renameLabel")}</label>
+              <input
+                id="rename-input"
+                className="ui-input rename-input"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveRename();
+                  if (e.key === "Escape") setEditingName(null);
+                }}
+                autoFocus
+              />
+              <div className="rename-banner-actions">
+                <Button type="button" variant="outline" tone="secondary" size="sm" onClick={() => setEditingName(null)}>
+                  {t("btnCancel")}
+                </Button>
+                <Button type="button" variant="solid" tone="primary" size="sm" onClick={saveRename} loading={saving}>
+                  {t("saveRename")}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
         {project ? (
           <div className="dashboard-grid">
             <Card className="history-panel">
@@ -261,7 +319,7 @@ export default function DashboardPage() {
                     onClick={() => openRun(run.id)}
                   >
                     <span>{formatDate(run.createdAt, lang)}</span>
-                    <strong>{run.withIssues}/{run.total} {t("withIssues")}</strong>
+                    <strong>{run.withIssues} {t("issuesLabel")} · {run.total} {t("pagesLabel")}</strong>
                     <small>{run.sourceUrl}</small>
                   </button>
                 ))}
@@ -270,12 +328,40 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="legacy-surface" padding="sm">
-              {loadError ? <div className="feedback error">{loadError}</div> : null}
+              {loadError ? (
+                <div className="feedback error">
+                  <span>{loadError}</span>
+                  <button type="button" className="retry-btn" onClick={() => { setLoadError(""); setRetryKey((k) => k + 1); }}>
+                    {t("retry")}
+                  </button>
+                </div>
+              ) : null}
+              {!appReady && !loadError ? (
+                <div className="embed-skeleton" aria-label={t("loadingResults")}>
+                  <div className="sk-block sk-title" />
+                  <div className="sk-block sk-wide" />
+                  <div className="sk-block sk-wide" />
+                  <div className="sk-row">
+                    <div className="sk-block sk-cell" />
+                    <div className="sk-block sk-cell" />
+                    <div className="sk-block sk-cell" />
+                  </div>
+                  <div className="sk-block sk-wide" />
+                  <div className="sk-block sk-medium" />
+                </div>
+              ) : null}
               <div className="legacy-embed" dangerouslySetInnerHTML={{ __html: markup }} />
             </Card>
           </div>
         ) : loadError ? (
-          <Card><div className="feedback error">{loadError}</div></Card>
+          <Card>
+            <div className="feedback error">
+              <span>{loadError}</span>
+              <button type="button" className="retry-btn" onClick={() => { setLoadError(""); setRetryKey((k) => k + 1); }}>
+                {t("retry")}
+              </button>
+            </div>
+          </Card>
         ) : (
           <Card><div className="feedback">{t("loadingDashboard")}</div></Card>
         )}
@@ -298,6 +384,13 @@ export default function DashboardPage() {
           .legacy-embed .dlb,
           .legacy-embed .main-layout {
             margin-left: 0 !important;
+          }
+          @keyframes sk-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+          }
+          .sk-block {
+            animation: sk-pulse 1.5s ease-in-out infinite;
           }
         `}</style>
         <style jsx>{`
@@ -341,14 +434,15 @@ export default function DashboardPage() {
             transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
           }
           .history-item span {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--muted);
           }
           .history-item strong {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             color: var(--text);
             font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
           }
           .history-item small {
             font-size: 11px;
@@ -383,8 +477,84 @@ export default function DashboardPage() {
             color: var(--text2);
           }
           .feedback.error {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             color: var(--error);
           }
+          .retry-btn {
+            background: transparent;
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            color: var(--error);
+            font-family: "Manrope", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            cursor: pointer;
+            flex: 0 0 auto;
+            transition: background 0.15s ease;
+          }
+          .retry-btn:hover {
+            background: var(--edim);
+          }
+          .confirm-banner {
+            background: var(--edim) !important;
+            border-color: rgba(255, 82, 82, 0.3) !important;
+          }
+          .confirm-banner-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+          }
+          .confirm-banner-body strong {
+            display: block;
+            font-size: 14px;
+            color: var(--text);
+            margin-bottom: 4px;
+          }
+          .confirm-banner-body p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--error);
+          }
+          .confirm-banner-actions {
+            display: flex;
+            gap: 8px;
+            flex: 0 0 auto;
+          }
+          .rename-banner-body {
+            display: grid;
+            gap: 10px;
+          }
+          .rename-input {
+            max-width: 420px;
+          }
+          .rename-banner-actions {
+            display: flex;
+            gap: 8px;
+          }
+          .embed-skeleton {
+            display: grid;
+            gap: 10px;
+            padding: 4px 0 8px;
+          }
+          .sk-block {
+            background: var(--bg3);
+            border-radius: 8px;
+            height: 18px;
+          }
+          .sk-title { height: 24px; width: 40%; }
+          .sk-wide { width: 100%; }
+          .sk-medium { width: 65%; }
+          .sk-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+          }
+          .sk-cell { height: 48px; }
         `}</style>
       </AppShell>
     </>

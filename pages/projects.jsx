@@ -117,7 +117,14 @@ export default function ProjectsPage() {
         }
       >
         {loading ? <p className="feedback">Cargando proyectos...</p> : null}
-        {error ? <p className="feedback error">{error}</p> : null}
+        {error ? (
+          <p className="feedback error">
+            <span>{error}</span>
+            <button type="button" className="retry-btn" onClick={() => { setError(""); setReloadKey((k) => k + 1); }}>
+              Reintentar
+            </button>
+          </p>
+        ) : null}
 
         <section className="grid">
           {projects.map((project) => (
@@ -201,7 +208,26 @@ export default function ProjectsPage() {
             color: var(--text2);
           }
           .feedback.error {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             color: var(--error);
+          }
+          .retry-btn {
+            background: transparent;
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            color: var(--error);
+            font-family: "Manrope", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            cursor: pointer;
+            flex: 0 0 auto;
+            transition: background 0.15s ease;
+          }
+          .retry-btn:hover {
+            background: var(--edim);
           }
           .grid {
             display: grid;
