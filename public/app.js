@@ -202,6 +202,30 @@ const L = {
     sgGrpContent: "Contenido SEO",
     sgGrpPerf: "Rendimiento",
     sgGrpSecurity: "Seguridad",
+    thTipUrl: "URL completa de la página analizada",
+    thTipHttp: "Código de respuesta HTTP · 200: OK · 301: Redireccionado · 404: No encontrado · 5xx: Error de servidor",
+    thTipTitleChars: "Longitud del título en caracteres — ideal entre 50 y 60",
+    thTipDescChars: "Longitud de la descripción en caracteres — ideal entre 140 y 160",
+    thTipH1Text: "Texto del primer H1 de la página",
+    thTipImgsNoAlt: "Imágenes sin atributo alt — afectan accesibilidad y SEO",
+    thTipIssues: "Problemas SEO detectados en esta página",
+    thTipTitleScore: "Puntuación de calidad del título (0–100): evalúa longitud, separador de marca y estructura",
+    thTipDescScore: "Puntuación de calidad de la descripción (0–100): evalúa longitud, llamada a la acción y coherencia",
+    thTipIndexation: "Estado de indexación según la etiqueta robots meta (index o noindex)",
+    thTipHeadings: "Cantidad total de etiquetas de encabezado (H1–H6) en la página",
+    thTipHeadingIssues: "Saltos en la jerarquía de headings — ej: H1 seguido de H3 sin H2 intermedio",
+    thTipGroup: "Categoría del problema: títulos, descripciones, H1, imágenes o errores HTTP",
+    thTipTitleText: "Texto del título de la página (referencia rápida)",
+    thTipH1Count: "Número de etiquetas H1 en la página — lo correcto es exactamente 1",
+    thTipImgNoAlt: "Imágenes sin atributo alt",
+    thTipImgNoSize: "Imágenes sin atributos width/height — causa Layout Shift (CLS)",
+    thTipImgBroken: "Imágenes con enlace roto (src inaccesible o que devuelve error)",
+    thTipImgPct: "Porcentaje de imágenes sin alt sobre el total de imágenes en la página",
+    thTipRedirectTo: "URL destino si la página redirige a otro recurso",
+    thTipBlocked: "Indica si la URL está bloqueada por robots.txt (disallow)",
+    thTipDetail: "Información adicional sobre el problema detectado",
+    thTipCharsTitle: "Chars del título",
+    thTipCharsDesc: "Chars de la descripción",
   },
   en: {
     heroTitle: "New crawl",
@@ -403,6 +427,30 @@ const L = {
     sgGrpContent: "SEO Content",
     sgGrpPerf: "Performance",
     sgGrpSecurity: "Security",
+    thTipUrl: "Full URL of the analyzed page",
+    thTipHttp: "HTTP response code · 200: OK · 301: Redirected · 404: Not found · 5xx: Server error",
+    thTipTitleChars: "Title length in characters — ideal between 50 and 60",
+    thTipDescChars: "Description length in characters — ideal between 140 and 160",
+    thTipH1Text: "Text of the page's first H1 tag",
+    thTipImgsNoAlt: "Images missing the alt attribute — impacts accessibility and SEO",
+    thTipIssues: "SEO issues detected on this page",
+    thTipTitleScore: "Title quality score (0–100): evaluates length, brand separator and structure",
+    thTipDescScore: "Description quality score (0–100): evaluates length, call-to-action and coherence",
+    thTipIndexation: "Indexation status from the robots meta tag (index or noindex)",
+    thTipHeadings: "Total count of heading tags (H1–H6) on the page",
+    thTipHeadingIssues: "Gaps in heading hierarchy — e.g. H1 followed by H3 with no H2 in between",
+    thTipGroup: "Issue category: titles, descriptions, H1, images or HTTP errors",
+    thTipTitleText: "Page title text (quick reference)",
+    thTipH1Count: "Number of H1 tags on the page — should be exactly 1",
+    thTipImgNoAlt: "Images missing the alt attribute",
+    thTipImgNoSize: "Images missing width/height attributes — causes Layout Shift (CLS)",
+    thTipImgBroken: "Images with a broken src (inaccessible or returning an error)",
+    thTipImgPct: "Percentage of images missing alt out of total images on the page",
+    thTipRedirectTo: "Destination URL if the page redirects to another resource",
+    thTipBlocked: "Indicates whether the URL is blocked by robots.txt (disallow)",
+    thTipDetail: "Additional information about the detected issue",
+    thTipCharsTitle: "Title chars",
+    thTipCharsDesc: "Description chars",
   },
 };
 let lang =
@@ -618,6 +666,10 @@ function setLang(l) {
   document.querySelectorAll("[data-i18n-title]").forEach((el) => {
     const k = el.getAttribute("data-i18n-title");
     if (L[l][k] !== undefined) el.setAttribute("title", L[l][k]);
+  });
+  document.querySelectorAll("[data-i18n-tooltip]").forEach((el) => {
+    const k = el.getAttribute("data-i18n-tooltip");
+    if (L[l][k] !== undefined) el.setAttribute("data-tooltip", L[l][k]);
   });
   document.getElementById("logoSub").textContent = T("logoSub");
   document.getElementById("urlInput").placeholder =
