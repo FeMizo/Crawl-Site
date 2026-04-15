@@ -2167,101 +2167,158 @@ function scoreSEO(meta, url) {
   if (!meta) return result;
 
   // Title scoring
-  const t = meta.title;
-  const tl = meta.titleLen;
+  const t = meta.title ? meta.title.trim() : null;
+  const tl = t ? t.length : 0;
   if (!t) {
     result.titleScore = 0;
     result.titleSuggestions.push({
-      es: "No hay ttulo. Es el elemento SEO ms importante.",
+      es: "No hay título. Es el elemento SEO más importante.",
       en: "No title found. This is the most important SEO element.",
     });
   } else {
     let ts = 100;
+
+    // Length checks
     if (tl < 30) {
       ts -= 40;
       result.titleSuggestions.push({
-        es: `Ttulo muy corto (${tl} chars). Ideal: 50-60.`,
+        es: `Título muy corto (${tl} chars). Ideal: 50-60.`,
         en: `Title too short (${tl} chars). Ideal: 50-60.`,
       });
     } else if (tl < 50) {
       ts -= 15;
       result.titleSuggestions.push({
-        es: `Ttulo corto (${tl} chars). Puedes aadir ms contexto (ideal 50-60).`,
-        en: `Title a bit short (${tl} chars). Consider adding more context (ideal 50-60).`,
+        es: `Título corto (${tl} chars). Añade más contexto o la marca (ideal 50-60).`,
+        en: `Title a bit short (${tl} chars). Add more context or your brand name (ideal 50-60).`,
+      });
+    } else if (tl > 70) {
+      ts -= 25;
+      result.titleSuggestions.push({
+        es: `Título demasiado largo (${tl} chars). Google lo cortará en pantalla alrededor de 60 chars.`,
+        en: `Title too long (${tl} chars). Google will truncate it on screen around 60 chars.`,
       });
     } else if (tl > 60) {
-      ts -= 20;
-      result.titleSuggestions.push({
-        es: `Ttulo largo (${tl} chars). Google cortar a ~60 chars.`,
-        en: `Title too long (${tl} chars). Google will truncate at ~60 chars.`,
-      });
-    }
-    // Check brand separator
-    if (
-      !t.includes("|") &&
-      !t.includes("-") &&
-      !t.includes("") &&
-      !t.includes(":")
-    ) {
       ts -= 10;
       result.titleSuggestions.push({
-        es: "Considera usar separador (|, -, ) entre tema y marca.",
-        en: "Consider using a separator (|, -, ) between topic and brand.",
+        es: `Título algo largo (${tl} chars). Considera acortarlo a 60 chars para que no se corte en Google.`,
+        en: `Title slightly long (${tl} chars). Consider trimming to 60 chars to avoid truncation in Google.`,
       });
     }
-    // Check keyword position (roughly: main keyword should be near start)
-    if (tl > 0 && t.indexOf(" ") > 20)
+
+    // Brand separator
+    if (
+      !t.includes("|") &&
+      !t.includes(" - ") &&
+      !t.includes(" · ") &&
+      !t.includes(" — ") &&
+      !t.includes(":")
+    ) {
+      ts -= 8;
       result.titleSuggestions.push({
-        es: "Intenta poner la keyword principal al inicio del ttulo.",
-        en: "Try placing the main keyword at the beginning of the title.",
+        es: "Sin separador de marca. Usa (|, ·, —) para distinguir el tema del nombre del sitio.",
+        en: "No brand separator found. Use (|, ·, —) to separate the topic from the site name.",
       });
+    }
+
+    // Duplicate words
+    const titleWords = t.toLowerCase().match(/\b\w{4,}\b/g) || [];
+    const titleWordFreq = titleWords.reduce((acc, w) => { acc[w] = (acc[w] || 0) + 1; return acc; }, {});
+    const repeatedTitleWords = Object.entries(titleWordFreq).filter(([, n]) => n > 1).map(([w]) => w);
+    if (repeatedTitleWords.length > 0) {
+      ts -= 15;
+      result.titleSuggestions.push({
+        es: `Palabras repetidas en el título: "${repeatedTitleWords.join('", "')}". Evita la redundancia.`,
+        en: `Repeated words in title: "${repeatedTitleWords.join('", "')}". Avoid redundancy.`,
+      });
+    }
+
+    // Title identical to H1
+    const h1 = Array.isArray(meta.h1s) && meta.h1s.length > 0 ? meta.h1s[0].trim() : null;
+    if (h1 && t.toLowerCase() === h1.toLowerCase()) {
+      ts -= 10;
+      result.titleSuggestions.push({
+        es: "El título es idéntico al H1. Diferéncialos: el título puede incluir la marca y el H1 enfocarse en la intención.",
+        en: "Title is identical to the H1. Differentiate them: the title can include the brand while H1 focuses on intent.",
+      });
+    }
+
+    // OG title mismatch
+    if (meta.og && meta.og.title && meta.og.title.trim() !== t) {
+      result.titleSuggestions.push({
+        es: "El og:title difiere del title. Esto puede generar inconsistencias al compartir en redes sociales.",
+        en: "og:title differs from the page title. This may cause inconsistencies when shared on social media.",
+      });
+    }
+
     result.titleScore = Math.max(0, ts);
   }
 
   // Description scoring
-  const d = meta.description;
-  const dl = meta.descLen;
+  const d = meta.description ? meta.description.trim() : null;
+  const dl = d ? d.length : 0;
   if (!meta.descExists) {
     result.descScore = 0;
     result.descSuggestions.push({
-      es: "No hay meta description. Adela para mejorar el CTR.",
-      en: "No meta description found. Add one to improve CTR.",
+      es: "No hay meta description. Añádela para mejorar el CTR en resultados de búsqueda.",
+      en: "No meta description found. Add one to improve CTR in search results.",
     });
   } else if (!d) {
     result.descScore = 10;
     result.descSuggestions.push({
-      es: "Meta description vaca. Google la generar automticamente (no es lo ideal).",
-      en: "Empty meta description. Google will auto-generate it (not ideal).",
+      es: "Meta description vacía. Google generará un fragmento automático, que suele ser menos efectivo.",
+      en: "Empty meta description. Google will auto-generate a snippet, which is usually less effective.",
     });
   } else {
     let ds = 100;
+
+    // Length checks
     if (dl < 70) {
       ds -= 35;
       result.descSuggestions.push({
-        es: `Descripcin muy corta (${dl} chars). Ideal: 140-160.`,
-        en: `Description too short (${dl} chars). Ideal: 140-160.`,
+        es: `Descripción muy corta (${dl} chars). Aprovecha el espacio disponible (ideal 140-160).`,
+        en: `Description too short (${dl} chars). Use the available space (ideal 140-160).`,
       });
     } else if (dl < 120) {
       ds -= 15;
       result.descSuggestions.push({
-        es: `Descripcin corta (${dl} chars). Puede ampliarse (ideal 140-160).`,
-        en: `Description short (${dl} chars). Consider expanding (ideal 140-160).`,
+        es: `Descripción corta (${dl} chars). Añade beneficios o contexto adicional para llegar a 140-160 chars.`,
+        en: `Description short (${dl} chars). Add benefits or additional context to reach 140-160 chars.`,
       });
     } else if (dl > 160) {
       ds -= 15;
       result.descSuggestions.push({
-        es: `Descripcin larga (${dl} chars). Google cortar a ~160 chars.`,
-        en: `Description long (${dl} chars). Google truncates at ~160 chars.`,
+        es: `Descripción larga (${dl} chars). Google la cortará en ~160 chars. Ajusta el mensaje principal a ese límite.`,
+        en: `Description long (${dl} chars). Google truncates at ~160 chars. Fit your main message within that limit.`,
       });
     }
-    if (
-      !d.includes("?") &&
-      !d.match(/\b(ahora|hoy|gratis|nuevo|free|new|now|today|discover)\b/i)
-    )
+
+    // CTA / action words
+    const ctaPattern = /\b(ahora|hoy|gratis|nuevo|nueva|descubre|descúbrelo|prueba|pruébalo|empieza|comienza|obtén|consigue|aprende|saber más|ver más|free|new|now|today|discover|try|start|get|learn|see|explore|find out|sign up|download|buy|shop)\b/i;
+    if (!d.includes("?") && !ctaPattern.test(d)) {
+      ds -= 8;
       result.descSuggestions.push({
-        es: "Aade un CTA o palabra de accin para mejorar el CTR.",
-        en: "Add a CTA or action word to improve CTR.",
+        es: "Sin llamada a la acción. Añade una frase activa (ej: \"Descubre\", \"Prueba gratis\", \"Empieza hoy\") para mejorar el CTR.",
+        en: "No call to action. Add an active phrase (e.g. \"Discover\", \"Try for free\", \"Start today\") to improve CTR.",
       });
+    }
+
+    // Description duplicates title
+    if (t && d.toLowerCase().includes(t.toLowerCase())) {
+      ds -= 10;
+      result.descSuggestions.push({
+        es: "La descripción contiene el título completo. Usa ese espacio para añadir información complementaria, no repetir.",
+        en: "Description contains the full title. Use that space to add complementary info, not repeat the title.",
+      });
+    }
+
+    // Missing closing punctuation (likely not a full sentence)
+    if (!/[.!?]$/.test(d)) {
+      result.descSuggestions.push({
+        es: "La descripción no termina con puntuación. Asegúrate de que sea una frase completa para mejor presentación en SERP.",
+        en: "Description doesn't end with punctuation. Ensure it's a complete sentence for better SERP presentation.",
+      });
+    }
+
     result.descScore = Math.max(0, ds);
   }
 

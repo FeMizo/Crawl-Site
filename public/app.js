@@ -1495,57 +1495,75 @@ function buildSeoOptions(page) {
       return "";
     }
   })();
-  const mainTopic =
-    (page.h1s && page.h1s[0]) || page.title || hostname || "your page";
-  const titleBase = clampWord(mainTopic, 42);
-  const descBase = clampWord(page.description || mainTopic, 96);
+  // Extract meaningful keywords from URL path (e.g. /blog/seo-tips -> "seo tips")
+  const urlTopic = (() => {
+    try {
+      const segments = new URL(page.url || "").pathname
+        .split("/")
+        .filter(Boolean)
+        .pop() || "";
+      return segments.replace(/[-_]+/g, " ").replace(/\.\w+$/, "").trim();
+    } catch {
+      return "";
+    }
+  })();
+  const h1 = page.h1s && page.h1s[0] ? page.h1s[0].trim() : "";
+  const mainTopic = h1 || page.title || urlTopic || hostname || "your page";
+  const titleBase = clampWord(mainTopic, 44);
+  const topicLower = titleBase.toLowerCase();
+  const brand = hostname || "Website";
   const year = String(new Date().getFullYear());
+
+  // Existing description: use it as seed if it has substance, otherwise fall back to topic
+  const existingDesc = page.description ? page.description.trim() : "";
+  const descSeed = existingDesc.length > 30
+    ? clampWord(existingDesc, 110)
+    : "";
+
   if (lang === "en") {
-    return {
-      title: [
-        composeWithin([titleBase, "|", hostname || "Website"], 60),
-        composeWithin([titleBase, "-", "Complete Guide", year], 60),
-      ],
-      desc: [
-        composeWithin(
-          [
-            descBase + ".",
-            "Discover key benefits, details, and how to get started today.",
-          ],
-          160,
-        ),
-        composeWithin(
-          [
-            `Learn about ${titleBase.toLowerCase()}`,
-            "with practical tips and clear steps to improve results.",
-          ],
-          160,
-        ),
-      ],
-    };
+    // Title option 1: [Topic] · [Brand]  — clean, professional, branded
+    const t1 = composeWithin([titleBase, "·", brand], 60);
+    // Title option 2: [Topic] — [Year] | [Brand]  — date-stamped, useful for evergreen pages
+    const t2 = composeWithin([titleBase, `(${year})`, "|", brand], 60);
+
+    // Description option 1: sentence built from the existing description or topic + closing CTA
+    const d1Seed = descSeed
+      ? descSeed.replace(/[.!?]+$/, "") + "."
+      : `Everything you need to know about ${topicLower}.`;
+    const d1 = composeWithin([d1Seed, `Find out more on ${brand}.`], 160);
+
+    // Description option 2: question-hook format — different structure, better CTR pattern
+    const d2 = composeWithin(
+      [`Looking for ${topicLower}?`, descSeed
+        ? descSeed.replace(/[.!?]+$/, "") + "."
+        : `Get clear, reliable information straight from ${brand}.`],
+      160
+    );
+
+    return { title: [t1, t2], desc: [d1, d2] };
   }
-  return {
-    title: [
-      composeWithin([titleBase, "|", hostname || "Website"], 60),
-      composeWithin([titleBase, "-", "Guia completa", year], 60),
-    ],
-    desc: [
-      composeWithin(
-        [
-          descBase + ".",
-          "Descubre beneficios, detalles y como empezar hoy.",
-        ],
-        160,
-      ),
-      composeWithin(
-        [
-          `Conoce ${titleBase.toLowerCase()}`,
-          "con consejos practicos y pasos claros para mejorar resultados.",
-        ],
-        160,
-      ),
-    ],
-  };
+
+  // ES
+  // Title option 1: [Tema] · [Marca]  — limpio, profesional
+  const t1 = composeWithin([titleBase, "·", brand], 60);
+  // Title option 2: [Tema] (año) | [Marca]  — útil para contenido evergreen o actualizado
+  const t2 = composeWithin([titleBase, `(${year})`, "|", brand], 60);
+
+  // Description option 1: parte del contenido existente + CTA de cierre
+  const d1Seed = descSeed
+    ? descSeed.replace(/[.!?]+$/, "") + "."
+    : `Todo lo que necesitas saber sobre ${topicLower}.`;
+  const d1 = composeWithin([d1Seed, `Más información en ${brand}.`], 160);
+
+  // Description option 2: gancho de pregunta — estructura diferente, mejor patrón de CTR
+  const d2 = composeWithin(
+    [`¿Buscas información sobre ${topicLower}?`, descSeed
+      ? descSeed.replace(/[.!?]+$/, "") + "."
+      : `Encuentra respuestas claras y actualizadas en ${brand}.`],
+    160
+  );
+
+  return { title: [t1, t2], desc: [d1, d2] };
 }
 
 function showPageSEO(p) {
