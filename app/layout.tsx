@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SEO Crawler | Panel",
-  description: "Panel interno de SEO Crawler",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3666"),
+  title: "Panel | SEO Crawler",
+  description: "Gestiona proyectos SEO, consulta el historial de rastreos y revisa errores detectados desde el panel de control de SEO Crawler.",
+  alternates: {
+    canonical: "/dashboard/roadmap",
+  },
 };
 
 export default function RootLayout({

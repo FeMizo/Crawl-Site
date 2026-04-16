@@ -184,6 +184,8 @@ export default function AdminUsersPage() {
     <>
       <Head>
         <title>Usuarios | SEO Crawler</title>
+        <meta name="description" content="Panel de administración de usuarios: gestiona cuentas, roles y permisos del sistema SEO Crawler." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/admin/users`} />
         <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell

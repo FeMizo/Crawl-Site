@@ -114,7 +114,18 @@ export default function HomePage() {
     return (
       <>
         <Head>
-          <title>SEO Crawler - Inicio</title>
+          <title>Auditor SEO Online | SEO Crawler</title>
+          <meta name="description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+          <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
+          <meta property="og:title" content="Auditor SEO Online | SEO Crawler" />
+          <meta property="og:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+          <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content="Auditor SEO Online | SEO Crawler" />
+          <meta name="twitter:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+          <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
           <link
@@ -146,7 +157,18 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>SEO Crawler - Inicio</title>
+        <title>Auditor SEO Online | SEO Crawler</title>
+        <meta name="description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
+        <meta property="og:title" content="Auditor SEO Online | SEO Crawler" />
+        <meta property="og:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Auditor SEO Online | SEO Crawler" />
+        <meta name="twitter:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+        <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
         <link

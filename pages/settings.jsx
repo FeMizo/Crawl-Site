@@ -186,6 +186,8 @@ export default function SettingsPage() {
     <>
       <Head>
         <title>Ajustes | SEO Crawler</title>
+        <meta name="description" content="Configura tu cuenta de SEO Crawler: actualiza tus datos personales, gestiona notificaciones y administra tu suscripción activa." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/settings`} />
         <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell

@@ -90,7 +90,18 @@ export default function RegisterPage() {
   return (
     <>
       <Head>
-        <title>Registro | SEO Crawler</title>
+        <title>Crear cuenta | SEO Crawler</title>
+        <meta name="description" content="Regístrate en SEO Crawler y empieza a auditar sitios web en minutos. Detecta errores 404, páginas con noindex, redirecciones y metadatos incompletos." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/register`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/register`} />
+        <meta property="og:title" content="Crear cuenta | SEO Crawler" />
+        <meta property="og:description" content="Regístrate en SEO Crawler y empieza a auditar sitios web en minutos. Detecta errores 404, páginas con noindex, redirecciones y metadatos incompletos." />
+        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Crear cuenta | SEO Crawler" />
+        <meta name="twitter:description" content="Regístrate en SEO Crawler y empieza a auditar sitios web en minutos. Detecta errores 404, páginas con noindex, redirecciones y metadatos incompletos." />
+        <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell

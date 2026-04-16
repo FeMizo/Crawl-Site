@@ -224,7 +224,9 @@ export default function DashboardPage() {
   return (
     <>
       <Head>
-        <title>SEO Crawler - Panel</title>
+        <title>Panel | SEO Crawler</title>
+        <meta name="description" content="Lanza y monitorea rastreos SEO, revisa errores detectados y analiza el estado de tu sitio web desde el panel de control." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/dashboard`} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
         <link

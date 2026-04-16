@@ -80,6 +80,17 @@ export default function LoginPage() {
     <>
       <Head>
         <title>Iniciar sesion | SEO Crawler</title>
+        <meta name="description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/login`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/login`} />
+        <meta property="og:title" content="Iniciar sesion | SEO Crawler" />
+        <meta property="og:description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
+        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Iniciar sesion | SEO Crawler" />
+        <meta name="twitter:description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
+        <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell

@@ -87,6 +87,17 @@ export default function ForgotPasswordPage() {
     <>
       <Head>
         <title>Recuperar acceso | SEO Crawler</title>
+        <meta name="description" content="Recupera el acceso a tu cuenta de SEO Crawler. Recibirás instrucciones por correo para restablecer tu contraseña de forma segura." />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/forgot-password`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/forgot-password`} />
+        <meta property="og:title" content="Recuperar acceso | SEO Crawler" />
+        <meta property="og:description" content="Recupera el acceso a tu cuenta de SEO Crawler. Recibirás instrucciones por correo para restablecer tu contraseña de forma segura." />
+        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Recuperar acceso | SEO Crawler" />
+        <meta name="twitter:description" content="Recupera el acceso a tu cuenta de SEO Crawler. Recibirás instrucciones por correo para restablecer tu contraseña de forma segura." />
+        <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <link rel="stylesheet" href="/styles.css" />
       </Head>
 
