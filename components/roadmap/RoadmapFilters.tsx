@@ -10,9 +10,9 @@ export type TaskStatusFilter = RoadmapTaskStatus | "all";
 
 const STATUS_FILTERS: Array<{ value: TaskStatusFilter; label: string }> = [
   { value: "all", label: "Todas" },
-  { value: "done", label: "Done" },
-  { value: "partial", label: "Partial" },
-  { value: "pending", label: "Pending" },
+  { value: "done", label: "Hecho" },
+  { value: "partial", label: "Parcial" },
+  { value: "pending", label: "Pendiente" },
 ];
 
 type PhaseOption = { value: string; label: string };

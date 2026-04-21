@@ -137,7 +137,7 @@ export default function LoginPage() {
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
             <Eyebrow icon={<Icon name="login" size={12} />}>Credenciales</Eyebrow>
-            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input
               label="Contrasena"
               type="password"

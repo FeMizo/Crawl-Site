@@ -118,7 +118,7 @@ export default function ForgotPasswordPage() {
           <Card as="form" className="forgot-form" onSubmit={handleSubmit}>
             <Eyebrow icon={<Icon name="settings" size={12} />}>Recuperacion</Eyebrow>
             <Input
-              label="Email"
+              label="Correo electrónico"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}

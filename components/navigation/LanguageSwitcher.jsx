@@ -18,8 +18,8 @@ export default function LanguageSwitcher({ lang, onChange }) {
         type="button"
         className={`hbtn lang-btn${lang === "en" ? " on" : ""}`}
         onClick={() => onChange("en")}
-        title="English"
-        aria-label="Switch to English"
+        title="Inglés"
+        aria-label="Cambiar a inglés"
       >
         <span
           className="lang-flag"

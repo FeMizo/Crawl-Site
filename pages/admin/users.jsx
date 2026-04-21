@@ -252,7 +252,7 @@ export default function AdminUsersPage() {
               <thead>
                 <tr>
                   <th>Nombre</th>
-                  <th>Email</th>
+                  <th>Correo</th>
                   <th>Rol</th>
                   <th>Estado</th>
                   <th>Creacion</th>

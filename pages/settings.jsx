@@ -15,7 +15,7 @@ const { validatePhoneInput } = require("../lib/contact-validation");
 
 const LANG_OPTIONS = [
   { value: "es", label: "Espanol" },
-  { value: "en", label: "Ingles" },
+  { value: "en", label: "Inglés" },
 ];
 
 const THEME_OPTIONS = [
@@ -211,7 +211,7 @@ export default function SettingsPage() {
             onSubmit={handleProfileSubmit}
           >
             <Eyebrow icon={<Icon name="user" size={12} />}>Perfil</Eyebrow>
-            <Input label="Email" value={sessionUser?.email || ""} disabled readOnly />
+            <Input label="Correo electrónico" value={sessionUser?.email || ""} disabled readOnly />
             <Input label="Rol efectivo" value={sessionUser?.roleLabel || ""} disabled readOnly />
             <Input
               label="Nombre de usuario"

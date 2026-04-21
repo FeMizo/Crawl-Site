@@ -149,7 +149,7 @@ export default function RegisterPage() {
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
             <Eyebrow icon={<Icon name="register" size={12} />}>Nuevo usuario</Eyebrow>
             <Input label="Nombre" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <PhoneField
               label="Telefono"
               country={phoneCountry}

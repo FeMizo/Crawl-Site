@@ -28,7 +28,9 @@ export default function RoadmapTaskItem({ task, canEdit, busy, onToggle, onDelet
           <span>{task.title}</span>
         </label>
         <div className="task-meta">
-          <span className={`task-status ${task.status}`}>{task.status.toUpperCase()}</span>
+          <span className={`task-status ${task.status}`}>
+            {task.status === "done" ? "HECHO" : task.status === "partial" ? "PARCIAL" : "PENDIENTE"}
+          </span>
           <span className="task-source">{task.statusSource === "auto" ? "AUTO" : "MANUAL"}</span>
         </div>
         {task.note ? <p className="task-note">{task.note}</p> : null}
