@@ -8,6 +8,7 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
 import useSessionUser from "../hooks/useSessionUser";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -18,13 +19,15 @@ const DEFAULT_PAGINATION = {
   hasNext: false,
 };
 
-function formatDate(value) {
-  if (!value) return "Sin fecha";
-  return new Date(value).toLocaleString("es-MX");
+function formatDate(value, lang, noDateLabel) {
+  if (!value) return noDateLabel || "Sin fecha";
+  return new Date(value).toLocaleString(lang === "en" ? "en-US" : "es-MX");
 }
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +74,7 @@ export default function ProjectsPage() {
   }, [clearSessionUser, page, reloadKey, router, sessionHydrated, setSessionUser]);
 
   const deleteProject = async (projectId) => {
-    const confirmed = window.confirm("Esto eliminara el proyecto y su historial. Continuar?");
+    const confirmed = window.confirm(t("confirmDelete"));
     if (!confirmed) return;
     const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
     const data = await response.json().catch(() => ({}));
@@ -97,33 +100,33 @@ export default function ProjectsPage() {
       <AppShell
         activeKey="projects"
         user={sessionUser}
-        kicker="Espacio de trabajo / Proyectos"
-        title="Proyectos guardados"
-        description="Todos los proyectos, accesos y acciones viven dentro del mismo panel principal."
+        kicker={t("projectsKicker")}
+        title={t("projectsPageTitle")}
+        description={t("projectsPageDesc")}
         actions={
           <Button href="/" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
-            Nuevo proyecto
+            {t("btnNewProject")}
           </Button>
         }
         aside={
           <div className="aside-stats">
-            <StatCard label="Proyectos" value={pagination.total} hint="Espacios activos" tone="primary" icon={<Icon name="projects" size={14} />} />
+            <StatCard label={t("statProjectsLabel")} value={pagination.total} hint={t("hintActiveSpaces")} tone="primary" icon={<Icon name="projects" size={14} />} />
             <StatCard
-              label="Rastreos"
+              label={t("statCrawlsLabel")}
               value={projects.reduce((acc, project) => acc + (project.runCount || 0), 0)}
-              hint="Pagina actual"
+              hint={t("hintCurrentPage")}
               tone="secondary"
               icon={<Icon name="history" size={14} />}
             />
           </div>
         }
       >
-        {loading ? <p className="feedback">Cargando proyectos...</p> : null}
+        {loading ? <p className="feedback">{t("loadingProjects")}</p> : null}
         {error ? (
           <p className="feedback error">
             <span>{error}</span>
             <button type="button" className="retry-btn" onClick={() => { setError(""); setReloadKey((k) => k + 1); }}>
-              Reintentar
+              {t("retry")}
             </button>
           </p>
         ) : null}
@@ -133,40 +136,40 @@ export default function ProjectsPage() {
             <Card key={project.id} className="project-card">
               <div className="card-top">
                 <div>
-                  <Eyebrow>Proyecto</Eyebrow>
+                  <Eyebrow>{t("eyebrowProject")}</Eyebrow>
                   <h2>{project.name}</h2>
                   <p>{project.targetUrl}</p>
                 </div>
                 <div className="card-actions">
                   <Button href={{ pathname: "/dashboard", query: { projectId: project.id } }} variant="outline" tone="secondary" size="sm" iconLeft={<Icon name="external" size={14} />}>
-                    Abrir
+                    {t("btnOpen")}
                   </Button>
                   <Button type="button" variant="outline" tone="danger" size="sm" onClick={() => deleteProject(project.id)} iconLeft={<Icon name="trash" size={14} />}>
-                    Eliminar
+                    {t("btnDelete")}
                   </Button>
                 </div>
               </div>
 
               <div className="metrics">
-                <StatCard label="Rastreos" value={project.runCount} hint="Guardados" tone="primary" icon={<Icon name="run" size={14} />} />
-                <StatCard label="Creado" value={formatDate(project.createdAt)} hint="Fecha de alta" tone="secondary" icon={<Icon name="history" size={14} />} />
+                <StatCard label={t("statCrawlsLabel")} value={project.runCount} hint={t("hintSaved")} tone="primary" icon={<Icon name="run" size={14} />} />
+                <StatCard label={t("statCreatedLabel")} value={formatDate(project.createdAt, lang, t("noDate"))} hint={t("hintCreationDate")} tone="secondary" icon={<Icon name="history" size={14} />} />
               </div>
 
               <Card className="last-run" padding="sm">
-                <Eyebrow>Ultimo rastreo</Eyebrow>
+                <Eyebrow>{t("eyebrowLastRun")}</Eyebrow>
                 <strong>
                   {project.lastRun
-                    ? `${formatDate(project.lastRun.createdAt)} - ${project.lastRun.withIssues}/${project.lastRun.total}`
-                    : "Sin historial"}
+                    ? `${formatDate(project.lastRun.createdAt, lang, t("noDate"))} - ${project.lastRun.withIssues}/${project.lastRun.total}`
+                    : t("noLastRun")}
                 </strong>
               </Card>
             </Card>
           ))}
           {!loading && !projects.length ? (
             <Card className="project-card empty">
-              <Eyebrow>Sin datos</Eyebrow>
-              <h2>Aun no hay proyectos</h2>
-              <p>Crea el primero desde la pantalla inicial y entrara directo al panel.</p>
+              <Eyebrow>{t("noProjectsEyebrow")}</Eyebrow>
+              <h2>{t("noProjectsTitle")}</h2>
+              <p>{t("noProjectsDesc")}</p>
             </Card>
           ) : null}
         </section>
@@ -181,10 +184,10 @@ export default function ProjectsPage() {
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={!pagination.hasPrev}
             >
-              Anterior
+              {t("paginationPrev")}
             </Button>
             <span className="pagination-text">
-              Pagina {pagination.page} de {pagination.pageCount}
+              {t("paginationPage")} {pagination.page} {t("paginationOf")} {pagination.pageCount}
             </span>
             <Button
               type="button"
@@ -196,7 +199,7 @@ export default function ProjectsPage() {
               }
               disabled={!pagination.hasNext}
             >
-              Siguiente
+              {t("paginationNext")}
             </Button>
           </div>
         ) : null}

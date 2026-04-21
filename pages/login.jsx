@@ -10,6 +10,7 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const { validateEmail } = require("../lib/contact-validation");
 
@@ -29,6 +30,8 @@ async function readResponsePayload(response) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser } = useSessionUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -97,49 +100,49 @@ export default function LoginPage() {
         activeKey="login"
         user={sessionUser}
         showSidebar={false}
-        kicker="Acceso / Iniciar sesion"
-        title="Iniciar sesion"
-        description="Accede al mismo sistema visual del panel para gestionar proyectos, historial y rastreos guardados."
+        kicker={t("loginKicker")}
+        title={t("loginPageTitle")}
+        description={t("loginPageDesc")}
         actions={
           sessionUser ? (
             <Button href="/projects" variant="solid" tone="primary" iconLeft={<Icon name="projects" size={15} />}>
-              Ver proyectos
+              {t("btnViewProjects")}
             </Button>
           ) : (
             <Button href="/register" variant="outline" tone="secondary" iconLeft={<Icon name="register" size={15} />}>
-              Registro
+              {t("navRegister")}
             </Button>
           )
         }
       >
         <div className="auth-grid">
           <Card className="info-card">
-            <Eyebrow icon={<Icon name="workspace" size={12} />}>Espacio de trabajo</Eyebrow>
-            <h2>Acceso rapido al trabajo diario</h2>
+            <Eyebrow icon={<Icon name="workspace" size={12} />}>{t("eyebrowWorkspace")}</Eyebrow>
+            <h2>{t("loginInfoTitle")}</h2>
             <QuickStepsModule
               compact
               steps={[
                 {
-                  title: "Inicia sesion con tu correo y contrasena.",
-                  detail: "Se restaura tu preferencia de idioma y tema.",
+                  title: t("loginStep1Title"),
+                  detail: t("loginStep1Detail"),
                 },
                 {
-                  title: "Abre un proyecto o crea uno nuevo.",
-                  detail: "Todos los rastreos quedan ligados al proyecto.",
+                  title: t("loginStep2Title"),
+                  detail: t("loginStep2Detail"),
                 },
                 {
-                  title: "Revisa historial y retoma corridas anteriores.",
-                  detail: "Puedes cargar resultados guardados cuando quieras.",
+                  title: t("loginStep3Title"),
+                  detail: t("loginStep3Detail"),
                 },
               ]}
             />
           </Card>
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
-            <Eyebrow icon={<Icon name="login" size={12} />}>Credenciales</Eyebrow>
-            <Input label="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Eyebrow icon={<Icon name="login" size={12} />}>{t("eyebrowCredentials")}</Eyebrow>
+            <Input label={t("labelEmail")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input
-              label="Contrasena"
+              label={t("labelPassword")}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -147,13 +150,13 @@ export default function LoginPage() {
             />
             {error ? <p className="feedback error">{error}</p> : null}
             <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="login" size={15} />}>
-              Entrar
+              {t("btnEnter")}
             </Button>
             <p className="foot-note">
-              No tienes cuenta. <Link href="/register">Crear cuenta</Link>
+              {t("loginNoAccount")} <Link href="/register">{t("linkCreateAccount")}</Link>
             </p>
             <p className="foot-note">
-              <Link href="/forgot-password">Olvide mi contrasena</Link>
+              <Link href="/forgot-password">{t("linkForgotPassword")}</Link>
             </p>
           </Card>
         </div>

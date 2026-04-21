@@ -7,6 +7,7 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import useSessionUser from "../hooks/useSessionUser";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -17,13 +18,15 @@ const DEFAULT_PAGINATION = {
   hasNext: false,
 };
 
-function formatDate(value) {
-  if (!value) return "Sin fecha";
-  return new Date(value).toLocaleString("es-MX");
+function formatDate(value, lang, noDateLabel) {
+  if (!value) return noDateLabel || "Sin fecha";
+  return new Date(value).toLocaleString(lang === "en" ? "en-US" : "es-MX");
 }
 
 export default function HistoryPage() {
   const router = useRouter();
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,20 +81,20 @@ export default function HistoryPage() {
       <AppShell
         activeKey="history"
         user={sessionUser}
-        kicker="Espacio de trabajo / Historial"
-        title="Historial de rastreos"
-        description="Consulta las ultimas ejecuciones guardadas por proyecto y retoma cualquier corrida en segundos."
+        kicker={t("historyKicker")}
+        title={t("historyPageTitle")}
+        description={t("historyPageDesc")}
       >
-        {loading ? <p className="feedback">Cargando historial...</p> : null}
+        {loading ? <p className="feedback">{t("loadingHistory")}</p> : null}
         {error ? <p className="feedback error">{error}</p> : null}
         <div className="history-grid">
           {runs.map((run) => (
             <Card key={run.id} className="history-card">
-              <Eyebrow icon={<Icon name="history" size={12} />}>{run.project?.name || "Proyecto"}</Eyebrow>
+              <Eyebrow icon={<Icon name="history" size={12} />}>{run.project?.name || t("defaultProjectName")}</Eyebrow>
               <h2>{run.project?.targetUrl || run.sourceUrl}</h2>
-              <p>{formatDate(run.createdAt)}</p>
+              <p>{formatDate(run.createdAt, lang, t("noDate"))}</p>
               <div className="history-meta">
-                <span>{run.withIssues}/{run.total} con problemas</span>
+                <span>{run.withIssues}/{run.total} {t("withIssues")}</span>
                 <span>{run.status}</span>
               </div>
               <Button
@@ -101,15 +104,15 @@ export default function HistoryPage() {
                 size="sm"
                 iconLeft={<Icon name="external" size={14} />}
               >
-                Abrir rastreo
+                {t("openCrawl")}
               </Button>
             </Card>
           ))}
           {!loading && !runs.length ? (
             <Card className="history-card empty">
-              <Eyebrow>Sin historial</Eyebrow>
-              <h2>Todavia no hay rastreos guardados</h2>
-              <p>Cuando ejecutes rastreos desde un proyecto apareceran aqui.</p>
+              <Eyebrow>{t("noHistoryEyebrow")}</Eyebrow>
+              <h2>{t("noSavedCrawls")}</h2>
+              <p>{t("noSavedCrawlsDesc")}</p>
             </Card>
           ) : null}
         </div>
@@ -123,10 +126,10 @@ export default function HistoryPage() {
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={!pagination.hasPrev}
             >
-              Anterior
+              {t("paginationPrev")}
             </Button>
             <span className="pagination-text">
-              Pagina {pagination.page} de {pagination.pageCount}
+              {t("paginationPage")} {pagination.page} {t("paginationOf")} {pagination.pageCount}
             </span>
             <Button
               type="button"
@@ -138,7 +141,7 @@ export default function HistoryPage() {
               }
               disabled={!pagination.hasNext}
             >
-              Siguiente
+              {t("paginationNext")}
             </Button>
           </div>
         ) : null}

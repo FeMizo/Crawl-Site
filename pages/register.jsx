@@ -11,6 +11,7 @@ import Input from "../components/ui/Input";
 import PhoneField from "../components/ui/PhoneField";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const { validateEmail, validatePhoneInput } = require("../lib/contact-validation");
 
@@ -30,6 +31,8 @@ async function readResponsePayload(response) {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser } = useSessionUser();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -108,58 +111,58 @@ export default function RegisterPage() {
         activeKey="register"
         user={sessionUser}
         showSidebar={false}
-        kicker="Acceso / Registro"
-        title="Crear cuenta"
-        description="Activa tu area privada dentro del mismo sistema del panel para guardar proyectos, historial y reportes."
+        kicker={t("registerKicker")}
+        title={t("registerPageTitle")}
+        description={t("registerPageDesc")}
         actions={
           sessionUser ? (
             <Button href="/projects" variant="solid" tone="primary" iconLeft={<Icon name="projects" size={15} />}>
-              Ver proyectos
+              {t("btnViewProjects")}
             </Button>
           ) : (
             <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
-              Iniciar sesion
+              {t("navLogin")}
             </Button>
           )
         }
       >
         <div className="auth-grid">
           <Card className="info-card">
-            <Eyebrow icon={<Icon name="register" size={12} />}>Registro</Eyebrow>
-            <h2>Comienza en minutos</h2>
+            <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowRegister")}</Eyebrow>
+            <h2>{t("registerInfoTitle")}</h2>
             <QuickStepsModule
               compact
               steps={[
                 {
-                  title: "Crea tu cuenta con nombre, email y contrasena segura.",
-                  detail: "El acceso queda habilitado al instante.",
+                  title: t("registerStep1Title"),
+                  detail: t("registerStep1Detail"),
                 },
                 {
-                  title: "Registra tu primer proyecto con una URL valida.",
-                  detail: "Desde ahi podras ejecutar rastreos y guardar historial.",
+                  title: t("registerStep2Title"),
+                  detail: t("registerStep2Detail"),
                 },
                 {
-                  title: "Consulta resultados y descarga reportes.",
-                  detail: "Toda la operacion vive en el mismo flujo de trabajo.",
+                  title: t("registerStep3Title"),
+                  detail: t("registerStep3Detail"),
                 },
               ]}
             />
           </Card>
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
-            <Eyebrow icon={<Icon name="register" size={12} />}>Nuevo usuario</Eyebrow>
-            <Input label="Nombre" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input label="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
+            <Input label={t("labelName")} type="text" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input label={t("labelEmail")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <PhoneField
-              label="Telefono"
+              label={t("labelPhone")}
               country={phoneCountry}
               phone={phoneNumber}
               onCountryChange={setPhoneCountry}
               onPhoneChange={setPhoneNumber}
-              hint="Opcional. Selecciona el pais para mostrar prefijo y validar longitud."
+              hint={t("hintPhoneSelect")}
             />
             <Input
-              label="Contrasena"
+              label={t("labelPassword")}
               type="password"
               minLength={8}
               value={password}
@@ -168,10 +171,10 @@ export default function RegisterPage() {
             />
             {error ? <p className="feedback error">{error}</p> : null}
             <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="plus" size={15} />}>
-              Crear cuenta
+              {t("btnCreateAccount")}
             </Button>
             <p className="foot-note">
-              Ya tienes acceso. <Link href="/login">Entrar</Link>
+              {t("registerHasAccount")} <Link href="/login">{t("linkSignIn")}</Link>
             </p>
           </Card>
         </div>

@@ -8,10 +8,13 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import useSessionUser from "../hooks/useSessionUser";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const { validateEmail } = require("../lib/contact-validation");
 
 export default function ForgotPasswordPage() {
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser } = useSessionUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +44,7 @@ export default function ForgotPasswordPage() {
     setSuccess("");
 
     if (!email.trim()) {
-      setError("Ingresa el email de tu cuenta.");
+      setError(t("errEnterEmail"));
       return;
     }
     const emailError = validateEmail(email);
@@ -51,12 +54,12 @@ export default function ForgotPasswordPage() {
     }
 
     if (password.length < 8) {
-      setError("La contrasena debe tener al menos 8 caracteres.");
+      setError(t("errPasswordMinLength"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("La confirmacion no coincide.");
+      setError(t("errConfirmNoMatch"));
       return;
     }
 
@@ -72,7 +75,7 @@ export default function ForgotPasswordPage() {
         throw new Error(data.error || "No se pudo actualizar la contrasena.");
       }
 
-      setSuccess("Contrasena actualizada. Ya puedes iniciar sesion.");
+      setSuccess(t("forgotSuccess"));
       setEmail("");
       setPassword("");
       setConfirmPassword("");
@@ -105,27 +108,27 @@ export default function ForgotPasswordPage() {
         activeKey="login"
         user={sessionUser}
         showSidebar={false}
-        kicker="Acceso / Recuperar contrasena"
-        title="Olvidaste tu contrasena"
-        description="Restablece el acceso usando tu email y define una nueva contrasena."
+        kicker={t("forgotKicker")}
+        title={t("forgotPageTitle")}
+        description={t("forgotPageDesc")}
         actions={
           <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
-            Volver a acceso
+            {t("btnBackToLogin")}
           </Button>
         }
       >
         <div className="forgot-grid">
           <Card as="form" className="forgot-form" onSubmit={handleSubmit}>
-            <Eyebrow icon={<Icon name="settings" size={12} />}>Recuperacion</Eyebrow>
+            <Eyebrow icon={<Icon name="settings" size={12} />}>{t("eyebrowRecovery")}</Eyebrow>
             <Input
-              label="Correo electrónico"
+              label={t("labelEmail")}
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
             />
             <Input
-              label="Nueva contrasena"
+              label={t("labelNewPassword")}
               type="password"
               minLength={8}
               value={password}
@@ -133,7 +136,7 @@ export default function ForgotPasswordPage() {
               required
             />
             <Input
-              label="Confirmar contrasena"
+              label={t("labelConfirmPasswordShort")}
               type="password"
               minLength={8}
               value={confirmPassword}
@@ -143,10 +146,10 @@ export default function ForgotPasswordPage() {
             {error ? <p className="feedback error">{error}</p> : null}
             {success ? <p className="feedback ok">{success}</p> : null}
             <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting}>
-              Actualizar contrasena
+              {t("btnUpdatePassword")}
             </Button>
             <p className="foot-note">
-              <Link href="/login">Volver a iniciar sesion</Link>
+              <Link href="/login">{t("linkBackToSignIn")}</Link>
             </p>
           </Card>
         </div>

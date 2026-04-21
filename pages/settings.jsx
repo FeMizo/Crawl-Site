@@ -10,6 +10,7 @@ import Input from "../components/ui/Input";
 import PhoneField from "../components/ui/PhoneField";
 import Select from "../components/ui/Select";
 import useSessionUser from "../hooks/useSessionUser";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const { validatePhoneInput } = require("../lib/contact-validation");
 
@@ -27,6 +28,8 @@ const THEME_OPTIONS = [
 
 export default function SettingsPage() {
   const router = useRouter();
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
   const [counts, setCounts] = useState({ projects: 0, crawlRuns: 0 });
   const [name, setName] = useState(() => sessionUser?.name || "");
@@ -104,7 +107,7 @@ export default function SettingsPage() {
     setProfileError("");
     const normalizedName = name.trim();
     if (!normalizedName) {
-      setProfileError("Ingresa un nombre de usuario.");
+      setProfileError(t("errEnterUsername"));
       return;
     }
     const phone = validatePhoneInput(phoneCountry, phoneNumber, {
@@ -128,7 +131,7 @@ export default function SettingsPage() {
       }
       setSessionUser(data.user || null);
       setName(data.user?.name || normalizedName);
-      setProfileMessage("Nombre de usuario actualizado.");
+      setProfileMessage(t("profileSaved"));
     } catch (err) {
       setProfileError(
         err instanceof Error ? err.message : "No se pudo actualizar el perfil.",
@@ -144,15 +147,15 @@ export default function SettingsPage() {
     setPasswordError("");
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError("Completa todos los campos de contrasena.");
+      setPasswordError(t("errPasswordFields"));
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordError("La nueva contrasena debe tener al menos 8 caracteres.");
+      setPasswordError(t("errNewPasswordLength"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("La confirmacion de contrasena no coincide.");
+      setPasswordError(t("errPasswordMatch"));
       return;
     }
 
@@ -170,7 +173,7 @@ export default function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordMessage("Contrasena actualizada correctamente.");
+      setPasswordMessage(t("passwordUpdated"));
     } catch (err) {
       setPasswordError(
         err instanceof Error
@@ -193,13 +196,13 @@ export default function SettingsPage() {
       <AppShell
         activeKey="settings"
         user={sessionUser}
-        kicker="Ajustes / Cuenta"
-        title="Ajustes de cuenta"
-        description="Administra nombre de usuario, contrasena y preferencias de idioma/tema."
+        kicker={t("settingsKicker")}
+        title={t("settingsPageTitle")}
+        description={t("settingsPageDesc")}
         actions={
           sessionUser?.permissions?.canManageUsers ? (
             <Button href="/admin/users" variant="outline" tone="secondary" iconLeft={<Icon name="users" size={15} />}>
-              Gestionar usuarios
+              {t("btnManageUsers")}
             </Button>
           ) : null
         }
@@ -210,23 +213,23 @@ export default function SettingsPage() {
             className="settings-card"
             onSubmit={handleProfileSubmit}
           >
-            <Eyebrow icon={<Icon name="user" size={12} />}>Perfil</Eyebrow>
-            <Input label="Correo electrónico" value={sessionUser?.email || ""} disabled readOnly />
-            <Input label="Rol efectivo" value={sessionUser?.roleLabel || ""} disabled readOnly />
+            <Eyebrow icon={<Icon name="user" size={12} />}>{t("eyebrowProfile")}</Eyebrow>
+            <Input label={t("labelEmail")} value={sessionUser?.email || ""} disabled readOnly />
+            <Input label={t("labelRole")} value={sessionUser?.roleLabel || ""} disabled readOnly />
             <Input
-              label="Nombre de usuario"
+              label={t("labelUsername")}
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
               maxLength={80}
             />
             <PhoneField
-              label="Telefono"
+              label={t("labelPhone")}
               country={phoneCountry}
               phone={phoneNumber}
               onCountryChange={setPhoneCountry}
               onPhoneChange={setPhoneNumber}
-              hint="Opcional. Se guarda el numero nacional y se muestra el prefijo del pais."
+              hint={t("hintPhoneOptional")}
             />
             {profileError ? (
               <p className="feedback error">{profileError}</p>
@@ -241,16 +244,14 @@ export default function SettingsPage() {
               loading={profileSubmitting}
               iconLeft={<Icon name="edit" size={14} />}
             >
-              Guardar perfil
+              {t("btnSaveProfile")}
             </Button>
           </Card>
 
           <Card className="settings-card">
-            <Eyebrow icon={<Icon name="settings" size={12} />}>
-              Preferencias
-            </Eyebrow>
+            <Eyebrow icon={<Icon name="settings" size={12} />}>{t("eyebrowPreferences")}</Eyebrow>
             <Select
-              label="Idioma por defecto"
+              label={t("labelDefaultLang")}
               value={language}
               onChange={(event) => applyLanguage(event.target.value)}
             >
@@ -261,7 +262,7 @@ export default function SettingsPage() {
               ))}
             </Select>
             <Select
-              label="Tema por defecto"
+              label={t("labelDefaultTheme")}
               value={theme}
               onChange={(event) => applyTheme(event.target.value)}
             >
@@ -274,11 +275,11 @@ export default function SettingsPage() {
             <div className="meta-grid">
               <div>
                 <strong>{counts.projects || 0}</strong>
-                <span>Proyectos</span>
+                <span>{t("statProjectsLabel")}</span>
               </div>
               <div>
                 <strong>{counts.crawlRuns || 0}</strong>
-                <span>Rastreos</span>
+                <span>{t("statCrawlsLabel")}</span>
               </div>
             </div>
           </Card>
@@ -288,16 +289,16 @@ export default function SettingsPage() {
             className="settings-card"
             onSubmit={handlePasswordSubmit}
           >
-            <Eyebrow icon={<Icon name="shield" size={12} />}>Seguridad</Eyebrow>
+            <Eyebrow icon={<Icon name="shield" size={12} />}>{t("eyebrowSecurity")}</Eyebrow>
             <Input
-              label="Contrasena actual"
+              label={t("labelCurrentPassword")}
               type="password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               required
             />
             <Input
-              label="Nueva contrasena"
+              label={t("labelNewPassword")}
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
@@ -305,7 +306,7 @@ export default function SettingsPage() {
               required
             />
             <Input
-              label="Confirmar nueva contrasena"
+              label={t("labelConfirmPassword")}
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
@@ -325,7 +326,7 @@ export default function SettingsPage() {
               loading={passwordSubmitting}
               iconLeft={<Icon name="shield" size={14} />}
             >
-              Actualizar contrasena
+              {t("btnUpdatePassword")}
             </Button>
           </Card>
         </div>
