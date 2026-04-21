@@ -21,9 +21,11 @@ const SCHEMA_GRAPH = {
       "operatingSystem": "Web",
       "description": "Auditor SEO online que detecta errores 404, páginas con noindex, redirecciones y metadatos faltantes en cualquier sitio web.",
       "offers": [
-        { "@type": "Offer", "name": "Gratis", "price": "0", "priceCurrency": "MXN" },
-        { "@type": "Offer", "name": "Basic", "price": "199", "priceCurrency": "MXN" },
-        { "@type": "Offer", "name": "Pro", "price": "699", "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Gratis",   "price": "0",    "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Basic",    "price": "229",  "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Starter",  "price": "499",  "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Pro",      "price": "1299", "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Agency",   "price": "2999", "priceCurrency": "MXN" },
       ],
     },
     {
