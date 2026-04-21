@@ -8,6 +8,52 @@ import Icon from "../components/ui/Icon";
 import useSessionUser from "../hooks/useSessionUser";
 import { getLandingSections } from "../lib/landing-sections";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app";
+
+const SCHEMA_GRAPH = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "SEO Crawler",
+      "url": APP_URL,
+      "applicationCategory": "WebApplication",
+      "operatingSystem": "Web",
+      "description": "Auditor SEO online que detecta errores 404, páginas con noindex, redirecciones y metadatos faltantes en cualquier sitio web.",
+      "offers": [
+        { "@type": "Offer", "name": "Gratis", "price": "0", "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Basic", "price": "199", "priceCurrency": "MXN" },
+        { "@type": "Offer", "name": "Pro", "price": "699", "priceCurrency": "MXN" },
+      ],
+    },
+    {
+      "@type": "HowTo",
+      "name": "Cómo auditar un sitio web con SEO Crawler",
+      "description": "Analiza tu sitio web en busca de errores SEO en tres pasos.",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": "1",
+          "name": "Crea tu cuenta",
+          "text": "Regístrate e inicia sesión para habilitar tu espacio de trabajo y guardar proyectos.",
+        },
+        {
+          "@type": "HowToStep",
+          "position": "2",
+          "name": "Registra la URL del sitio",
+          "text": "Ingresa la URL principal del dominio que quieres auditar para crear el proyecto.",
+        },
+        {
+          "@type": "HowToStep",
+          "position": "3",
+          "name": "Lanza el rastreo y revisa hallazgos",
+          "text": "Ejecuta el rastreo, filtra errores SEO por prioridad y descarga el reporte Excel.",
+        },
+      ],
+    },
+  ],
+};
+
 function normalizeUrl(value) {
   const raw = (value || "").trim();
   if (!raw) return "";
@@ -123,6 +169,10 @@ export default function HomePage() {
           href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@400;600;800&display=swap"
         />
         <link rel="stylesheet" href="/styles.css" />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_GRAPH) }}
+          />
       </Head>
       <AppShell
         activeKey="dashboard"
