@@ -1,8 +1,9 @@
 const PUBLIC_PAGES = [
-  { path: "/",        priority: "1.0", changefreq: "weekly"   },
-  { path: "/precios", priority: "0.9", changefreq: "monthly"  },
-  { path: "/register", priority: "0.8", changefreq: "monthly" },
-  { path: "/login",   priority: "0.5", changefreq: "monthly"  },
+  { path: "/",                   priority: "1.0", changefreq: "weekly"  },
+  { path: "/precios",            priority: "0.9", changefreq: "monthly" },
+  { path: "/register",           priority: "0.8", changefreq: "monthly" },
+  { path: "/login",              priority: "0.5", changefreq: "monthly" },
+  { path: "/aviso-privacidad",   priority: "0.3", changefreq: "yearly"  },
 ];
 
 function buildSitemap(baseUrl) {

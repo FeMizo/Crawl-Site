@@ -49,6 +49,13 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     order: 4,
     content: {},
   },
+  {
+    id: "landing-contact",
+    key: "contact",
+    label: "Contacto",
+    order: 5,
+    content: {},
+  },
 ];
 
 export function getLandingSections(): LandingSectionDto[] {

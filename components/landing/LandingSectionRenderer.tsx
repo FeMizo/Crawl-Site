@@ -3,6 +3,7 @@ import LandingStepsSection from "./LandingStepsSection";
 import LandingFeaturesSection from "./LandingFeaturesSection";
 import LandingFaqSection from "./LandingFaqSection";
 import LandingPricingTeaserSection from "./LandingPricingTeaserSection";
+import LandingContactSection from "./LandingContactSection";
 import type { LandingSectionDto } from "../../types/landing";
 
 type HeroRuntimeProps = {
@@ -47,6 +48,10 @@ export default function LandingSectionRenderer({
 
   if (section.key === "pricing-teaser") {
     return <LandingPricingTeaserSection />;
+  }
+
+  if (section.key === "contact") {
+    return <LandingContactSection />;
   }
 
   return null;

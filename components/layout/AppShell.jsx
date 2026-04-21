@@ -81,6 +81,13 @@ export default function AppShell({
           <PageContainer className={contentClassName}>{children}</PageContainer>
           <footer className="app-footer">
             <span className="app-footer-copy">© {new Date().getFullYear()} SEO Crawler</span>
+            <nav className="app-footer-nav" aria-label="Footer">
+              <a href="https://aionsite.com.mx/" target="_blank" rel="noopener noreferrer" className="footer-nav-link">Home</a>
+              <span className="footer-nav-sep" aria-hidden="true">·</span>
+              <a href="https://aionsite.com.mx/blog" target="_blank" rel="noopener noreferrer" className="footer-nav-link">Blog</a>
+              <span className="footer-nav-sep" aria-hidden="true">·</span>
+              <a href="/aviso-privacidad" className="footer-nav-link">Aviso de privacidad</a>
+            </nav>
             <div className="app-footer-social">
               <a
                 href="https://www.facebook.com/aionsite/"
@@ -717,6 +724,28 @@ export default function AppShell({
           font-size: 11px;
           color: var(--muted);
           letter-spacing: 0.08em;
+          white-space: nowrap;
+        }
+        .app-footer-nav {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .footer-nav-link {
+          font-size: 11px;
+          color: var(--text2);
+          text-decoration: none;
+          transition: color 0.2s;
+          white-space: nowrap;
+        }
+        .footer-nav-link:hover {
+          color: var(--accent);
+        }
+        .footer-nav-sep {
+          font-size: 11px;
+          color: var(--border2);
         }
         .app-footer-social {
           display: flex;
