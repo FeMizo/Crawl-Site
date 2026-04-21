@@ -1,4 +1,4 @@
-export type LandingSectionKey = "hero" | "steps";
+export type LandingSectionKey = "hero" | "steps" | "features" | "faq" | "pricing-teaser";
 
 export type LandingSectionDto = {
   id: string;

@@ -1,5 +1,8 @@
 import LandingHeroSection from "./LandingHeroSection";
 import LandingStepsSection from "./LandingStepsSection";
+import LandingFeaturesSection from "./LandingFeaturesSection";
+import LandingFaqSection from "./LandingFaqSection";
+import LandingPricingTeaserSection from "./LandingPricingTeaserSection";
 import type { LandingSectionDto } from "../../types/landing";
 
 type HeroRuntimeProps = {
@@ -32,6 +35,18 @@ export default function LandingSectionRenderer({
 
   if (section.key === "steps") {
     return <LandingStepsSection content={section.content} />;
+  }
+
+  if (section.key === "features") {
+    return <LandingFeaturesSection />;
+  }
+
+  if (section.key === "faq") {
+    return <LandingFaqSection />;
+  }
+
+  if (section.key === "pricing-teaser") {
+    return <LandingPricingTeaserSection />;
   }
 
   return null;

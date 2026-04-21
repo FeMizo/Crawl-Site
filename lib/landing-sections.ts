@@ -28,6 +28,27 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
       step3: "Lanza el rastreo, revisa hallazgos y guarda el historial.",
     },
   },
+  {
+    id: "landing-features",
+    key: "features",
+    label: "Qué detecta",
+    order: 2,
+    content: {},
+  },
+  {
+    id: "landing-pricing-teaser",
+    key: "pricing-teaser",
+    label: "Planes (teaser)",
+    order: 3,
+    content: {},
+  },
+  {
+    id: "landing-faq",
+    key: "faq",
+    label: "Preguntas frecuentes",
+    order: 4,
+    content: {},
+  },
 ];
 
 export function getLandingSections(): LandingSectionDto[] {

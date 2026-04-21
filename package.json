@@ -1,6 +1,6 @@
 {
   "name": "seo-crawler",
-  "version": "2.13.46",
+  "version": "2.13.47",
   "private": true,
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
