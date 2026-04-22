@@ -95,7 +95,6 @@ export default function ProjectsPage() {
         <title>Proyectos | SEO Crawler</title>
         <meta name="description" content="Gestiona todos tus proyectos SEO: accede al historial de rastreos, revisa hallazgos por dominio y organiza tus auditorías." />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/projects`} />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell
         activeKey="projects"

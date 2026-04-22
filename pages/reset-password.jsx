@@ -94,7 +94,6 @@ export default function ResetPasswordPage() {
       <Head>
         <title>Restablecer contraseña | SEO Crawler</title>
         <meta name="robots" content="noindex" />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
 
       <AppShell

@@ -49,7 +49,6 @@ export default function VerifyEmailPage() {
       <Head>
         <title>Verificar cuenta | SEO Crawler</title>
         <meta name="robots" content="noindex" />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
 
       <AppShell

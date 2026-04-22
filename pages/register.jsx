@@ -113,7 +113,6 @@ export default function RegisterPage() {
         <meta name="twitter:title" content="Crear cuenta | SEO Crawler" />
         <meta name="twitter:description" content="Regístrate en SEO Crawler y empieza a auditar sitios web en minutos. Detecta errores 404, páginas con noindex, redirecciones y metadatos incompletos." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell
         activeKey="register"

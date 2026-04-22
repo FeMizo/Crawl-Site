@@ -86,7 +86,6 @@ export default function ForgotPasswordPage() {
         <meta name="twitter:title" content="Recuperar acceso | SEO Crawler" />
         <meta name="twitter:description" content="Recupera el acceso a tu cuenta de SEO Crawler. Recibirás instrucciones por correo para restablecer tu contraseña de forma segura." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
 
       <AppShell

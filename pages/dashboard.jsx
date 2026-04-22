@@ -229,11 +229,6 @@ export default function DashboardPage() {
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/dashboard`} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@400;600;800&display=swap"
-        />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
       <Script src="/app.js" strategy="afterInteractive" onLoad={() => setAppReady(true)} />
       <AppShell

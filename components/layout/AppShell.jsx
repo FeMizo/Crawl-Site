@@ -3,6 +3,8 @@ import Sidebar from "./Sidebar";
 import TopHeader from "./TopHeader";
 import PageContainer from "./PageContainer";
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export default function AppShell({
   activeKey,
   title,
@@ -80,7 +82,7 @@ export default function AppShell({
           />
           <PageContainer className={contentClassName}>{children}</PageContainer>
           <footer className="app-footer">
-            <span className="app-footer-copy">© {new Date().getFullYear()} SEO Crawler</span>
+            <span className="app-footer-copy">© {CURRENT_YEAR} SEO Crawler</span>
             <nav className="app-footer-nav" aria-label="Footer">
               <a href="https://aionsite.com.mx/" target="_blank" rel="noopener noreferrer" className="footer-nav-link">Home</a>
               <span className="footer-nav-sep" aria-hidden="true">·</span>

@@ -380,7 +380,6 @@ export default function SubscriptionPage() {
         <meta name="twitter:title" content="Planes y precios | SEO Crawler" />
         <meta name="twitter:description" content="Elige el plan de SEO Crawler que mejor se adapte a tu equipo: desde auditorías básicas hasta rastreos ilimitados con exportación de reportes Excel." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
-        <link rel="stylesheet" href="/styles.css" />
       </Head>
       <AppShell
         activeKey="subscription"
