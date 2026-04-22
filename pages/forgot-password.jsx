@@ -17,8 +17,6 @@ export default function ForgotPasswordPage() {
   const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser } = useSessionUser();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -53,34 +51,21 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError(t("errPasswordMinLength"));
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError(t("errConfirmNoMatch"));
-      return;
-    }
-
     setSubmitting(true);
     try {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.error || "No se pudo actualizar la contrasena.");
+        throw new Error(data.error || "No se pudo procesar la solicitud.");
       }
-
-      setSuccess(t("forgotSuccess"));
+      setSuccess(t("forgotEmailSent"));
       setEmail("");
-      setPassword("");
-      setConfirmPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo actualizar la contrasena.");
+      setError(err instanceof Error ? err.message : "No se pudo procesar la solicitud.");
     } finally {
       setSubmitting(false);
     }
@@ -123,30 +108,15 @@ export default function ForgotPasswordPage() {
             <Input
               label={t("labelEmail")}
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-            <Input
-              label={t("labelNewPassword")}
-              type="password"
-              minLength={8}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-            <Input
-              label={t("labelConfirmPasswordShort")}
-              type="password"
-              minLength={8}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
               required
             />
             {error ? <p className="feedback error">{error}</p> : null}
             {success ? <p className="feedback ok">{success}</p> : null}
             <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting}>
-              {t("btnUpdatePassword")}
+              {t("btnSendResetLink")}
             </Button>
             <p className="foot-note">
               <Link href="/login">{t("linkBackToSignIn")}</Link>

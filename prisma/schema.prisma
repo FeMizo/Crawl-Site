@@ -40,9 +40,10 @@ model User {
   phoneCountry String?
   phoneNumber  String?
   passwordHash String
-  projects     Project[]
-  crawlRuns    CrawlRun[]
-  subscription Subscription?
+  projects           Project[]
+  crawlRuns          CrawlRun[]
+  subscription       Subscription?
+  passwordResetTokens PasswordResetToken[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -140,6 +141,18 @@ model CrawlRunDuplicate {
 
   @@index([runId, position])
   @@index([runId, urlCount])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model RoadmapPhase {

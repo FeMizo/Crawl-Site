@@ -49,7 +49,10 @@ export default function RegisterPage() {
         if (!active) return;
         if (!response.ok) return;
         const data = await response.json();
-        setSessionUser(data.user || null);
+        if (data.user) {
+          setSessionUser(data.user);
+          router.replace("/projects");
+        }
       })
       .catch(() => {});
     return () => {
@@ -152,7 +155,7 @@ export default function RegisterPage() {
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
             <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
             <Input label={t("labelName")} type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input label={t("labelEmail")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <PhoneField
               label={t("labelPhone")}
               country={phoneCountry}
@@ -164,6 +167,7 @@ export default function RegisterPage() {
             <Input
               label={t("labelPassword")}
               type="password"
+              autoComplete="new-password"
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}

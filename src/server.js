@@ -1,6 +1,8 @@
 ﻿const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 const { loadEnvConfig } = require("@next/env");
 loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
 const https = require("https");
@@ -40,6 +42,36 @@ const {
   getPublicError,
   logServerError,
 } = require("../lib/server-error-utils");
+
+function createMailTransporter() {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || "587", 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+}
+
+async function sendPasswordResetEmail(toEmail, resetUrl) {
+  const transporter = createMailTransporter();
+  if (!transporter) {
+    console.warn("[auth] SMTP not configured — reset link:", resetUrl);
+    return;
+  }
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await transporter.sendMail({
+    from,
+    to: toEmail,
+    subject: "Restablecer contraseña — SEO Crawler",
+    text: `Haz clic en el siguiente enlace para restablecer tu contraseña (válido por 1 hora):\n\n${resetUrl}\n\nSi no solicitaste esto, ignora este mensaje.`,
+    html: `<p>Haz clic en el siguiente enlace para restablecer tu contraseña (válido por 1 hora):</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Si no solicitaste esto, ignora este mensaje.</p>`,
+  });
+}
 
 function readDotEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
@@ -2939,27 +2971,32 @@ app.post("/api/auth/login", async (req, res) => {
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
-    const password = String(req.body?.password || "");
     if (!email) return res.status(400).json({ error: "Email requerido" });
     const emailError = validateEmail(email);
-    if (emailError) {
-      return res.status(400).json({ error: emailError });
-    }
-    if (!password)
-      return res.status(400).json({ error: "Nueva contrasena requerida" });
-    if (password.length < 8)
-      return res
-        .status(400)
-        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
+    if (emailError) return res.status(400).json({ error: emailError });
 
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (user) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash },
+      // Invalidate any existing unused tokens for this user
+      await prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
       });
+
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash, expiresAt },
+      });
+
+      const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+      const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+      await sendPasswordResetEmail(email, resetUrl);
     }
+
+    // Always respond the same way — don't reveal if email exists
     return res.json({ ok: true });
   } catch (error) {
     return handleApiError(
@@ -2974,29 +3011,29 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
-    const email = normalizeEmail(req.body?.email);
+    const rawToken = String(req.body?.token || "").trim();
     const newPassword = String(req.body?.password || "");
-    if (!email || !newPassword)
-      return res
-        .status(400)
-        .json({ error: "Email y nueva contrasena requeridos" });
-    const emailError = validateEmail(email);
-    if (emailError) {
-      return res.status(400).json({ error: emailError });
-    }
-    if (newPassword.length < 8)
-      return res
-        .status(400)
-        .json({ error: "La contrasena debe tener al menos 8 caracteres" });
 
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!rawToken) return res.status(400).json({ error: "Token requerido" });
+    if (!newPassword || newPassword.length < 8)
+      return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const record = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      select: { id: true, userId: true, expiresAt: true, usedAt: true },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: "El enlace no es válido o ha expirado" });
+    }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash },
-    });
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+      prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    ]);
+
     return res.json({ ok: true });
   } catch (error) {
     return handleApiError(
@@ -3004,7 +3041,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
       req,
       "auth/reset-password",
       error,
-      "No se pudo resetear la contrasena",
+      "No se pudo restablecer la contraseña",
     );
   }
 });

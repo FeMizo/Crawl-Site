@@ -45,7 +45,10 @@ export default function LoginPage() {
         if (!active) return;
         if (!response.ok) return;
         const data = await response.json();
-        setSessionUser(data.user || null);
+        if (data.user) {
+          setSessionUser(data.user);
+          router.replace(typeof router.query.next === "string" ? router.query.next : "/projects");
+        }
       })
       .catch(() => {});
     return () => {
@@ -140,10 +143,11 @@ export default function LoginPage() {
 
           <Card as="form" className="form-card" onSubmit={handleSubmit}>
             <Eyebrow icon={<Icon name="login" size={12} />}>{t("eyebrowCredentials")}</Eyebrow>
-            <Input label={t("labelEmail")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input
               label={t("labelPassword")}
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
