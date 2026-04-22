@@ -10,8 +10,8 @@ export default defineConfig({
   },
   datasource: {
     url:
-      process.env.DATABASE_URL_UNPOOLED ||
-      process.env.DATABASE_URL ||
+      process.env.dashboard_DATABASE_URL_UNPOOLED ||
+      process.env.dashboard_DATABASE_URL ||
       "",
   },
 });
