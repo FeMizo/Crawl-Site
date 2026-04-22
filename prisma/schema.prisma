@@ -40,10 +40,12 @@ model User {
   phoneCountry String?
   phoneNumber  String?
   passwordHash String
-  projects           Project[]
-  crawlRuns          CrawlRun[]
-  subscription       Subscription?
+  emailVerified       Boolean             @default(false)
+  projects            Project[]
+  crawlRuns           CrawlRun[]
+  subscription        Subscription?
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -144,6 +146,18 @@ model CrawlRunDuplicate {
 }
 
 model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
   tokenHash String   @unique

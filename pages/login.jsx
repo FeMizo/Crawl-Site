@@ -36,6 +36,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [unverified, setUnverified] = useState(false);
+  const [resendStatus, setResendStatus] = useState(""); // "" | "sending" | "sent" | "error"
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -56,9 +58,25 @@ export default function LoginPage() {
     };
   }, []);
 
+  const handleResend = async () => {
+    setResendStatus("sending");
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setResendStatus("sent");
+    } catch {
+      setResendStatus("error");
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+    setUnverified(false);
+    setResendStatus("");
     const emailError = validateEmail(email);
     if (emailError) {
       setError(emailError);
@@ -72,7 +90,14 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       const data = await readResponsePayload(response);
-      if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesion");
+      if (!response.ok) {
+        if (data.error === "EMAIL_NOT_VERIFIED") {
+          setUnverified(true);
+        } else {
+          throw new Error(data.error || "No se pudo iniciar sesion");
+        }
+        return;
+      }
       setSessionUser(data.user || null);
       router.push(typeof router.query.next === "string" ? router.query.next : "/projects");
     } catch (err) {
@@ -153,6 +178,20 @@ export default function LoginPage() {
               required
             />
             {error ? <p className="feedback error">{error}</p> : null}
+            {unverified ? (
+              <div className="unverified-box">
+                <p className="feedback error">{t("errEmailNotVerified")}</p>
+                {resendStatus === "sent" ? (
+                  <p className="feedback ok">{t("resendSuccess")}</p>
+                ) : resendStatus === "error" ? (
+                  <p className="feedback error">{t("resendError")}</p>
+                ) : (
+                  <button type="button" className="resend-btn" disabled={resendStatus === "sending"} onClick={handleResend}>
+                    {resendStatus === "sending" ? "…" : t("linkResendVerification")}
+                  </button>
+                )}
+              </div>
+            ) : null}
             <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="login" size={15} />}>
               {t("btnEnter")}
             </Button>
@@ -194,6 +233,33 @@ export default function LoginPage() {
           }
           .feedback.error {
             color: var(--error);
+          }
+          .feedback.ok {
+            color: var(--ok);
+          }
+          .unverified-box {
+            display: grid;
+            gap: 8px;
+          }
+          .resend-btn {
+            background: transparent;
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            color: var(--error);
+            font-family: "Manrope", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            cursor: pointer;
+            width: fit-content;
+            transition: background 0.15s ease;
+          }
+          .resend-btn:hover {
+            background: var(--edim);
+          }
+          .resend-btn:disabled {
+            opacity: 0.5;
+            cursor: default;
           }
           .foot-note :global(a) {
             color: var(--text);

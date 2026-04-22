@@ -57,6 +57,35 @@ function createMailTransporter() {
   });
 }
 
+async function createAndSendVerificationToken(userId, email) {
+  await prisma.emailVerificationToken.updateMany({
+    where: { userId, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  await prisma.emailVerificationToken.create({ data: { userId, tokenHash, expiresAt } });
+  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+  await sendVerificationEmail(email, `${appUrl}/verify-email?token=${rawToken}`);
+}
+
+async function sendVerificationEmail(toEmail, verifyUrl) {
+  const transporter = createMailTransporter();
+  if (!transporter) {
+    console.warn("[auth] SMTP not configured — verify link:", verifyUrl);
+    return;
+  }
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await transporter.sendMail({
+    from,
+    to: toEmail,
+    subject: "Verifica tu cuenta — SEO Crawler",
+    text: `Haz clic en el siguiente enlace para verificar tu cuenta (válido por 24 horas):\n\n${verifyUrl}\n\nSi no creaste esta cuenta, ignora este mensaje.`,
+    html: `<p>Haz clic en el siguiente enlace para verificar tu cuenta (válido por 24 horas):</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>Si no creaste esta cuenta, ignora este mensaje.</p>`,
+  });
+}
+
 async function sendPasswordResetEmail(toEmail, resetUrl) {
   const transporter = createMailTransporter();
   if (!transporter) {
@@ -2915,11 +2944,12 @@ app.post("/api/auth/register", async (req, res) => {
         phoneCountry: phone.country?.code || null,
         phoneNumber: phone.digits || null,
         passwordHash,
+        emailVerified: false,
       },
     });
 
-    writeAuthCookie(res, user);
-    return res.status(201).json({ user: sanitizeUser(user) });
+    await createAndSendVerificationToken(user.id, user.email);
+    return res.status(201).json({ pending: true });
   } catch (error) {
     return handleApiError(
       res,
@@ -2928,6 +2958,54 @@ app.post("/api/auth/register", async (req, res) => {
       error,
       "No se pudo registrar el usuario",
     );
+  }
+});
+
+app.get("/api/auth/verify-email", async (req, res) => {
+  try {
+    const rawToken = String(req.query.token || "").trim();
+    if (!rawToken) return res.status(400).json({ error: "Token requerido" });
+
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const record = await prisma.emailVerificationToken.findUnique({
+      where: { tokenHash },
+      select: { id: true, userId: true, expiresAt: true, usedAt: true },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: "El enlace no es válido o ha expirado" });
+    }
+
+    const user = await prisma.$transaction(async (tx) => {
+      await tx.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+      return tx.user.update({ where: { id: record.userId }, data: { emailVerified: true } });
+    });
+
+    writeAuthCookie(res, user);
+    return res.json({ user: sanitizeUser(user) });
+  } catch (error) {
+    return handleApiError(res, req, "auth/verify-email", error, "No se pudo verificar la cuenta");
+  }
+});
+
+app.post("/api/auth/resend-verification", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    if (!email) return res.status(400).json({ error: "Email requerido" });
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, emailVerified: true },
+    });
+
+    if (user && !user.emailVerified) {
+      await createAndSendVerificationToken(user.id, user.email);
+    }
+
+    // Always respond the same — don't reveal account existence
+    return res.json({ ok: true });
+  } catch (error) {
+    return handleApiError(res, req, "auth/resend-verification", error, "No se pudo reenviar");
   }
 });
 
@@ -2953,6 +3031,10 @@ app.post("/api/auth/login", async (req, res) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: "Credenciales invalidas" });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: "EMAIL_NOT_VERIFIED" });
     }
 
     writeAuthCookie(res, user);

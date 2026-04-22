@@ -40,6 +40,7 @@ export default function RegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -84,6 +85,10 @@ export default function RegisterPage() {
       });
       const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo registrar");
+      if (data.pending) {
+        setPending(true);
+        return;
+      }
       setSessionUser(data.user || null);
       router.push("/projects");
     } catch (err) {
@@ -152,35 +157,47 @@ export default function RegisterPage() {
             />
           </Card>
 
-          <Card as="form" className="form-card" onSubmit={handleSubmit}>
-            <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
-            <Input label={t("labelName")} type="text" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <PhoneField
-              label={t("labelPhone")}
-              country={phoneCountry}
-              phone={phoneNumber}
-              onCountryChange={setPhoneCountry}
-              onPhoneChange={setPhoneNumber}
-              hint={t("hintPhoneSelect")}
-            />
-            <Input
-              label={t("labelPassword")}
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            {error ? <p className="feedback error">{error}</p> : null}
-            <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="plus" size={15} />}>
-              {t("btnCreateAccount")}
-            </Button>
-            <p className="foot-note">
-              {t("registerHasAccount")} <Link href="/login">{t("linkSignIn")}</Link>
-            </p>
-          </Card>
+          {pending ? (
+            <Card className="form-card">
+              <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
+              <h2>{t("registerPendingTitle")}</h2>
+              <p>{t("registerPendingDesc")}</p>
+              <p className="note">{t("registerPendingNote")}</p>
+              <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
+                {t("btnBackToLogin")}
+              </Button>
+            </Card>
+          ) : (
+            <Card as="form" className="form-card" onSubmit={handleSubmit}>
+              <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
+              <Input label={t("labelName")} type="text" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <PhoneField
+                label={t("labelPhone")}
+                country={phoneCountry}
+                phone={phoneNumber}
+                onCountryChange={setPhoneCountry}
+                onPhoneChange={setPhoneNumber}
+                hint={t("hintPhoneSelect")}
+              />
+              <Input
+                label={t("labelPassword")}
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              {error ? <p className="feedback error">{error}</p> : null}
+              <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="plus" size={15} />}>
+                {t("btnCreateAccount")}
+              </Button>
+              <p className="foot-note">
+                {t("registerHasAccount")} <Link href="/login">{t("linkSignIn")}</Link>
+              </p>
+            </Card>
+          )}
         </div>
         <style jsx>{`
           .auth-grid {
@@ -212,6 +229,10 @@ export default function RegisterPage() {
           }
           .feedback.error {
             color: var(--error);
+          }
+          .note {
+            font-size: 13px;
+            color: var(--muted);
           }
           .foot-note :global(a) {
             color: var(--text);
