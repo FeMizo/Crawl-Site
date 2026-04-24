@@ -17,8 +17,11 @@ export default function AvisoPrivacidadPage() {
         />
         <link rel="canonical" href={`${APP_URL}/aviso-privacidad`} />
         <meta name="robots" content="index, follow" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${APP_URL}/aviso-privacidad`} />
+        <meta property="og:title" content="Aviso de Privacidad | SEO Crawler" />
+        <meta property="og:description" content="Aviso de privacidad de SEO Crawler. Conoce cómo tratamos tus datos personales conforme a la LFPDPPP." />
+        <meta property="og:image" content={`${APP_URL}/assets/og-image.png`} />
       </Head>
 
       <AppShell

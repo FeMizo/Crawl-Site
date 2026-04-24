@@ -2,6 +2,19 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+
+/** Prevent open-redirect: only allow relative paths on the same origin. */
+function safeRedirect(next, fallback = "/projects") {
+  if (typeof next !== "string" || !next) return fallback;
+  try {
+    // Absolute URL → reject (external site)
+    const parsed = new URL(next, "http://x");
+    if (parsed.origin !== "http://x") return fallback;
+  } catch {
+    return fallback;
+  }
+  return next.startsWith("/") ? next : fallback;
+}
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -49,7 +62,7 @@ export default function LoginPage() {
         const data = await response.json();
         if (data.user) {
           setSessionUser(data.user);
-          router.replace(typeof router.query.next === "string" ? router.query.next : "/projects");
+          router.replace(safeRedirect(router.query.next));
         }
       })
       .catch(() => {});
@@ -99,7 +112,7 @@ export default function LoginPage() {
         return;
       }
       setSessionUser(data.user || null);
-      router.push(typeof router.query.next === "string" ? router.query.next : "/projects");
+      router.push(safeRedirect(router.query.next));
     } catch (err) {
       setError(err.message || "No se pudo iniciar sesion");
     } finally {
@@ -111,6 +124,7 @@ export default function LoginPage() {
     <>
       <Head>
         <title>Iniciar sesion | SEO Crawler</title>
+        <meta name="robots" content="noindex, nofollow" />
         <meta name="description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/login`} />
         <meta property="og:type" content="website" />
@@ -122,6 +136,8 @@ export default function LoginPage() {
         <meta name="twitter:title" content="Iniciar sesion | SEO Crawler" />
         <meta name="twitter:description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
       </Head>
       <AppShell
         activeKey="login"

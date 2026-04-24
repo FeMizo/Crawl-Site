@@ -348,6 +348,17 @@ const crawlLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiter for auth endpoints (login, register, forgot-password, resend-verification)
+// Limits brute-force and credential stuffing attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,                   // max 20 attempts per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos. Intenta de nuevo en 15 minutos." },
+  skipSuccessfulRequests: true, // only count failed requests
+});
+
 function getAuthCookieOptions() {
   return {
     httpOnly: true,
@@ -2901,7 +2912,7 @@ async function checkExternalLink(url) {
   return broken;
 }
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authLimiter, async (req, res) => {
   try {
     const name = normalizeDisplayName(req.body?.name);
     const email = normalizeEmail(req.body?.email);
@@ -2988,7 +2999,7 @@ app.get("/api/auth/verify-email", async (req, res) => {
   }
 });
 
-app.post("/api/auth/resend-verification", async (req, res) => {
+app.post("/api/auth/resend-verification", authLimiter, async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
     if (!email) return res.status(400).json({ error: "Email requerido" });
@@ -3009,7 +3020,7 @@ app.post("/api/auth/resend-verification", async (req, res) => {
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authLimiter, async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
@@ -3050,7 +3061,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-app.post("/api/auth/forgot-password", async (req, res) => {
+app.post("/api/auth/forgot-password", authLimiter, async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
     if (!email) return res.status(400).json({ error: "Email requerido" });

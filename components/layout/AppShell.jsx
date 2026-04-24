@@ -88,6 +88,8 @@ export default function AppShell({
               <span className="footer-nav-sep" aria-hidden="true">·</span>
               <a href="https://aionsite.com.mx/blog" target="_blank" rel="noopener noreferrer" className="footer-nav-link">Blog</a>
               <span className="footer-nav-sep" aria-hidden="true">·</span>
+              <a href="/precios" className="footer-nav-link">Precios</a>
+              <span className="footer-nav-sep" aria-hidden="true">·</span>
               <a href="/aviso-privacidad" className="footer-nav-link">Aviso de privacidad</a>
             </nav>
             <div className="app-footer-social">

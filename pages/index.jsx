@@ -161,6 +161,7 @@ export default function HomePage() {
         <meta property="og:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
         <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@aionsite" />
         <meta name="twitter:title" content="Auditor SEO Online | SEO Crawler" />
         <meta name="twitter:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />

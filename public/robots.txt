@@ -7,5 +7,11 @@ Disallow: /projects
 Disallow: /history
 Disallow: /settings
 Disallow: /admin/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /subscription
 
 Sitemap: https://crawlsite.app/sitemap.xml

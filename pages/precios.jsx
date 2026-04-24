@@ -110,6 +110,43 @@ const SCHEMA = {
         "description": `Hasta ${fmt(p.maxProjects)} proyecto(s), ${fmt(p.maxPagesPerCrawl)} páginas/rastreo, ${fmt(p.maxCrawlsPerMonth)} rastreos/mes.`,
       })),
     },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Puedo cancelar en cualquier momento?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sí. La cancelación es inmediata desde el panel de facturación. Tu plan permanece activo hasta el fin del periodo facturado.",
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "¿Qué es una \"página por rastreo\"?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Es el límite de URLs que el crawler analiza en cada ejecución. Si tu sitio tiene más páginas, puedes hacer múltiples rastreos por secciones.",
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "¿Incluye IVA el precio?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Los precios mostrados no incluyen IVA. El monto final se calcula al momento del pago según tu régimen fiscal.",
+          },
+        },
+        {
+          "@type": "Question",
+          "name": "¿Qué incluye el Reporte Excel?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Un archivo .xlsx con todas las URLs rastreadas, su código de estado, issues detectados y metadatos, listo para compartir o archivar.",
+          },
+        },
+      ],
+    },
   ],
 };
 
@@ -282,6 +319,7 @@ export default function PreciosPage() {
         />
         <meta property="og:image" content={`${APP_URL}/assets/og-image.png`} />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@aionsite" />
         <meta name="twitter:title" content="Planes y Precios | SEO Crawler" />
         <meta
           name="twitter:description"
