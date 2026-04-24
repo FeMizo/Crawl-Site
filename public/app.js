@@ -1572,11 +1572,12 @@ function buildSeoOptions(page) {
     ? clampWord(existingDesc, 110)
     : "";
 
+  const cleanSep = (s) => s.replace(/[\s|·—]+$/, "").trim();
   if (lang === "en") {
     // Title option 1: [Topic] · [Brand]  — clean, professional, branded
-    const t1 = composeWithin([titleBase, "·", brand], 60);
+    const t1 = cleanSep(composeWithin([titleBase, "·", brand], 60));
     // Title option 2: [Topic] — [Year] | [Brand]  — date-stamped, useful for evergreen pages
-    const t2 = composeWithin([titleBase, `(${year})`, "|", brand], 60);
+    const t2 = cleanSep(composeWithin([titleBase, `(${year})`, "|", brand], 60));
 
     // Description option 1: sentence built from the existing description or topic + closing CTA
     const d1Seed = descSeed
@@ -1597,9 +1598,9 @@ function buildSeoOptions(page) {
 
   // ES
   // Title option 1: [Tema] · [Marca]  — limpio, profesional
-  const t1 = composeWithin([titleBase, "·", brand], 60);
+  const t1 = cleanSep(composeWithin([titleBase, "·", brand], 60));
   // Title option 2: [Tema] (año) | [Marca]  — útil para contenido evergreen o actualizado
-  const t2 = composeWithin([titleBase, `(${year})`, "|", brand], 60);
+  const t2 = cleanSep(composeWithin([titleBase, `(${year})`, "|", brand], 60));
 
   // Description option 1: parte del contenido existente + CTA de cierre
   const d1Seed = descSeed
@@ -1629,7 +1630,7 @@ function showPageSEO(p) {
   const dl = p.descLen || 0;
   const opts = buildSeoOptions(p);
 
-  const sugHtml = (sugs) =>
+  const sugHtml = (sugs, score) =>
     sugs.length
       ? sugs
           .map(
@@ -1637,7 +1638,9 @@ function showPageSEO(p) {
               `<div class="seo-sug-item warn">💡 ${esc(lang === "en" ? s.en : s.es)}</div>`,
           )
           .join("")
-      : `<div class="seo-sug-item ok">✅ ${lang === "en" ? "Looks good!" : "Se ve bien"}</div>`;
+      : score > 0
+        ? `<div class="seo-sug-item ok">✅ ${lang === "en" ? "Looks good!" : "Se ve bien"}</div>`
+        : `<div class="seo-sug-item warn">💡 ${lang === "en" ? "No data available." : "Sin datos disponibles."}</div>`;
 
   const optionsHtml = (label, items) => `
       <div style="margin-top:8px;">
@@ -1656,13 +1659,13 @@ function showPageSEO(p) {
     <div style="margin-top:8px;">
       <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">${T("title")} <span style="color:var(--text2);">(${tl} ${T("chars")})</span></div>
       <div style="font-size:10px;color:var(--text2);background:var(--bg3);padding:6px 8px;border-radius:4px;margin-bottom:4px;word-break:break-word;">${esc(p.title || "")}</div>
-      ${sugHtml(tSugs)}
+      ${sugHtml(tSugs, tScore)}
       ${optionsHtml(T("seoOptionsTitle"), opts.title)}
     </div>
     <div style="margin-top:10px;">
       <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">${T("description")} <span style="color:var(--text2);">(${dl} ${T("chars")})</span></div>
       <div style="font-size:10px;color:var(--text2);background:var(--bg3);padding:6px 8px;border-radius:4px;margin-bottom:4px;word-break:break-word;">${esc(p.description || "")}</div>
-      ${sugHtml(dSugs)}
+      ${sugHtml(dSugs, dScore)}
       ${optionsHtml(T("seoOptionsDesc"), opts.desc)}
     </div>
     <div style="margin-top:10px;">

@@ -181,7 +181,7 @@ export default function AppShell({
           position: sticky;
           top: 0;
           z-index: 40;
-          padding: var(--space-4) 0;
+          padding: var(--space-4) var(--space-5);
           margin: 0 0 var(--space-4);
           border-bottom: 1px solid var(--border);
           display: flex;
@@ -190,9 +190,6 @@ export default function AppShell({
           align-items: flex-start;
           flex-wrap: wrap;
           min-width: 0;
-          background: color-mix(in srgb, var(--bg) 82%, transparent);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
         }
         .header-copy {
           min-width: 0;
@@ -371,7 +368,7 @@ export default function AppShell({
           overflow-wrap: anywhere;
         }
         .user-plan {
-          font-size: 12px;
+          font-size: 14px;
           color: var(--muted);
         }
         .ui-badge {
@@ -535,7 +532,7 @@ export default function AppShell({
         .ui-btn-sm {
           min-height: 34px;
           padding: 0 12px;
-          font-size: 12px;
+          font-size: 14px;
         }
         .ui-btn-md {
           min-height: 44px;
@@ -552,7 +549,7 @@ export default function AppShell({
           font-weight: 700;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          font-size: 13px;
+          font-size: 15px;
         }
         .ui-btn-outline {
           background: transparent;
@@ -626,13 +623,13 @@ export default function AppShell({
         }
         .ui-field-label {
           color: var(--text2);
-          font-size: 13px;
+          font-size: 15px;
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
         .ui-field-hint {
           color: var(--muted);
-          font-size: 12px;
+          font-size: 14px;
         }
         .ui-input,
         .ui-select {
@@ -703,7 +700,7 @@ export default function AppShell({
         }
         .ui-stat-hint {
           color: var(--text2);
-          font-size: 13px;
+          font-size: 15px;
           overflow-wrap: anywhere;
         }
         @media (max-width: 980px) {

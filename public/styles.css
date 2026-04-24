@@ -179,7 +179,7 @@ header.is-scrolled {
 }
 
 .logo-sub {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 4px;
   text-transform: uppercase;
@@ -199,7 +199,7 @@ header.is-scrolled {
   border-radius: 5px;
   color: var(--text2);
   font-family: "Manrope", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   padding: 5px 10px;
   cursor: pointer;
   transition: all 0.2s;
@@ -228,7 +228,7 @@ header.is-scrolled {
 }
 
 .ilbl {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 4px;
   text-transform: uppercase;
   color: var(--muted);
@@ -236,7 +236,7 @@ header.is-scrolled {
 }
 
 .input-help {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   margin-bottom: 10px;
   max-width: 820px;
@@ -257,7 +257,7 @@ header.is-scrolled {
   border-radius: 6px;
   color: var(--text);
   font-family: "Manrope", sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   padding: 10px 14px;
   outline: none;
   transition: border-color 0.2s;
@@ -279,7 +279,7 @@ header.is-scrolled {
   border-radius: 6px;
   color: var(--text);
   font-family: "Manrope", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   padding: 10px 9px;
   outline: none;
   cursor: pointer;
@@ -312,7 +312,7 @@ header.is-scrolled {
 }
 
 .adv-tgl {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 2px;
   cursor: pointer;
@@ -341,7 +341,7 @@ header.is-scrolled {
 }
 
 .al {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -360,7 +360,7 @@ header.is-scrolled {
   border-right: 1px solid var(--border2);
   color: var(--muted);
   font-family: "Manrope", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   padding: 6px 12px;
   cursor: pointer;
   font-weight: 700;
@@ -380,7 +380,7 @@ header.is-scrolled {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text2);
   cursor: pointer;
 }
@@ -449,7 +449,7 @@ header.is-scrolled {
   align-items: center;
   gap: 9px;
   padding: 8px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
 }
 
@@ -607,7 +607,7 @@ header.is-scrolled {
 }
 
 .sm {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -622,7 +622,7 @@ header.is-scrolled {
 }
 
 .ch {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--muted);
@@ -652,7 +652,7 @@ header.is-scrolled {
 }
 
 .blbl {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   text-align: center;
   white-space: nowrap;
@@ -662,7 +662,7 @@ header.is-scrolled {
 }
 
 .bval {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text2);
 }
@@ -687,7 +687,7 @@ header.is-scrolled {
 }
 
 .dlt p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 2px;
 }
@@ -736,7 +736,7 @@ header.is-scrolled {
   padding: 7px 14px;
   cursor: pointer;
   font-family: "Manrope", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -839,7 +839,7 @@ header.is-scrolled {
 .sidebar-head-title {
   font-family: "Syne", sans-serif;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text);
 }
 
@@ -869,7 +869,7 @@ header.is-scrolled {
   align-items: baseline;
   padding: 5px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .seo-metric:last-child {
@@ -932,7 +932,7 @@ header.is-scrolled {
 }
 
 .ring-label {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   text-align: center;
 }
@@ -940,13 +940,13 @@ header.is-scrolled {
 .ring-num {
   font-family: "Syne", sans-serif;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 14px;
   fill: var(--text);
 }
 
 /* Heading tree */
 .htree {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -983,7 +983,7 @@ header.is-scrolled {
   background: var(--bg3);
   color: var(--text2);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 14px;
   padding: 3px 8px;
   cursor: pointer;
 }
@@ -1000,7 +1000,7 @@ header.is-scrolled {
   border-radius: 6px;
   padding: 8px 10px;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text2);
   line-height: 1.5;
 }
@@ -1027,7 +1027,7 @@ header.is-scrolled {
   gap: 8px;
   padding: 5px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .host-row:last-child {
@@ -1050,7 +1050,7 @@ header.is-scrolled {
   display: inline-block;
   padding: 2px 7px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   border: 1px solid var(--accent);
   color: var(--accent);
@@ -1123,14 +1123,14 @@ header.is-scrolled {
 }
 
 .func-k {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--orange);
   font-weight: 700;
   margin-bottom: 4px;
 }
 
 .func-v {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text2);
   word-break: break-word;
   margin-bottom: 2px;
@@ -1155,7 +1155,7 @@ header.is-scrolled {
   border-bottom: 3px solid transparent;
   color: var(--muted);
   font-family: "Manrope", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   padding: 7px 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -1181,7 +1181,7 @@ header.is-scrolled {
   background: var(--bg4);
   border-radius: 10px;
   padding: 1px 6px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text2);
   min-width: 18px;
   text-align: center;
@@ -1214,7 +1214,7 @@ header.is-scrolled {
 }
 
 .sfl {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -1230,7 +1230,7 @@ header.is-scrolled {
   background: transparent;
   color: var(--text2);
   font-family: "Manrope", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
@@ -1311,7 +1311,7 @@ thead th[data-tooltip]:hover::after {
 .table-page-size {
   min-height: 34px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .select-size-module {
@@ -1374,14 +1374,14 @@ thead th[data-tooltip]:hover::after {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 thead th {
   background: var(--bg3);
   padding: 8px 10px;
   text-align: left;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--muted);
@@ -1443,7 +1443,7 @@ td {
   display: inline-block;
   padding: 2px 7px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   border: 1.5px solid transparent;
   white-space: nowrap;
@@ -1483,7 +1483,7 @@ td {
 .itag {
   padding: 2px 7px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   border: 1px solid transparent;
 }
@@ -1552,7 +1552,7 @@ td {
 }
 
 .empty p {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 3px;
   text-transform: uppercase;
 }
@@ -1566,7 +1566,7 @@ td {
 }
 
 .dup-t {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text);
   margin-bottom: 6px;
   word-break: break-all;
@@ -1574,7 +1574,7 @@ td {
 
 .dup-urls a {
   display: block;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   text-decoration: none;
   padding: 2px 0;
@@ -1592,7 +1592,7 @@ td {
 }
 
 .ri {
-  font-size: 12px;
+  font-size: 14px;
   font-family: "Manrope", sans-serif;
   padding: 5px 10px;
   border-radius: 4px;
@@ -1619,7 +1619,7 @@ td {
   border-radius: 5px;
   padding: 10px;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 14px;
   font-family: "Manrope", sans-serif;
   color: var(--muted);
   white-space: pre-wrap;
@@ -1646,7 +1646,7 @@ td {
 }
 
 .sdc-head {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--muted);
@@ -1674,7 +1674,7 @@ td {
 }
 
 .seo-sug-item {
-  font-size: 12px;
+  font-size: 14px;
   padding: 5px 8px;
   border-radius: 4px;
   margin-bottom: 5px;
@@ -1781,7 +1781,7 @@ td {
 footer {
   border-top: 1px solid var(--border);
   padding: 13px 0 24px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -1906,7 +1906,7 @@ body {
   margin-top: 6px;
   letter-spacing: 1px;
   text-transform: none;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .global-nav {
@@ -1963,7 +1963,7 @@ body {
 
 .global-user-plan {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .app {
@@ -2037,7 +2037,7 @@ header.is-scrolled {
 
 .ilbl {
   letter-spacing: 1px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text2);
   margin-bottom: 12px;
 }
@@ -2072,7 +2072,7 @@ header.is-scrolled {
 }
 
 .adv-tgl {
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: 0.3px;
 }
 
@@ -2132,7 +2132,7 @@ header.is-scrolled {
 .sm {
   margin-top: 6px;
   letter-spacing: 0.4px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .cw,
@@ -2163,7 +2163,7 @@ header.is-scrolled {
 .scope-btn {
   border-radius: 8px;
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .workspace-row {
@@ -2189,7 +2189,7 @@ header.is-scrolled {
 }
 
 .sidebar-head-title {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .sidebar-body,
@@ -2206,7 +2206,7 @@ header.is-scrolled {
 .dup-t,
 .dup-urls a,
 .rbox {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .content-area {
@@ -2226,7 +2226,7 @@ header.is-scrolled {
   border-radius: 8px;
   border-bottom: none;
   margin-bottom: 0;
-  font-size: 13px;
+  font-size: 15px;
   padding: 8px 12px;
 }
 
@@ -2254,13 +2254,13 @@ header.is-scrolled {
 thead th {
   background: rgba(21, 38, 69, 0.95);
   padding: 10px;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 1px;
 }
 
 td {
   padding: 10px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 tbody tr {
@@ -2281,7 +2281,7 @@ tbody tr:hover {
 .chk,
 .al,
 .sfl {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 footer {
