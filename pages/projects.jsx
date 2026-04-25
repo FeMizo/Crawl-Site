@@ -169,6 +169,10 @@ export default function ProjectsPage() {
               <Eyebrow>{t("noProjectsEyebrow")}</Eyebrow>
               <h2>{t("noProjectsTitle")}</h2>
               <p>{t("noProjectsDesc")}</p>
+              <p className="empty-hint">{t("noProjectsEmptyHint")}</p>
+              <Button href="/" variant="solid" tone="primary" size="lg" iconLeft={<Icon name="plus" size={15} />}>
+                {t("noProjectsCtaFirst")}
+              </Button>
             </Card>
           ) : null}
         </section>
@@ -299,8 +303,13 @@ export default function ProjectsPage() {
             overflow-wrap: anywhere;
           }
           .empty {
-            align-content: center;
+            align-content: start;
             min-height: 220px;
+            gap: 12px;
+          }
+          .empty-hint {
+            font-size: 13px;
+            color: var(--muted);
           }
           @media (max-width: 700px) {
             .card-top,

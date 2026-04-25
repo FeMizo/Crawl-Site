@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import TopHeader from "./TopHeader";
 import PageContainer from "./PageContainer";
+import { tUi } from "../../lib/ui-language";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -84,13 +85,15 @@ export default function AppShell({
           <footer className="app-footer">
             <span className="app-footer-copy">© {CURRENT_YEAR} SEO Crawler</span>
             <nav className="app-footer-nav" aria-label="Footer">
-              <a href="https://aionsite.com.mx/" target="_blank" rel="noopener noreferrer" className="footer-nav-link">Home</a>
+              <a href="https://aionsite.com.mx/" target="_blank" rel="noopener noreferrer" className="footer-nav-link">{tUi(lang, "footerHome")}</a>
               <span className="footer-nav-sep" aria-hidden="true">·</span>
-              <a href="https://aionsite.com.mx/blog" target="_blank" rel="noopener noreferrer" className="footer-nav-link">Blog</a>
+              <a href="https://aionsite.com.mx/blog" target="_blank" rel="noopener noreferrer" className="footer-nav-link">{tUi(lang, "footerBlog")}</a>
               <span className="footer-nav-sep" aria-hidden="true">·</span>
-              <a href="/precios" className="footer-nav-link">Precios</a>
+              <a href="/precios" className="footer-nav-link">{tUi(lang, "footerPricing")}</a>
               <span className="footer-nav-sep" aria-hidden="true">·</span>
-              <a href="/aviso-privacidad" className="footer-nav-link">Aviso de privacidad</a>
+              <a href="/aviso-privacidad" className="footer-nav-link">{tUi(lang, "footerPrivacy")}</a>
+              <span className="footer-nav-sep" aria-hidden="true">·</span>
+              <a href="/contacto" className="footer-nav-link">{tUi(lang, "footerContact")}</a>
             </nav>
             <div className="app-footer-social">
               <a

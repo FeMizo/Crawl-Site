@@ -17,6 +17,7 @@ export default function VerifyEmailPage() {
   const { setSessionUser } = useSessionUser();
   const [status, setStatus] = useState("loading"); // "loading" | "success" | "error"
   const [errorMsg, setErrorMsg] = useState("");
+  const [verifiedUser, setVerifiedUser] = useState(null);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -35,8 +36,8 @@ export default function VerifyEmailPage() {
           throw new Error(data.error || t("verifyInvalid"));
         }
         setSessionUser(data.user || null);
+        setVerifiedUser(data.user || null);
         setStatus("success");
-        setTimeout(() => router.replace("/projects"), 2000);
       })
       .catch((err) => {
         setErrorMsg(err instanceof Error ? err.message : t("verifyInvalid"));
@@ -67,7 +68,42 @@ export default function VerifyEmailPage() {
             ) : null}
 
             {status === "success" ? (
-              <p className="feedback ok">{t("verifySuccess")}</p>
+              <div className="welcome-block">
+                <div className="welcome-check" aria-hidden="true">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                {verifiedUser?.name ? (
+                  <p className="welcome-name">
+                    {lang === "en" ? `Welcome, ${verifiedUser.name}!` : `¡Bienvenido/a, ${verifiedUser.name}!`}
+                  </p>
+                ) : null}
+                <p className="feedback ok">{t("verifySuccess")}</p>
+                <ol className="onboard-steps">
+                  <li className="onboard-step done">
+                    <span className="step-dot done-dot" aria-hidden="true">✓</span>
+                    {t("verifyStep1Done")}
+                  </li>
+                  <li className="onboard-step done">
+                    <span className="step-dot done-dot" aria-hidden="true">✓</span>
+                    {t("verifyStep2Done")}
+                  </li>
+                  <li className="onboard-step next">
+                    <span className="step-dot next-dot" aria-hidden="true">→</span>
+                    {t("verifyStep3Prompt")}
+                  </li>
+                </ol>
+                <Button
+                  href="/"
+                  variant="solid"
+                  tone="primary"
+                  size="lg"
+                  iconLeft={<Icon name="plus" size={15} />}
+                >
+                  {t("verifyWelcomeBtn")}
+                </Button>
+              </div>
             ) : null}
 
             {status === "error" ? (
@@ -109,6 +145,64 @@ export default function VerifyEmailPage() {
           }
           .feedback.muted {
             color: var(--muted);
+          }
+          .welcome-block {
+            display: grid;
+            gap: 16px;
+          }
+          .welcome-check {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--adim);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: var(--accent);
+            display: grid;
+            place-items: center;
+          }
+          .welcome-name {
+            margin: 0;
+            font-family: "Syne", "Manrope", sans-serif;
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: var(--text);
+          }
+          .onboard-steps {
+            list-style: none;
+            margin: 4px 0 0;
+            padding: 0;
+            display: grid;
+            gap: 8px;
+          }
+          .onboard-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text2);
+          }
+          .onboard-step.next {
+            color: var(--text);
+            font-weight: 700;
+          }
+          .step-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            flex: 0 0 auto;
+          }
+          .done-dot {
+            background: var(--adim);
+            color: var(--accent);
+            border: 1px solid rgba(0, 255, 136, 0.24);
+          }
+          .next-dot {
+            background: rgba(77, 141, 255, 0.14);
+            color: #77abff;
+            border: 1px solid rgba(77, 141, 255, 0.4);
           }
         `}</style>
       </AppShell>

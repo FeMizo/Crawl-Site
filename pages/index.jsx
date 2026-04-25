@@ -5,8 +5,10 @@ import AppShell from "../components/layout/AppShell";
 import LandingSectionRenderer from "../components/landing/LandingSectionRenderer";
 import Button from "../components/ui/Button";
 import Icon from "../components/ui/Icon";
+import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
 import { getLandingSections } from "../lib/landing-sections";
+import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app";
 
@@ -77,6 +79,8 @@ function projectNameFromUrl(url) {
 
 export default function HomePage() {
   const router = useRouter();
+  const lang = useUiLanguage();
+  const t = (key) => tUi(lang, key);
   const { sessionUser, setSessionUser } = useSessionUser();
   const [url, setUrl] = useState("");
   const [loadingUser, setLoadingUser] = useState(!sessionUser);
@@ -204,15 +208,14 @@ export default function HomePage() {
           )
         }
         aside={
-          <div className="landing-aside">
-            <div className="sidebar-kicker with-icon">
-              <Icon name="roadmap" size={12} />
-              Flujo recomendado
-            </div>
-            <p>1. Captura la URL principal.</p>
-            <p>2. Crea el proyecto.</p>
-            <p>3. Revisa y prioriza hallazgos SEO.</p>
-          </div>
+          <QuickStepsModule
+            title={t("landingAsideTitle")}
+            steps={[
+              { title: t("landingAsideStep1Title"), detail: t("landingAsideStep1Detail") },
+              { title: t("landingAsideStep2Title"), detail: t("landingAsideStep2Detail") },
+              { title: t("landingAsideStep3Title"), detail: t("landingAsideStep3Detail") },
+            ]}
+          />
         }
       >
         <div className="landing-sections">
@@ -233,14 +236,6 @@ export default function HomePage() {
         {error ? <p className="feedback error">{error}</p> : null}
 
         <style jsx>{`
-          .landing-aside {
-            display: grid;
-            gap: 8px;
-          }
-          .landing-aside p {
-            margin: 0;
-            color: var(--text2);
-          }
           .landing-sections {
             display: grid;
             gap: 16px;

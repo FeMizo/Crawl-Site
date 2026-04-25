@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría SEO Crawler — Resumen Ejecutivo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #080808 0%, #1c1c1c 100%);
+            color: #f2f2f2;
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid #00ff88;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: #00ff88;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            color: #c0c0c0;
+        }
+
+        .meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #585858;
+            flex-wrap: wrap;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background: #111;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: #00ff88;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            min-width: 40px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .card-subtitle {
+            font-size: 0.85rem;
+            color: #585858;
+        }
+
+        .card-content {
+            font-size: 0.95rem;
+            color: #c0c0c0;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+
+        .status.done {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+
+        .status.pending {
+            background: rgba(255, 215, 64, 0.2);
+            color: #ffd740;
+            border: 1px solid #ffd740;
+        }
+
+        .status.issue {
+            background: rgba(255, 82, 82, 0.2);
+            color: #ff5252;
+            border: 1px solid #ff5252;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #00ff88;
+            color: #00ff88;
+        }
+
+        .priority-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .priority-box {
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .priority-box.critical {
+            background: rgba(255, 82, 82, 0.1);
+            border-color: #ff5252;
+        }
+
+        .priority-box.high {
+            background: rgba(255, 215, 64, 0.1);
+            border-color: #ffd740;
+        }
+
+        .priority-box.medium {
+            background: rgba(77, 141, 255, 0.1);
+            border-color: #4d8dff;
+        }
+
+        .priority-box.low {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: #00ff88;
+        }
+
+        .priority-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .priority-box.critical .priority-label {
+            color: #ff5252;
+        }
+
+        .priority-box.high .priority-label {
+            color: #ffd740;
+        }
+
+        .priority-box.medium .priority-label {
+            color: #4d8dff;
+        }
+
+        .priority-box.low .priority-label {
+            color: #00ff88;
+        }
+
+        ul {
+            padding-left: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #c0c0c0;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #00ff88;
+            font-size: 1.1rem;
+        }
+
+        .checklist {
+            margin: 1.5rem 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #1c1c1c;
+            border-radius: 4px;
+            border-left: 3px solid #2a2a2a;
+        }
+
+        .checklist-item.done {
+            border-left-color: #00ff88;
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .checklist-item.pending {
+            border-left-color: #ffd740;
+            background: rgba(255, 215, 64, 0.05);
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #2a2a2a;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .checklist-item.done .checkbox {
+            background: #00ff88;
+            border-color: #00ff88;
+        }
+
+        .checklist-item.done .checkbox::after {
+            content: "✓";
+            color: #080808;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .checklist-item.pending .checkbox {
+            border-color: #ffd740;
+        }
+
+        .cta-section {
+            background: #1c1c1c;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .cta-section h3 {
+            margin-bottom: 1rem;
+            color: #00ff88;
+        }
+
+        button {
+            background: #00ff88;
+            color: #080808;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #2a2a2a;
+            color: #585858;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .priority-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🔍 Auditoría SEO Crawler</h1>
+            <p>Análisis Completo de Mejoras — Abril 2026</p>
+            <div class="meta">
+                <span>📅 24 de abril de 2026</span>
+                <span>📊 11 categorías analizadas</span>
+                <span>✅ 12 mejoras implementadas</span>
+                <span>⏳ 9 mejoras recomendadas</span>
+            </div>
+        </header>
+
+        <!-- Overview Cards -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🔒</div>
+                    <div>
+                        <div class="card-title">Seguridad</div>
+                        <div class="card-subtitle">Protección de datos</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    Rate limiting en auth, Open redirect prevention, Security headers HTTP
+                    <div class="status done">✓ Implementado</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🌐</div>
+                    <div>
+                        <div class="card-title">SEO</div>
+                        <div class="card-subtitle">Visibilidad en buscadores</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    Schema JSON-LD, OG tags, robots.txt optimizado, noindex en auth
+                    <div class="status done">✓ Implementado</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">👥</div>
+                    <div>
+                        <div class="card-title">Flujo UX</div>
+                        <div class="card-subtitle">Experiencia del usuario</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    Autenticación completa, role-based access, email verification
+                    <div class="status pending">⏳ Mejoras pendientes</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📱</div>
+                    <div>
+                        <div class="card-title">Layout</div>
+                        <div class="card-subtitle">Diseño responsivo</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    Dark-first UI, viewport meta, favicon centralizado, temas WCAG
+                    <div class="status done">✓ Implementado</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🌍</div>
+                    <div>
+                        <div class="card-title">Traducción</div>
+                        <div class="card-subtitle">i18n (es/en)</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    Sistema bilingüe en marcha, strings traducidas parcialmente
+                    <div class="status pending">⏳ Necesita completarse</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🐛</div>
+                    <div>
+                        <div class="card-title">Errores</div>
+                        <div class="card-subtitle">Bugs detectados</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    Falta página 404, validación email perfectible, hydration risk
+                    <div class="status issue">! Revisar</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="section">
+            <h2 class="section-title">📊 Métricas Clave</h2>
+            <div class="card">
+                <div class="metric">
+                    <span class="metric-label">Mejoras implementadas (2026-04-23)</span>
+                    <span class="metric-value">12 / 12</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Mejoras recomendadas (nuevas)</span>
+                    <span class="metric-value">9 / 9</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Páginas públicas indexables</span>
+                    <span class="metric-value">5 / 5</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Security headers activos</span>
+                    <span class="metric-value">6 / 6</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Temas accesibles (a11y)</span>
+                    <span class="metric-value">4 / 4</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Páginas de error personalizadas</span>
+                    <span class="metric-value">0 / 2</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Priority Matrix -->
+        <div class="section">
+            <h2 class="section-title">⚡ Matriz de Prioridades</h2>
+
+            <h3 style="margin-top: 1.5rem; color: #ff5252; margin-bottom: 1rem;">🔴 CRÍTICA (Implementar inmediatamente)</h3>
+            <div class="priority-grid">
+                <div class="priority-box critical">
+                    <div class="priority-label">Página 404</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Crear página de error personalizada</p>
+                </div>
+                <div class="priority-box critical">
+                    <div class="priority-label">Traducción inglés</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Completar strings en en.js</p>
+                </div>
+                <div class="priority-box critical">
+                    <div class="priority-label">Footer i18n</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Hardcoded text → useUiLanguage()</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2rem; color: #ffd740; margin-bottom: 1rem;">🟡 ALTA (Próximas 2 semanas)</h3>
+            <div class="priority-grid">
+                <div class="priority-box high">
+                    <div class="priority-label">Página de contacto</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Crear /contacto indexable</p>
+                </div>
+                <div class="priority-box high">
+                    <div class="priority-label">Terms of Service</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Crear /terminos legal</p>
+                </div>
+                <div class="priority-box high">
+                    <div class="priority-label">CSP Policy</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Configurar Content Security Policy</p>
+                </div>
+                <div class="priority-box high">
+                    <div class="priority-label">Onboarding mejorado</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Post-signup: tour interactivo</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2rem; color: #4d8dff; margin-bottom: 1rem;">🔵 MEDIA (Próximo mes)</h3>
+            <div class="priority-grid">
+                <div class="priority-box medium">
+                    <div class="priority-label">Review schema</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Agregar testimonios cliente</p>
+                </div>
+                <div class="priority-box medium">
+                    <div class="priority-label">WCAG AA audit</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Testing accesibilidad completo</p>
+                </div>
+                <div class="priority-box medium">
+                    <div class="priority-label">Canonical tags</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">En todas las páginas</p>
+                </div>
+                <div class="priority-box medium">
+                    <div class="priority-label">Email bienvenida</div>
+                    <p style="font-size: 0.85rem; color: #c0c0c0;">Post-signup automation</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="section">
+            <h2 class="section-title">✅ Checklist de Implementación</h2>
+
+            <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1.1rem;">Implementado (2026-04-23)</h3>
+            <div class="checklist">
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>Rate limiting en rutas de autenticación</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>Open redirect prevention (safeRedirect)</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>Security headers HTTP completos</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>noindex en /login y /register</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>robots.txt optimizado</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>JSON-LD Schema (SoftwareApp + HowTo)</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>FAQPage schema en /precios</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>Twitter Card metatags</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>OG tags en todas las páginas públicas</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>lang="es" centralizado en _document</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>Link a /precios en footer</span>
+                </div>
+                <div class="checklist-item done">
+                    <div class="checkbox"></div>
+                    <span>Viewport + favicon globales</span>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 1.1rem;">Pendiente (Recomendado)</h3>
+            <div class="checklist">
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Página 404 personalizada</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Página 500 personalizada</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Traducción completa al inglés</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Footer links i18n</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Página /contacto indexable</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Términos de servicio (/terminos)</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>CSP (Content Security Policy) personalizada</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Canonical tags en todas las páginas</span>
+                </div>
+                <div class="checklist-item pending">
+                    <div class="checkbox"></div>
+                    <span>Testing WCAG AA de accesibilidad</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+            <h3>📖 Documentación Completa</h3>
+            <p style="margin: 1rem 0; color: #c0c0c0;">Se han generado dos documentos detallados:</p>
+            <ul style="text-align: left; display: inline-block; margin-bottom: 1rem;">
+                <li><strong>REPORTE-MEJORAS-2026-04-24.md</strong> — Análisis completo de todos los hallazgos</li>
+                <li><strong>GUIA-IMPLEMENTACION-INMEDIATA.md</strong> — Código listo para copiar/pegar</li>
+            </ul>
+            <p style="color: #c0c0c0; font-size: 0.9rem;">Ambos archivos están en la raíz del proyecto</p>
+        </div>
+
+        <!-- Key Insights -->
+        <div class="section">
+            <h2 class="section-title">💡 Insights Principales</h2>
+            <div class="card">
+                <ul style="padding-left: 1.5rem;">
+                    <li><strong>Arquitectura sólida:</strong> Pages Router y App Router bien documentados. CLAUDE.md es excelente.</li>
+                    <li><strong>Seguridad robusta:</strong> Las 12 mejoras de 2026-04-23 fueron implementadas correctamente.</li>
+                    <li><strong>SEO optimizado:</strong> Schema JSON-LD, robots.txt, meta tags en su lugar. Solo faltan algunos detalles como página 404.</li>
+                    <li><strong>i18n incompleto:</strong> Sistema existe pero traducciones al inglés no están completas.</li>
+                    <li><strong>UX mejorable:</strong> No hay página 404, el flujo de onboarding post-signup es genérico.</li>
+                    <li><strong>Accesibilidad básica:</strong> 4 temas WCAG presentes, pero no hay auditoría formal de contraste/keyboard navigation.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Auditoría generada automáticamente — 24 de abril de 2026</p>
+            <p>SEO Crawler | crawlsite.app</p>
+        </div>
+    </div>
+</body>
+</html>
