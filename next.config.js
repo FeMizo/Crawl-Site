@@ -18,6 +18,23 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   // Prevent XSS by disabling inline scripts in older browsers
   { key: "X-XSS-Protection", value: "1; mode=block" },
+  // Content Security Policy — restricts resource origins
+  // unsafe-inline required: Next.js Pages Router injects inline scripts + styled-jsx inline styles
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; "),
+  },
 ];
 
 const nextConfig = {

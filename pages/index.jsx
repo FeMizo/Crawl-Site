@@ -161,14 +161,20 @@ export default function HomePage() {
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
+        <meta property="og:site_name" content="SEO Crawler" />
+        <meta property="og:locale" content="es_MX" />
         <meta property="og:title" content="Auditor SEO Online | SEO Crawler" />
         <meta property="og:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
         <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="SEO Crawler — Auditor SEO Online" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@aionsite" />
         <meta name="twitter:title" content="Auditor SEO Online | SEO Crawler" />
         <meta name="twitter:description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
+        <meta name="twitter:image:alt" content="SEO Crawler — Auditor SEO Online" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
           <script

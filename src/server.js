@@ -362,7 +362,7 @@ const authLimiter = rateLimit({
 function getAuthCookieOptions() {
   return {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: isProd,
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
@@ -465,7 +465,7 @@ function writeAuthCookie(res, user) {
 function clearAuthCookie(res) {
   res.clearCookie("auth_token", {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: isProd,
     path: "/",
   });

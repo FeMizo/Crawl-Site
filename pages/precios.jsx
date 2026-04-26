@@ -312,12 +312,17 @@ export default function PreciosPage() {
         <link rel="canonical" href={`${APP_URL}/precios`} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${APP_URL}/precios`} />
+        <meta property="og:site_name" content="SEO Crawler" />
+        <meta property="og:locale" content="es_MX" />
         <meta property="og:title" content="Planes y Precios | SEO Crawler" />
         <meta
           property="og:description"
           content="Compara los planes de SEO Crawler: desde auditorías gratuitas hasta rastreos ilimitados con reporte Excel, análisis de arquitectura y acceso API."
         />
         <meta property="og:image" content={`${APP_URL}/assets/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="SEO Crawler — Planes y Precios" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@aionsite" />
         <meta name="twitter:title" content="Planes y Precios | SEO Crawler" />
@@ -326,6 +331,7 @@ export default function PreciosPage() {
           content="Compara los planes de SEO Crawler: desde auditorías gratuitas hasta rastreos ilimitados con reporte Excel, análisis de arquitectura y acceso API."
         />
         <meta name="twitter:image" content={`${APP_URL}/assets/og-image.png`} />
+        <meta name="twitter:image:alt" content="SEO Crawler — Planes y Precios" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
         <script
