@@ -179,6 +179,9 @@ const ICONS = {
   check: (
     <path d="M4.5 12.5l5 5 10-10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   ),
+  close: (
+    <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  ),
 };
 
 export default function Icon({ name, size = 18, className = "" }) {

@@ -20,12 +20,16 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
       label: tUi(lang, "navDashboard"),
       icon: "dashboard",
     },
-    {
-      key: "roadmap",
-      href: "/dashboard/roadmap",
-      label: tUi(lang, "navRoadmap"),
-      icon: "roadmap",
-    },
+    ...(user?.permissions?.isOwner
+      ? [
+          {
+            key: "roadmap",
+            href: "/dashboard/roadmap",
+            label: tUi(lang, "navRoadmap"),
+            icon: "roadmap",
+          },
+        ]
+      : []),
     {
       key: "projects",
       href: "/projects",

@@ -6,6 +6,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
+import Modal from "../components/ui/Modal";
 import StatCard from "../components/ui/StatCard";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
@@ -35,6 +36,7 @@ export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
   const [reloadKey, setReloadKey] = useState(0);
+  const [freePlanModal, setFreePlanModal] = useState(false);
 
   useEffect(() => {
     if (!sessionHydrated) return undefined;
@@ -72,6 +74,18 @@ export default function ProjectsPage() {
       active = false;
     };
   }, [clearSessionUser, page, reloadKey, router, sessionHydrated, setSessionUser]);
+
+  useEffect(() => {
+    if (!sessionHydrated || !sessionUser) return;
+    fetch("/api/subscription")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.subscription?.plan === "FREE" && d?.limits?.projectsRemaining === 0) {
+          setFreePlanModal(true);
+        }
+      })
+      .catch(() => {});
+  }, [sessionHydrated, sessionUser]);
 
   const deleteProject = async (projectId) => {
     const confirmed = window.confirm(t("confirmDelete"));
@@ -176,6 +190,32 @@ export default function ProjectsPage() {
             </Card>
           ) : null}
         </section>
+
+        {freePlanModal && (
+          <Modal
+            title="Estas en el plan Gratis"
+            onClose={() => setFreePlanModal(false)}
+            actions={
+              <>
+                <Button variant="outline" tone="secondary" onClick={() => setFreePlanModal(false)}>
+                  Entendido
+                </Button>
+                <Button href="/subscription" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
+                  Ver planes
+                </Button>
+              </>
+            }
+          >
+            <div className="free-plan-body">
+              <p className="free-plan-msg">
+                Usaste todos los proyectos disponibles en el plan Gratis.
+              </p>
+              <p className="free-plan-hint">
+                En el plan Gratis los proyectos eliminados no liberan espacio. Actualiza tu plan para seguir creando proyectos.
+              </p>
+            </div>
+          </Modal>
+        )}
 
         {!loading && pagination.pageCount > 1 ? (
           <div className="pagination-row">
@@ -318,6 +358,9 @@ export default function ProjectsPage() {
               display: grid;
             }
           }
+          .free-plan-body { display: grid; gap: 10px; }
+          .free-plan-msg { margin: 0; color: var(--text); font-size: 14px; }
+          .free-plan-hint { margin: 0; color: var(--text2); font-size: 13px; }
         `}</style>
       </AppShell>
     </>

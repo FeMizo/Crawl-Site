@@ -6,15 +6,14 @@ export async function requireRoadmapViewer() {
   if (!user) {
     routeError(401, "No autenticado");
   }
+  if (user?.role !== "owner") {
+    routeError(403, "El roadmap es exclusivo para el propietario");
+  }
 
   return { user, canEdit };
 }
 
 export async function requireRoadmapEditor() {
   const { user, canEdit } = await requireRoadmapViewer();
-  if (!canEdit) {
-    routeError(403, "Solo usuarios con permisos de edicion pueden editar el roadmap");
-  }
-
   return { user, canEdit };
 }

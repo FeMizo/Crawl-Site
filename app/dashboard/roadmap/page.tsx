@@ -13,6 +13,12 @@ type Viewer = {
   id: string;
   email: string;
   name: string | null;
+  permissions?: {
+    isOwner?: boolean;
+    canManageUsers?: boolean;
+    canEditContent?: boolean;
+    assignableRoles?: string[];
+  } | null;
 };
 
 type MeResponse = {
@@ -47,6 +53,10 @@ export default function RoadmapPage() {
       })
       .then((payload) => {
         if (!active || !payload) return;
+        if (!payload.user?.permissions?.isOwner) {
+          router.replace("/");
+          return;
+        }
         setSessionUser(payload.user ?? null);
       })
       .catch((err) => {

@@ -5,6 +5,7 @@ import AppShell from "../components/layout/AppShell";
 import LandingSectionRenderer from "../components/landing/LandingSectionRenderer";
 import Button from "../components/ui/Button";
 import Icon from "../components/ui/Icon";
+import Modal from "../components/ui/Modal";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
 import { getLandingSections } from "../lib/landing-sections";
@@ -86,6 +87,7 @@ export default function HomePage() {
   const [loadingUser, setLoadingUser] = useState(!sessionUser);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [upgradeModal, setUpgradeModal] = useState(null);
   const [sections] = useState(getLandingSections());
 
   useEffect(() => {
@@ -136,7 +138,13 @@ export default function HomePage() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "No se pudo crear el proyecto");
+      if (!response.ok) {
+        if (data.upgrade) {
+          setUpgradeModal({ plan: data.plan || "FREE", limit: data.limit ?? 1 });
+          return;
+        }
+        throw new Error(data.error || "No se pudo crear el proyecto");
+      }
       router.push({
         pathname: "/dashboard",
         query: { projectId: data.project.id, autostart: "1" },
@@ -240,6 +248,39 @@ export default function HomePage() {
         </div>
 
         {error ? <p className="feedback error">{error}</p> : null}
+
+        {upgradeModal && (
+          <Modal
+            title="Plan Gratis"
+            onClose={() => setUpgradeModal(null)}
+            actions={
+              <>
+                <Button variant="outline" tone="secondary" onClick={() => setUpgradeModal(null)}>
+                  Cerrar
+                </Button>
+                <Button href="/subscription" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
+                  Ver planes
+                </Button>
+              </>
+            }
+          >
+            <div className="upgrade-body">
+              <p className="upgrade-msg">
+                Alcanzaste el limite de <strong>{upgradeModal.limit}</strong> proyecto en el plan Gratis.
+              </p>
+              <p className="upgrade-hint">
+                En el plan Gratis los proyectos eliminados no liberan espacio. Actualiza tu plan para crear mas proyectos.
+              </p>
+            </div>
+          </Modal>
+        )}
+
+        <style jsx>{`
+          .upgrade-body { display: grid; gap: 10px; }
+          .upgrade-msg { margin: 0; color: var(--text); font-size: 14px; }
+          .upgrade-msg strong { color: var(--accent); }
+          .upgrade-hint { margin: 0; color: var(--text2); font-size: 13px; }
+        `}</style>
 
         <style jsx>{`
           .landing-sections {

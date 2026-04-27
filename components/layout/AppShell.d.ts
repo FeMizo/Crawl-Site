@@ -5,6 +5,7 @@ type ShellUser = {
   role?: string | null;
   roleLabel?: string | null;
   permissions?: {
+    isOwner?: boolean;
     canManageUsers?: boolean;
     canEditContent?: boolean;
     assignableRoles?: string[];

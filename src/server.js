@@ -571,6 +571,7 @@ async function getUserSubscription(userId) {
   return {
     id: sub.id,
     plan: planKey,
+    projectsCreated: sub.projectsCreated ?? 0,
     maxProjects: sub.maxProjects || defaults.maxProjects,
     maxPagesPerCrawl: sub.maxPagesPerCrawl || defaults.maxPagesPerCrawl,
     maxCrawlsPerMonth: sub.maxCrawlsPerMonth || defaults.maxCrawlsPerMonth,
@@ -605,10 +606,13 @@ async function requirePlanLimit(type) {
       req.subscription = sub;
 
       if (type === "project") {
-        const projectCount = await prisma.project.count({ where: { userId: req.user.id } });
-        if (projectCount >= sub.maxProjects) {
+        const isFree = sub.plan === "FREE";
+        const countToCheck = isFree
+          ? sub.projectsCreated
+          : await prisma.project.count({ where: { userId: req.user.id } });
+        if (countToCheck >= sub.maxProjects) {
           return res.status(403).json({
-            error: "Lmite de proyectos alcanzado",
+            error: "Limite de proyectos alcanzado",
             errorEn: "Project limit reached",
             limit: sub.maxProjects,
             plan: sub.plan,
@@ -3500,14 +3504,16 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   const allowed = await ensureUrlAllowed(targetUrl);
   if (!allowed) return res.status(400).json({ error: "URL no permitida" });
 
-  // Plan limit check: max projects (parallel fetch)
+  // Plan limit check: max projects
   const [sub, projectCount] = await Promise.all([
     getUserSubscription(req.user.id),
     prisma.project.count({ where: { userId: req.user.id } }),
   ]);
-  if (projectCount >= sub.maxProjects) {
+  const isFree = sub.plan === "FREE";
+  const countToCheck = isFree ? sub.projectsCreated : projectCount;
+  if (countToCheck >= sub.maxProjects) {
     return res.status(403).json({
-      error: "Lmite de proyectos alcanzado",
+      error: "Limite de proyectos alcanzado",
       errorEn: "Project limit reached",
       limit: sub.maxProjects,
       plan: sub.plan,
@@ -3522,6 +3528,15 @@ app.post("/api/projects", requireAuth, async (req, res) => {
       targetUrl,
     },
   });
+
+  // Track cumulative counter for FREE plan — deletion doesn't free slots
+  if (isFree) {
+    await prisma.subscription.upsert({
+      where: { userId: req.user.id },
+      create: { userId: req.user.id, plan: "FREE", projectsCreated: 1, ...PLAN_DEFAULTS.FREE },
+      update: { projectsCreated: { increment: 1 } },
+    });
+  }
 
   res.status(201).json({ project });
 });
@@ -3831,11 +3846,11 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
         stripeManaged: !!sub.stripeSubId,
       },
       usage: {
-        projects: projectCount,
+        projects: sub.plan === "FREE" ? sub.projectsCreated : projectCount,
         crawlsThisMonth: crawlCount,
       },
       limits: {
-        projectsRemaining: Math.max(0, sub.maxProjects - projectCount),
+        projectsRemaining: Math.max(0, sub.maxProjects - (sub.plan === "FREE" ? sub.projectsCreated : projectCount)),
         crawlsRemaining: Math.max(0, sub.maxCrawlsPerMonth - crawlCount),
       },
       plans: PLAN_DEFAULTS,
