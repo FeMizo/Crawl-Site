@@ -2989,14 +2989,6 @@ body {
   color: #0e4db3 !important;
 }
 
-.hbtn.on#btnEs,
-.hbtn.on#btnEn,
-.hbtn.on#btnThemeDark,
-.hbtn.on#btnThemeLight,
-.hbtn.on#btnThemeHcDark,
-.hbtn.on#btnThemeHcLight {
-  font-weight: 800;
-}
 
 .global-nav-item:hover,
 .hbtn:hover,
@@ -3083,29 +3075,6 @@ tbody tr.page-hide {
   display: none !important;
 }
 
-/* Language button visual */
-.lang-btn {
-  min-width: 68px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.lang-flag {
-  width: 20px;
-  height: 14px;
-  line-height: 1;
-  display: inline-flex;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.lang-flag svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
 
 /* ===== Unified Button System ===== */
 .btn {
