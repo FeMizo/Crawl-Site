@@ -42,6 +42,11 @@ const {
   getPublicError,
   logServerError,
 } = require("../lib/server-error-utils");
+const {
+  PLAN_DEFAULTS,
+  PLAN_DISPLAY_PRICES,
+  PLAN_CURRENCY,
+} = require("../lib/plan-data");
 
 function createMailTransporter() {
   const host = process.env.SMTP_HOST;
@@ -533,14 +538,7 @@ function requireUserManagement(req, res, next) {
   return next();
 }
 
-// --- Plan limits ---
-const PLAN_DEFAULTS = {
-  FREE:    { maxProjects: 1,  maxPagesPerCrawl: 50,   maxCrawlsPerMonth: 1,   maxHistoryRuns: 1,   features: [] },
-  BASIC:   { maxProjects: 1,  maxPagesPerCrawl: 100,   maxCrawlsPerMonth: 5,   maxHistoryRuns: 1,   features: [] },
-  STARTER: { maxProjects: 5,  maxPagesPerCrawl: 500,  maxCrawlsPerMonth: 10,  maxHistoryRuns: 10,  features: ["excel_report"] },
-  PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl", "js_crawl"] },
-  AGENCY:  { maxProjects: 999, maxPagesPerCrawl: 10000, maxCrawlsPerMonth: 999, maxHistoryRuns: 999, features: ["excel_report", "architecture", "performance", "scheduled_crawl", "multi_user", "js_crawl"] },
-};
+// --- Plan limits (source of truth: lib/plan-data.js) ---
 
 // Stripe price IDs from env — map plan names to Stripe Price IDs
 const STRIPE_PRICES = {
@@ -550,8 +548,6 @@ const STRIPE_PRICES = {
   AGENCY: process.env.STRIPE_PRICE_AGENCY,
 };
 
-const PLAN_DISPLAY_PRICES = { FREE: 0, BASIC: 229, STARTER: 499, PRO: 1299, AGENCY: 2999 };
-const PLAN_CURRENCY = "MXN";
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) return null;

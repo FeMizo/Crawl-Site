@@ -12,6 +12,7 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import useSessionUser from "../hooks/useSessionUser";
+import { FEATURE_LABELS } from "../lib/plan-data";
 
 const PLAN_COLORS = {
   FREE:    { accent: "#64b5f6", badge: "var(--text2)",  badgeBg: "var(--bg3)",              badgeBorder: "var(--border2)" },
@@ -22,16 +23,6 @@ const PLAN_COLORS = {
 };
 
 const PLAN_LABEL = { FREE: "Gratis", BASIC: "Basic", STARTER: "Starter", PRO: "Pro", AGENCY: "Agency" };
-
-const FEATURE_LABELS = {
-  excel_report:    "Reporte Excel",
-  architecture:    "Analisis de arquitectura",
-  performance:     "Analisis de performance",
-  scheduled_crawl: "Rastreos programados",
-  api_access:      "Acceso API",
-  white_label:     "Marca blanca",
-  multi_user:      "Multi-usuario",
-};
 
 const PLAN_ORDER = { FREE: 0, BASIC: 1, STARTER: 2, PRO: 3, AGENCY: 4 };
 

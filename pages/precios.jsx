@@ -5,85 +5,12 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import useSessionUser from "../hooks/useSessionUser";
+import { PLANS, FEATURE_LABELS } from "../lib/plan-data";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app";
 
-const PLANS = [
-  {
-    key: "FREE",
-    label: "Gratis",
-    price: 0,
-    accent: "#64b5f6",
-    badge: "var(--text2)",
-    badgeBg: "var(--bg3)",
-    badgeBorder: "var(--border2)",
-    maxProjects: 1,
-    maxPagesPerCrawl: 50,
-    maxCrawlsPerMonth: 1,
-    maxHistoryRuns: 1,
-    features: [],
-  },
-  {
-    key: "BASIC",
-    label: "Basic",
-    price: 229,
-    accent: "#f59e0b",
-    badge: "#fbbf24",
-    badgeBg: "rgba(245,158,11,0.10)",
-    badgeBorder: "rgba(245,158,11,0.35)",
-    maxProjects: 1,
-    maxPagesPerCrawl: 100,
-    maxCrawlsPerMonth: 5,
-    maxHistoryRuns: 1,
-    features: [],
-  },
-  {
-    key: "STARTER",
-    label: "Starter",
-    price: 499,
-    accent: "#4d8dff",
-    badge: "#77abff",
-    badgeBg: "rgba(77,141,255,0.10)",
-    badgeBorder: "rgba(77,141,255,0.35)",
-    maxProjects: 5,
-    maxPagesPerCrawl: 500,
-    maxCrawlsPerMonth: 10,
-    maxHistoryRuns: 10,
-    features: ["Reporte Excel"],
-  },
-  {
-    key: "PRO",
-    label: "Pro",
-    price: 1299,
-    accent: "#00ff88",
-    badge: "#00ff88",
-    badgeBg: "rgba(0,255,136,0.08)",
-    badgeBorder: "rgba(0,255,136,0.3)",
-    maxProjects: 20,
-    maxPagesPerCrawl: 2000,
-    maxCrawlsPerMonth: null,
-    maxHistoryRuns: 50,
-    features: ["Reporte Excel", "Análisis de arquitectura", "Análisis de performance", "Rastreos programados", "Rastreo de sitios CSR (Next.js, Nuxt, React)"],
-    highlighted: true,
-  },
-  {
-    key: "AGENCY",
-    label: "Agency",
-    price: 2999,
-    accent: "#c084fc",
-    badge: "#c084fc",
-    badgeBg: "rgba(192,132,252,0.10)",
-    badgeBorder: "rgba(192,132,252,0.35)",
-    maxProjects: null,
-    maxPagesPerCrawl: 10000,
-    maxCrawlsPerMonth: null,
-    maxHistoryRuns: null,
-    features: ["Reporte Excel", "Análisis de arquitectura", "Análisis de performance", "Rastreos programados", "Rastreo de sitios CSR (Next.js, Nuxt, React)", "Acceso API", "Marca blanca", "Multi-usuario"],
-  },
-];
-
 function fmt(n) {
-  if (n === null || n >= 999) return "Ilimitado";
+  if (n === null || n === undefined || n >= 999) return "Ilimitado";
   return n.toLocaleString("es-MX");
 }
 
@@ -193,7 +120,7 @@ function PlanCard({ plan, sessionUser }) {
       {plan.features.length > 0 && (
         <ul className="plan-features">
           {plan.features.map((f) => (
-            <li key={f}><Icon name="check" size={11} />{f}</li>
+            <li key={f}><Icon name="check" size={11} />{FEATURE_LABELS[f] || f}</li>
           ))}
         </ul>
       )}
