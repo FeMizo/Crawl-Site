@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [editingName, setEditingName] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
   const [activeRunId, setActiveRunId] = useState("");
+  const [subscription, setSubscription] = useState(null);
   const runCacheRef = useRef(new Map());
 
   useEffect(() => {
@@ -121,10 +122,27 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
+    let active = true;
+    fetch("/api/subscription")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (active && d?.subscription) setSubscription(d.subscription); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!subscription) return;
+    const features = subscription.features || [];
+    document.body.classList.toggle("feature-locked-excel", !features.includes("excel_report"));
+    return () => { document.body.classList.remove("feature-locked-excel"); };
+  }, [subscription]);
+
+  useEffect(() => {
     if (!canInit || typeof window.initSeoCrawlerApp !== "function") return;
     window.__SEO_CRAWLER_PROJECT__ = project;
+    window.__SEO_CRAWLER_SUBSCRIPTION__ = subscription;
     window.initSeoCrawlerApp();
-  }, [canInit, project]);
+  }, [canInit, project, subscription]);
 
   useEffect(() => {
     if (!project || !activeRunId || !appReady || !markup || typeof window.loadSeoCrawlerRun !== "function") return;

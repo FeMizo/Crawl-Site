@@ -364,6 +364,9 @@ export default function SubscriptionPage() {
   const stripeManaged = subData?.subscription?.stripeManaged || false;
   const usage = subData?.usage;
   const sub = subData?.subscription;
+  const inTrial = sub?.inTrial;
+  const trialDaysLeft = sub?.trialDaysLeft ?? 0;
+  const trialExpired = sub?.trialExpired;
 
   return (
     <>
@@ -420,6 +423,23 @@ export default function SubscriptionPage() {
               {sub && (
                 <Card className="sub-current">
                   <Eyebrow icon={<Icon name="run" size={12} />}>Estado actual</Eyebrow>
+                  {inTrial && (
+                    <div className="trial-banner trial-active">
+                      <Icon name="shield" size={14} />
+                      <span>
+                        <strong>Prueba gratuita activa</strong> — tienes acceso completo al plan Pro durante{" "}
+                        {trialDaysLeft <= 1 ? "menos de 1 día" : `${trialDaysLeft} días más`}.
+                      </span>
+                    </div>
+                  )}
+                  {trialExpired && (
+                    <div className="trial-banner trial-expired">
+                      <Icon name="shield" size={14} />
+                      <span>
+                        <strong>Tu prueba gratuita terminó.</strong> Elige un plan para seguir usando todas las funciones.
+                      </span>
+                    </div>
+                  )}
                   <div className="sub-current-grid">
                     <div className="sub-stat">
                       <span className="sub-stat-label">Plan activo</span>
@@ -542,6 +562,28 @@ export default function SubscriptionPage() {
             color: var(--muted);
             font-size: 13px;
             padding: 24px 0;
+          }
+          .trial-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+          }
+          .trial-banner.trial-active {
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.28);
+            color: var(--accent);
+          }
+          .trial-banner.trial-expired {
+            background: rgba(245,158,11,0.08);
+            border: 1px solid rgba(245,158,11,0.3);
+            color: #fbbf24;
+          }
+          .trial-banner strong {
+            color: inherit;
           }
           .sub-current {
             display: grid;

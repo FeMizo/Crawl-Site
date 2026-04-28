@@ -565,19 +565,28 @@ async function getUserSubscription(userId) {
   } catch {
     // Table may not exist yet (pre-migration)
   }
-  if (!sub) return { plan: "FREE", ...PLAN_DEFAULTS.FREE };
+  if (!sub) return { plan: "FREE", ...PLAN_DEFAULTS.FREE, inTrial: false, trialDaysLeft: 0, trialExpired: false, trialEndsAt: null };
+  const now = new Date();
+  const inTrial = !!(sub.trialEndsAt && new Date(sub.trialEndsAt) > now);
+  const trialExpired = !inTrial && !!(sub.trialEndsAt && new Date(sub.trialEndsAt) <= now);
+  const trialDaysLeft = inTrial ? Math.ceil((new Date(sub.trialEndsAt) - now) / (1000 * 60 * 60 * 24)) : 0;
   const planKey = sub.plan || "FREE";
   const defaults = PLAN_DEFAULTS[planKey] || PLAN_DEFAULTS.FREE;
+  const effectiveDefaults = inTrial ? PLAN_DEFAULTS.PRO : defaults;
   return {
     id: sub.id,
     plan: planKey,
     projectsCreated: sub.projectsCreated ?? 0,
-    maxProjects: sub.maxProjects || defaults.maxProjects,
-    maxPagesPerCrawl: sub.maxPagesPerCrawl || defaults.maxPagesPerCrawl,
-    maxCrawlsPerMonth: sub.maxCrawlsPerMonth || defaults.maxCrawlsPerMonth,
-    maxHistoryRuns: sub.maxHistoryRuns || defaults.maxHistoryRuns,
-    features: sub.features?.length ? sub.features : defaults.features,
+    maxProjects: inTrial ? effectiveDefaults.maxProjects : (sub.maxProjects || defaults.maxProjects),
+    maxPagesPerCrawl: inTrial ? effectiveDefaults.maxPagesPerCrawl : (sub.maxPagesPerCrawl || defaults.maxPagesPerCrawl),
+    maxCrawlsPerMonth: inTrial ? effectiveDefaults.maxCrawlsPerMonth : (sub.maxCrawlsPerMonth || defaults.maxCrawlsPerMonth),
+    maxHistoryRuns: inTrial ? effectiveDefaults.maxHistoryRuns : (sub.maxHistoryRuns || defaults.maxHistoryRuns),
+    features: inTrial ? effectiveDefaults.features : (sub.features?.length ? sub.features : defaults.features),
     expiresAt: sub.expiresAt,
+    trialEndsAt: sub.trialEndsAt,
+    inTrial,
+    trialDaysLeft,
+    trialExpired,
     cancelledAt: sub.cancelledAt,
     startedAt: sub.createdAt,
     updatedAt: sub.updatedAt,
@@ -606,7 +615,7 @@ async function requirePlanLimit(type) {
       req.subscription = sub;
 
       if (type === "project") {
-        const isFree = sub.plan === "FREE";
+        const isFree = sub.plan === "FREE" && !sub.inTrial;
         const countToCheck = isFree
           ? sub.projectsCreated
           : await prisma.project.count({ where: { userId: req.user.id } });
@@ -2964,6 +2973,16 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
     });
 
     await createAndSendVerificationToken(user.id, user.email);
+    await prisma.subscription.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        plan: "FREE",
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        ...PLAN_DEFAULTS.FREE,
+      },
+      update: {},
+    }).catch(() => {});
     return res.status(201).json({ pending: true });
   } catch (error) {
     return handleApiError(
@@ -3509,7 +3528,7 @@ app.post("/api/projects", requireAuth, async (req, res) => {
     getUserSubscription(req.user.id),
     prisma.project.count({ where: { userId: req.user.id } }),
   ]);
-  const isFree = sub.plan === "FREE";
+  const isFree = sub.plan === "FREE" && !sub.inTrial;
   const countToCheck = isFree ? sub.projectsCreated : projectCount;
   if (countToCheck >= sub.maxProjects) {
     return res.status(403).json({
@@ -3844,13 +3863,17 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
         startedAt: sub.startedAt,
         updatedAt: sub.updatedAt,
         stripeManaged: !!sub.stripeSubId,
+        inTrial: sub.inTrial,
+        trialDaysLeft: sub.trialDaysLeft,
+        trialExpired: sub.trialExpired,
+        trialEndsAt: sub.trialEndsAt,
       },
       usage: {
-        projects: sub.plan === "FREE" ? sub.projectsCreated : projectCount,
+        projects: (sub.plan === "FREE" && !sub.inTrial) ? sub.projectsCreated : projectCount,
         crawlsThisMonth: crawlCount,
       },
       limits: {
-        projectsRemaining: Math.max(0, sub.maxProjects - (sub.plan === "FREE" ? sub.projectsCreated : projectCount)),
+        projectsRemaining: Math.max(0, sub.maxProjects - ((sub.plan === "FREE" && !sub.inTrial) ? sub.projectsCreated : projectCount)),
         crawlsRemaining: Math.max(0, sub.maxCrawlsPerMonth - crawlCount),
       },
       plans: PLAN_DEFAULTS,
