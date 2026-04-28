@@ -2176,6 +2176,15 @@ function extractMeta(body, pageUrl) {
     .trim();
   const wordCount = visibleText ? visibleText.split(/\s+/).length : 0;
 
+  // CSR detection: JS framework shell with no rendered content
+  const hasJsSpaMarker =
+    body.includes('id="__next"') || body.includes("id='__next'") ||
+    body.includes('id="__nuxt"') || body.includes("id='__nuxt'") ||
+    /\bng-version\s*=/i.test(body) || /<app-root[\s>]/i.test(body) ||
+    (body.includes('data-reactroot') && h1s.length === 0) ||
+    ((body.includes('id="root"') || body.includes("id='root'")) && body.includes("__webpack") && h1s.length === 0);
+  const isJsRendered = hasJsSpaMarker && h1s.length === 0 && wordCount < 100;
+
   // Internal links on this page (for architecture analysis)
   const internalLinks = allLinks.filter((l) => {
     try { return new URL(l).origin === new URL(pageUrl).origin; } catch { return false; }
@@ -2229,6 +2238,7 @@ function extractMeta(body, pageUrl) {
     hreflangs,
     resourceHints: { preload: preloadCount, prefetch: prefetchCount, preconnect: preconnectCount, dnsPrefetch: dnsPrefetchCount },
     wordCount,
+    isJsRendered,
     internalLinks,
   };
 }
@@ -2466,6 +2476,17 @@ function getIssues(page, crawlLang = "es") {
     });
 
   if (page.statusCode >= 200 && page.statusCode < 300 && m) {
+    // CSR warning — must come first so the user understands why other checks may be empty
+    if (m.isJsRendered)
+      issues.push({
+        type: "js_rendered",
+        label: T(
+          "Página renderizada en cliente (CSR) — el rastreador HTTP no puede ver el contenido real. Los resultados pueden estar incompletos.",
+          "Client-side rendered page (CSR) — HTTP crawl cannot see the real content. Results may be incomplete.",
+        ),
+        group: "warnings",
+      });
+
     // Title
     if (!m.title)
       issues.push({
@@ -2525,9 +2546,10 @@ function getIssues(page, crawlLang = "es") {
       });
 
     // H1
-    if (!m.h1s || m.h1s.length === 0)
-      issues.push({ type: "no_h1", label: T("Sin H1", "No H1"), group: "h1" });
-    else if (m.h1s.length > 1)
+    if (!m.h1s || m.h1s.length === 0) {
+      if (!m.isJsRendered)
+        issues.push({ type: "no_h1", label: T("Sin H1", "No H1"), group: "h1" });
+    } else if (m.h1s.length > 1)
       issues.push({
         type: "multi_h1",
         label: T(
@@ -2727,7 +2749,7 @@ function getIssues(page, crawlLang = "es") {
       });
 
     // Low word count (thin content)
-    if ((m.wordCount || 0) > 0 && m.wordCount < 300)
+    if (!m.isJsRendered && (m.wordCount || 0) > 0 && m.wordCount < 300)
       issues.push({
         type: "thin_content",
         label: T(
@@ -3423,6 +3445,43 @@ app.delete(
       return res.json({ ok: true });
     } catch (error) {
       return handleApiError(res, req, "admin/users:delete", error, "No se pudo eliminar el usuario");
+    }
+  },
+);
+
+// PUT /api/admin/users/:userId/password - Admin sets a new password for any user
+app.put(
+  "/api/admin/users/:userId/password",
+  requireAuth,
+  requireUserManagement,
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const newPassword = String(req.body?.newPassword || "");
+
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: "La nueva contraseña debe tener al menos 8 caracteres" });
+      }
+
+      const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!targetUser) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      if (!canManageTarget(req.user, targetUser)) {
+        return res.status(403).json({ error: "No tienes permisos para modificar ese usuario" });
+      }
+
+      if (getEffectiveRole(targetUser) === USER_ROLE.OWNER) {
+        return res.status(403).json({ error: "No se puede cambiar la contraseña del propietario" });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+      return res.json({ ok: true });
+    } catch (error) {
+      return handleApiError(res, req, "admin/users:update-password", error, "No se pudo actualizar la contraseña");
     }
   },
 );

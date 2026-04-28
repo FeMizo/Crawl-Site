@@ -58,6 +58,9 @@ export default function AdminUsersPage() {
   const [message, setMessage] = useState("");
   const [savingUserId, setSavingUserId] = useState("");
   const [deletingUserId, setDeletingUserId] = useState("");
+  const [pwdModal, setPwdModal] = useState(null); // { userId, userName }
+  const [pwdValue, setPwdValue] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -177,6 +180,38 @@ export default function AdminUsersPage() {
       setError(err.message || "No se pudo actualizar el rol.");
     } finally {
       setSavingUserId("");
+    }
+  };
+
+  const openPwdModal = (user) => {
+    setPwdModal({ userId: user.id, userName: user.name || user.email });
+    setPwdValue("");
+  };
+
+  const closePwdModal = () => {
+    setPwdModal(null);
+    setPwdValue("");
+  };
+
+  const submitPassword = async () => {
+    if (!pwdModal) return;
+    setPwdLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/users/${pwdModal.userId}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: pwdValue }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo actualizar la contraseña.");
+      setMessage(`Contraseña de ${pwdModal.userName} actualizada.`);
+      closePwdModal();
+    } catch (err) {
+      setError(err.message || "No se pudo actualizar la contraseña.");
+    } finally {
+      setPwdLoading(false);
     }
   };
 
@@ -318,14 +353,23 @@ export default function AdminUsersPage() {
                                 : "Cambio inmediato al guardar."}
                           </span>
                           {!isSelf && !isOwner && (
-                            <button
-                              type="button"
-                              className="delete-btn"
-                              disabled={deletingUserId === user.id}
-                              onClick={() => deleteUser(user.id, user.name || user.email)}
-                            >
-                              {deletingUserId === user.id ? "Eliminando..." : "Eliminar"}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className="pwd-btn"
+                                onClick={() => openPwdModal(user)}
+                              >
+                                Cambiar contraseña
+                              </button>
+                              <button
+                                type="button"
+                                className="delete-btn"
+                                disabled={deletingUserId === user.id}
+                                onClick={() => deleteUser(user.id, user.name || user.email)}
+                              >
+                                {deletingUserId === user.id ? "Eliminando..." : "Eliminar"}
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -376,6 +420,36 @@ export default function AdminUsersPage() {
             </Button>
           </div>
         ) : null}
+
+        {pwdModal && (
+          <div className="modal-overlay" onClick={closePwdModal}>
+            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+              <h3 className="modal-title">Cambiar contraseña</h3>
+              <p className="modal-desc">Usuario: <strong>{pwdModal.userName}</strong></p>
+              <label className="ui-field">
+                <span className="ui-field-label">Nueva contraseña</span>
+                <input
+                  className="ui-input"
+                  type="password"
+                  autoFocus
+                  minLength={8}
+                  value={pwdValue}
+                  onChange={(e) => setPwdValue(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submitPassword()}
+                  placeholder="Mínimo 8 caracteres"
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={closePwdModal} disabled={pwdLoading}>
+                  Cancelar
+                </button>
+                <button type="button" className="confirm-btn" onClick={submitPassword} disabled={pwdLoading || pwdValue.length < 8}>
+                  {pwdLoading ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <style jsx>{`
           .feedback {
@@ -498,6 +572,91 @@ export default function AdminUsersPage() {
           }
           .delete-btn:disabled {
             opacity: 0.5;
+            cursor: not-allowed;
+          }
+          .pwd-btn {
+            appearance: none;
+            background: transparent;
+            border: 1px solid rgba(77, 141, 255, 0.4);
+            border-radius: 8px;
+            color: var(--blue, #4d8dff);
+            cursor: pointer;
+            font-family: "Manrope", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 5px 10px;
+            transition: all 0.15s;
+          }
+          .pwd-btn:hover {
+            background: rgba(77, 141, 255, 0.12);
+            border-color: var(--blue, #4d8dff);
+          }
+          .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+          }
+          .modal-box {
+            background: var(--surface, #1a1a2e);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            display: grid;
+            gap: 16px;
+          }
+          .modal-title {
+            font-family: "Syne", sans-serif;
+            font-size: 1.1rem;
+            margin: 0;
+          }
+          .modal-desc {
+            margin: 0;
+            color: var(--text2);
+            font-size: 13px;
+          }
+          .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+          }
+          .cancel-btn {
+            appearance: none;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text2);
+            cursor: pointer;
+            font-family: "Manrope", sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 7px 14px;
+            transition: all 0.15s;
+          }
+          .cancel-btn:hover:not(:disabled) {
+            border-color: var(--text2);
+            color: var(--text1);
+          }
+          .confirm-btn {
+            appearance: none;
+            background: var(--blue, #4d8dff);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-family: "Manrope", sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 7px 14px;
+            transition: opacity 0.15s;
+          }
+          .confirm-btn:disabled {
+            opacity: 0.45;
             cursor: not-allowed;
           }
           .empty-state {
