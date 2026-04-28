@@ -64,6 +64,8 @@ model Subscription {
   maxHistoryRuns   Int       @default(1)
   features         String[]  @default([])
   projectsCreated  Int       @default(0)
+  crawlsThisMonth  Int       @default(0)
+  crawlsResetAt    DateTime?
   trialEndsAt      DateTime?
   expiresAt        DateTime?
   cancelledAt      DateTime?

@@ -3176,6 +3176,55 @@ tbody tr.page-hide {
   box-shadow: 0 6px 14px rgba(44, 103, 197, 0.22);
 }
 
+/* btn variants */
+.btn-danger {
+  background: transparent !important;
+  border: 1px solid rgba(255, 82, 82, 0.45) !important;
+  color: var(--error, #ff5252) !important;
+  box-shadow: none;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--edim, rgba(255, 82, 82, 0.14)) !important;
+  border-color: var(--error, #ff5252) !important;
+  filter: none;
+  transform: none;
+}
+
+.btn-secondary {
+  background: transparent !important;
+  border: 1px solid rgba(77, 141, 255, 0.4) !important;
+  color: var(--blue, #4d8dff) !important;
+  box-shadow: none;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bdim, rgba(100, 181, 246, 0.14)) !important;
+  border-color: var(--blue, #4d8dff) !important;
+  filter: none;
+  transform: none;
+}
+
+.btn-ghost {
+  background: transparent !important;
+  border: 1px solid var(--border2) !important;
+  color: var(--text2) !important;
+  box-shadow: none;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg3) !important;
+  color: var(--text) !important;
+  filter: none;
+  transform: none;
+}
+
+/* grid utilities */
+.grid { display: grid; gap: 8px; }
+.col-2 { grid-template-columns: 1fr 1fr; }
+.col-3 { grid-template-columns: 1fr 1fr 1fr; }
+.col-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 640px) {
+  .col-2, .col-3, .col-4 { grid-template-columns: 1fr; }
+}
+
 /* Requested sizing update */
 .host-lbl {
   width: 180px !important;

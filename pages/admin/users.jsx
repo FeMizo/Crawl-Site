@@ -58,6 +58,7 @@ export default function AdminUsersPage() {
   const [message, setMessage] = useState("");
   const [savingUserId, setSavingUserId] = useState("");
   const [deletingUserId, setDeletingUserId] = useState("");
+  const [resettingUserId, setResettingUserId] = useState("");
   const [pwdModal, setPwdModal] = useState(null); // { userId, userName }
   const [pwdValue, setPwdValue] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
@@ -180,6 +181,23 @@ export default function AdminUsersPage() {
       setError(err.message || "No se pudo actualizar el rol.");
     } finally {
       setSavingUserId("");
+    }
+  };
+
+  const resetCounters = async (userId, userLabel) => {
+    if (!window.confirm(`Resetear contadores de crawl de ${userLabel}?`)) return;
+    setResettingUserId(userId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/reset-counters`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo resetear el contador.");
+      setMessage(`Contadores de ${userLabel} reseteados.`);
+    } catch (err) {
+      setError(err.message || "No se pudo resetear el contador.");
+    } finally {
+      setResettingUserId("");
     }
   };
 
@@ -353,23 +371,31 @@ export default function AdminUsersPage() {
                                 : "Cambio inmediato al guardar."}
                           </span>
                           {!isSelf && !isOwner && (
-                            <>
+                            <div className="grid col-2">
                               <button
                                 type="button"
-                                className="pwd-btn"
+                                className="btn btn-sm btn-secondary"
                                 onClick={() => openPwdModal(user)}
                               >
                                 Cambiar contraseña
                               </button>
                               <button
                                 type="button"
-                                className="delete-btn"
+                                className="btn btn-sm btn-secondary"
+                                disabled={resettingUserId === user.id}
+                                onClick={() => resetCounters(user.id, user.name || user.email)}
+                              >
+                                {resettingUserId === user.id ? "Reseteando..." : "Resetear contadores"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger"
                                 disabled={deletingUserId === user.id}
                                 onClick={() => deleteUser(user.id, user.name || user.email)}
                               >
                                 {deletingUserId === user.id ? "Eliminando..." : "Eliminar"}
                               </button>
-                            </>
+                            </div>
                           )}
                         </div>
                       </td>
@@ -552,44 +578,6 @@ export default function AdminUsersPage() {
           }
           .inline-select {
             min-width: 180px;
-          }
-          .delete-btn {
-            appearance: none;
-            background: transparent;
-            border: 1px solid rgba(248, 113, 113, 0.4);
-            border-radius: 8px;
-            color: var(--error, #f87171);
-            cursor: pointer;
-            font-family: "Manrope", sans-serif;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 5px 10px;
-            transition: all 0.15s;
-          }
-          .delete-btn:hover:not(:disabled) {
-            background: rgba(248, 113, 113, 0.12);
-            border-color: var(--error, #f87171);
-          }
-          .delete-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-          }
-          .pwd-btn {
-            appearance: none;
-            background: transparent;
-            border: 1px solid rgba(77, 141, 255, 0.4);
-            border-radius: 8px;
-            color: var(--blue, #4d8dff);
-            cursor: pointer;
-            font-family: "Manrope", sans-serif;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 5px 10px;
-            transition: all 0.15s;
-          }
-          .pwd-btn:hover {
-            background: rgba(77, 141, 255, 0.12);
-            border-color: var(--blue, #4d8dff);
           }
           .modal-overlay {
             position: fixed;

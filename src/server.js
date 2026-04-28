@@ -589,6 +589,8 @@ async function getUserSubscription(userId) {
     id: sub.id,
     plan: planKey,
     projectsCreated: sub.projectsCreated ?? 0,
+    crawlsThisMonth: sub.crawlsThisMonth ?? 0,
+    crawlsResetAt: sub.crawlsResetAt ?? null,
     maxProjects: inTrial ? effectiveDefaults.maxProjects : (sub.maxProjects || defaults.maxProjects),
     maxPagesPerCrawl: inTrial ? effectiveDefaults.maxPagesPerCrawl : (sub.maxPagesPerCrawl || defaults.maxPagesPerCrawl),
     maxCrawlsPerMonth: inTrial ? effectiveDefaults.maxCrawlsPerMonth : (sub.maxCrawlsPerMonth || defaults.maxCrawlsPerMonth),
@@ -646,15 +648,11 @@ async function requirePlanLimit(type) {
         const monthStart = new Date();
         monthStart.setDate(1);
         monthStart.setHours(0, 0, 0, 0);
-        const crawlCount = await prisma.crawlRun.count({
-          where: {
-            userId: req.user.id,
-            createdAt: { gte: monthStart },
-          },
-        });
+        const resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
+        const crawlCount = (!resetAt || resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
         if (crawlCount >= sub.maxCrawlsPerMonth) {
           return res.status(403).json({
-            error: "Lmite de crawls mensuales alcanzado",
+            error: "Limite de crawls mensuales alcanzado",
             errorEn: "Monthly crawl limit reached",
             limit: sub.maxCrawlsPerMonth,
             current: crawlCount,
@@ -3950,16 +3948,12 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
   try {
     const sub = await getUserSubscription(req.user.id);
 
-    // Count usage this month
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const [projectCount, crawlCount] = await Promise.all([
-      prisma.project.count({ where: { userId: req.user.id } }),
-      prisma.crawlRun.count({
-        where: { userId: req.user.id, createdAt: { gte: monthStart } },
-      }),
-    ]);
+    const projectCount = await prisma.project.count({ where: { userId: req.user.id } });
+    const resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
+    const crawlCount = (!resetAt || resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
 
     return res.json({
       subscription: {
@@ -4339,6 +4333,23 @@ app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
   }
 });
 
+// ADMIN: POST /api/admin/users/:userId/reset-counters - Reset monthly crawl counter
+app.post("/api/admin/users/:userId/reset-counters", requireAuth, requireUserManagement, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!target) return res.status(404).json({ error: "Usuario no encontrado" });
+    await prisma.subscription.upsert({
+      where: { userId },
+      update: { crawlsThisMonth: 0, crawlsResetAt: null, projectsCreated: 0 },
+      create: { userId, crawlsThisMonth: 0, projectsCreated: 0 },
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    return handleApiError(res, req, "admin/reset-counters", error, "No se pudo resetear el contador");
+  }
+});
+
 // ADMIN: PUT /api/admin/users/:userId/plan - Admin assign plan to user
 app.put("/api/admin/users/:userId/plan", requireAuth, requireUserManagement, async (req, res) => {
   try {
@@ -4396,17 +4407,16 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
   if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
 
-  // Plan limit: monthly crawls + maxPages cap (parallel fetch)
+  // Plan limit: monthly crawls
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
-  const [sub, crawlCount] = await Promise.all([
-    getUserSubscription(req.user.id),
-    prisma.crawlRun.count({ where: { userId: req.user.id, createdAt: { gte: monthStart } } }),
-  ]);
+  const sub = await getUserSubscription(req.user.id);
+  const _resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
+  const crawlCount = (!_resetAt || _resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
   if (crawlCount >= sub.maxCrawlsPerMonth) {
     return res.status(403).json({
-      error: "Lmite de crawls mensuales alcanzado",
+      error: "Limite de crawls mensuales alcanzado",
       errorEn: "Monthly crawl limit reached",
       limit: sub.maxCrawlsPerMonth,
       current: crawlCount,
@@ -4773,6 +4783,16 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
     const withIssues = results.filter((r) => r.issues.length > 0).length;
     const downloadName = buildReportFileName(startUrl);
     const createdRun = await prisma.$transaction(async (tx) => {
+      const _monthStart = new Date();
+      _monthStart.setDate(1);
+      _monthStart.setHours(0, 0, 0, 0);
+      const _sub = await tx.subscription.findUnique({ where: { userId: req.user.id }, select: { crawlsThisMonth: true, crawlsResetAt: true } });
+      const _isNewMonth = !_sub?.crawlsResetAt || new Date(_sub.crawlsResetAt) < _monthStart;
+      await tx.subscription.upsert({
+        where: { userId: req.user.id },
+        update: { crawlsThisMonth: _isNewMonth ? 1 : { increment: 1 }, crawlsResetAt: _isNewMonth ? _monthStart : undefined },
+        create: { userId: req.user.id, crawlsThisMonth: 1, crawlsResetAt: _monthStart },
+      });
       const run = await tx.crawlRun.create({
         data: {
           userId: req.user.id,
