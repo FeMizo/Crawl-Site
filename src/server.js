@@ -3950,9 +3950,15 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const projectCount = await prisma.project.count({ where: { userId: req.user.id } });
+    const [projectCount, dbCrawlCount] = await Promise.all([
+      prisma.project.count({ where: { userId: req.user.id } }),
+      prisma.crawlRun.count({ where: { userId: req.user.id, createdAt: { gte: monthStart } } }),
+    ]);
     const resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
-    const crawlCount = (!resetAt || resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
+    const counterCount = (!resetAt || resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
+    // counterCount includes deleted runs (never decrements); dbCrawlCount reflects active runs.
+    // Show the higher value so neither source under-reports.
+    const crawlCount = Math.max(counterCount, dbCrawlCount);
 
     return res.json({
       subscription: {
