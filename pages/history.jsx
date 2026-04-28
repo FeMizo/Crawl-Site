@@ -68,7 +68,7 @@ export default function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, page, router, setSessionUser]);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

@@ -38,6 +38,12 @@ export default function DashboardPage() {
   const runCacheRef = useRef(new Map());
 
   useEffect(() => {
+    if (typeof window.initSeoCrawlerApp === "function") {
+      setAppReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (legacyMarkupCache) return undefined;
     let active = true;
     fetch("/api/legacy-markup")
