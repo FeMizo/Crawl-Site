@@ -9,13 +9,14 @@ export default function TopHeader({
   theme,
   onLangChange,
   onThemeChange,
-  actions,
   user,
 }) {
   return (
     <header className="dashboard-top-header">
-      <div className="header-copy">
+      <div className="header-breadcrumb">
         {eyebrow ? <div className="page-kicker">{eyebrow}</div> : null}
+      </div>
+      <div className="header-copy">
         <h1>{title}</h1>
         {description ? <p>{description}</p> : null}
       </div>
@@ -26,7 +27,6 @@ export default function TopHeader({
           onLangChange={onLangChange}
           onThemeChange={onThemeChange}
         />
-        {actions ? <div className="hdr-actions">{actions}</div> : null}
         {user ? <UserMenu user={user} /> : null}
       </div>
     </header>

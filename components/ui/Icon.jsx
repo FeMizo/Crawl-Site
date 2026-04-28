@@ -182,6 +182,22 @@ const ICONS = {
   close: (
     <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   ),
+  grid: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9" />
+    </>
+  ),
+  list: (
+    <>
+      <path d="M9 6h11M9 12h11M9 18h11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="4.5" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="4.5" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="4.5" cy="18" r="1.5" fill="currentColor" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 18, className = "" }) {

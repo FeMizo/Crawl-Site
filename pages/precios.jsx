@@ -216,7 +216,7 @@ function PlanCard({ plan, sessionUser }) {
           color: var(--plan-accent);
           font-weight: 600;
         }
-        .plan-action :global(.ui-btn) {
+        .plan-action :global(.btn) {
           width: 100%;
           justify-content: center;
         }

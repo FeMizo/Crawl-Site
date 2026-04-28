@@ -4,6 +4,15 @@ function cx(...parts) {
   return parts.filter(Boolean).join(" ");
 }
 
+const VARIANT_CLASS = {
+  solid_primary:    "btn-primary",
+  solid_secondary:  "btn-neutral",
+  solid_danger:     "btn-danger-solid",
+  outline_primary:  "btn-secondary",
+  outline_secondary:"btn-ghost",
+  outline_danger:   "btn-danger",
+};
+
 export default function Button({
   href,
   variant = "outline",
@@ -18,19 +27,18 @@ export default function Button({
   ...props
 }) {
   const classes = cx(
-    "ui-btn",
-    `ui-btn-${variant}`,
-    `ui-btn-${tone}`,
-    `ui-btn-${size}`,
+    "btn",
+    `btn-${size}`,
+    VARIANT_CLASS[`${variant}_${tone}`] || "",
     loading && "is-loading",
     className,
   );
 
   const content = (
     <>
-      {iconLeft ? <span className="ui-btn-icon left">{iconLeft}</span> : null}
+      {iconLeft ? <span className="btn-icon left">{iconLeft}</span> : null}
       <span>{loading ? "Cargando..." : children}</span>
-      {iconRight ? <span className="ui-btn-icon right">{iconRight}</span> : null}
+      {iconRight ? <span className="btn-icon right">{iconRight}</span> : null}
     </>
   );
 

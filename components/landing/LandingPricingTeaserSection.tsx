@@ -2,37 +2,25 @@ import Card from "../ui/Card";
 import Eyebrow from "../ui/Eyebrow";
 import Button from "../ui/Button";
 import Icon from "../ui/Icon";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { PLANS, FEATURE_LABELS } = require("../../lib/plan-data");
 
-const TEASER_PLANS = [
-  {
-    label: "Gratis",
-    price: null,
-    accent: "#64b5f6",
-    badge: "var(--text2)",
-    badgeBg: "var(--bg3)",
-    badgeBorder: "var(--border2)",
-    highlights: ["1 proyecto", "50 páginas/rastreo", "1 rastreo/mes"],
-  },
-  {
-    label: "Starter",
-    price: 499,
-    accent: "#4d8dff",
-    badge: "#77abff",
-    badgeBg: "rgba(77,141,255,0.10)",
-    badgeBorder: "rgba(77,141,255,0.35)",
-    highlights: ["5 proyectos", "500 páginas/rastreo", "10 rastreos/mes", "Reporte Excel"],
-  },
-  {
-    label: "Pro",
-    price: 1299,
-    accent: "#00ff88",
-    badge: "#00ff88",
-    badgeBg: "rgba(0,255,136,0.08)",
-    badgeBorder: "rgba(0,255,136,0.3)",
-    highlights: ["20 proyectos", "2,000 páginas/rastreo", "Rastreos ilimitados", "Análisis de arquitectura"],
-    popular: true,
-  },
-];
+const TEASER_KEYS = ["FREE", "STARTER", "PRO"];
+
+function getHighlights(plan: any): string[] {
+  const items: string[] = [];
+  items.push(`${plan.maxProjects} proyecto${plan.maxProjects > 1 ? "s" : ""}`);
+  items.push(`${plan.maxPagesPerCrawl.toLocaleString("es-MX")} páginas/rastreo`);
+  items.push(plan.maxCrawlsPerMonth >= 999 ? "Rastreos ilimitados" : `${plan.maxCrawlsPerMonth} rastreo${plan.maxCrawlsPerMonth > 1 ? "s" : ""}/mes`);
+  if (plan.features.length > 0) {
+    items.push(FEATURE_LABELS[plan.features[0]] || plan.features[0]);
+  }
+  return items;
+}
+
+const TEASER_PLANS = (PLANS as any[])
+  .filter((p: any) => TEASER_KEYS.includes(p.key))
+  .map((p: any) => ({ ...p, popular: !!p.highlighted, highlights: getHighlights(p) }));
 
 export default function LandingPricingTeaserSection() {
   return (
@@ -65,7 +53,7 @@ export default function LandingPricingTeaserSection() {
               )}
             </div>
             <ul className="teaser-highlights">
-              {plan.highlights.map((h) => (
+              {plan.highlights.map((h: string) => (
                 <li key={h}>
                   <Icon name="check" size={10} />
                   {h}

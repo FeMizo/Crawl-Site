@@ -221,7 +221,7 @@ function PlanCard({ plan, currentPlan, onChange, changing, stripeManaged, onPort
         .plan-action {
           margin-top: 4px;
         }
-        .plan-action :global(.ui-btn) {
+        .plan-action :global(.btn) {
           width: 100%;
           justify-content: center;
         }

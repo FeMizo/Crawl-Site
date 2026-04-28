@@ -200,14 +200,11 @@ export default function HomePage() {
         description="Inicia una auditoria SEO con una URL, crea el proyecto y entra al panel en un solo flujo."
         actions={
           loadingUser ? (
-            <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">
+            <span className="btn btn-md btn-ghost">
               Cargando sesion...
             </span>
           ) : sessionUser ? (
             <>
-              <span className="ui-btn ui-btn-outline ui-btn-secondary ui-btn-md">
-                {sessionUser.email}
-              </span>
               <Button href="/projects" variant="solid" tone="primary" iconLeft={<Icon name="projects" size={15} />}>
                 Proyectos
               </Button>

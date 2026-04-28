@@ -78,9 +78,11 @@ export default function AppShell({
             theme={theme}
             onLangChange={applyLang}
             onThemeChange={applyTheme}
-            actions={actions}
             user={user}
           />
+          {actions ? (
+            <div className="shell-content-bar">{actions}</div>
+          ) : null}
           <PageContainer className={contentClassName}>{children}</PageContainer>
           <footer className="app-footer">
             <span className="app-footer-copy">© {CURRENT_YEAR} SEO Crawler</span>
@@ -174,11 +176,17 @@ export default function AppShell({
         }
         .dashboard-main {
           min-width: 0;
-          display: grid;
-          grid-template-rows: auto 1fr;
-          align-content: start;
+          display: flex;
+          flex-direction: column;
           padding: 0 var(--space-6) var(--space-6);
           overflow: visible;
+          min-height: 100vh;
+        }
+        .dashboard-main .page-container {
+          flex: 1 0 auto;
+        }
+        .dashboard-main .app-footer {
+          margin-top: auto;
         }
         .dashboard-top-header {
           position: sticky;
@@ -193,6 +201,10 @@ export default function AppShell({
           align-items: flex-start;
           flex-wrap: wrap;
           min-width: 0;
+        }
+        .header-breadcrumb{
+          flex: 1 1 100%;
+          text-align: center;
         }
         .header-copy {
           min-width: 0;
@@ -229,6 +241,9 @@ export default function AppShell({
           display: grid;
           gap: var(--space-4);
           min-width: 0;
+          grid-auto-flow: row;
+          align-items: stretch;
+          align-content: start;
         }
         .page-container > * {
           min-width: 0;
@@ -418,6 +433,14 @@ export default function AppShell({
           color: var(--error);
           border-color: rgba(255, 82, 82, 0.3);
         }
+        .shell-content-bar {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: var(--space-2);
+          padding: 0 var(--space-6) var(--space-3);
+          flex-wrap: wrap;
+        }
         .hdr-r {
           display: flex;
           align-items: center;
@@ -435,13 +458,6 @@ export default function AppShell({
         }
         .toolbar-themes {
           max-width: 380px;
-        }
-        .hdr-actions {
-          display: flex;
-          gap: var(--space-2);
-          flex-wrap: wrap;
-          align-items: center;
-          min-width: 0;
         }
         .hdr-r .hdiv {
           width: 1px;
@@ -490,108 +506,6 @@ export default function AppShell({
         .toolbar-themes .hbtn {
           min-width: 44px;
           padding: 8px 10px;
-        }
-        .ui-btn {
-          min-height: 44px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          padding: 0 16px;
-          border-radius: var(--radius-control);
-          border: 1px solid var(--border2);
-          text-decoration: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          appearance: none;
-          font-family: "Manrope", sans-serif;
-          font-weight: 700;
-          font-size: 14px;
-          line-height: 1;
-          max-width: 100%;
-          white-space: nowrap;
-        }
-        .ui-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 0 0 3px rgba(77, 141, 255, 0.12);
-        }
-        .ui-btn:disabled,
-        .ui-btn[aria-disabled="true"] {
-          opacity: 0.5;
-          cursor: not-allowed;
-          pointer-events: none;
-          transform: none;
-          box-shadow: none;
-        }
-        .ui-btn:active:not(:disabled):not([aria-disabled="true"]) {
-          transform: translateY(0);
-          box-shadow: none;
-          opacity: 0.88;
-        }
-        .ui-btn:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 2px;
-        }
-        .ui-btn-sm {
-          min-height: 34px;
-          padding: 0 12px;
-          font-size: 14px;
-        }
-        .ui-btn-md {
-          min-height: 44px;
-          padding: 0 16px;
-          font-size: 14px;
-        }
-        .ui-btn-lg {
-          min-height: 52px;
-          padding: 0 18px;
-          font-size: 16px;
-        }
-        .ui-btn-solid {
-          font-family: "Syne", "Manrope", sans-serif;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          font-size: 15px;
-        }
-        .ui-btn-outline {
-          background: transparent;
-        }
-        .ui-btn-primary.ui-btn-solid {
-          background: #4d8dff;
-          border-color: #4d8dff;
-          color: #071226;
-          box-shadow: 0 8px 18px rgba(44, 103, 197, 0.32);
-        }
-        .ui-btn-primary.ui-btn-outline {
-          color: #77abff;
-          border-color: rgba(77, 141, 255, 0.4);
-          background: rgba(77, 141, 255, 0.14);
-        }
-        .ui-btn-secondary.ui-btn-solid {
-          background: var(--bg3);
-          border-color: var(--border2);
-          color: var(--text);
-        }
-        .ui-btn-secondary.ui-btn-outline {
-          background: transparent;
-          border-color: var(--border2);
-          color: var(--text);
-        }
-        .ui-btn-danger.ui-btn-solid {
-          background: var(--error);
-          border-color: var(--error);
-          color: #fff;
-        }
-        .ui-btn-danger.ui-btn-outline {
-          background: var(--edim);
-          border-color: var(--error);
-          color: var(--error);
-        }
-        .ui-btn-icon {
-          display: inline-flex;
-          align-items: center;
-          flex: 0 0 auto;
         }
         .ui-field {
           display: grid;

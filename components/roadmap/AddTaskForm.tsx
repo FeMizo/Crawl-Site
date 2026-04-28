@@ -86,7 +86,7 @@ export default function AddTaskForm({ phaseId, canEdit, onSubmit }: AddTaskFormP
         .add-task-input {
           min-height: 40px;
         }
-        .add-task-form :global(.ui-btn[type="submit"]) {
+        .add-task-form :global(.btn[type="submit"]) {
           margin-top: 0;
           align-self: start;
         }
