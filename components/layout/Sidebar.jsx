@@ -119,12 +119,6 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         ))}
       </nav>
 
-      {aside ? (
-        <Card className="dashboard-side-card" padding="sm">
-          {aside}
-        </Card>
-      ) : null}
-
       {user ? (
         <Card className="dashboard-side-card" padding="sm">
           <PlanWidget user={user} />
