@@ -156,10 +156,12 @@ export default function HomePage() {
     }
   };
 
-  const orderedSections = useMemo(
-    () => [...sections].sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [sections],
-  );
+  const orderedSections = useMemo(() => {
+    const context = sessionUser ? "auth" : "guest";
+    return [...sections]
+      .filter((s) => !s.showFor || s.showFor === "all" || s.showFor === context)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [sections, sessionUser]);
 
   return (
     <>
@@ -222,14 +224,16 @@ export default function HomePage() {
           )
         }
         aside={
-          <QuickStepsModule
-            title={t("landingAsideTitle")}
-            steps={[
-              { title: t("landingAsideStep1Title"), detail: t("landingAsideStep1Detail") },
-              { title: t("landingAsideStep2Title"), detail: t("landingAsideStep2Detail") },
-              { title: t("landingAsideStep3Title"), detail: t("landingAsideStep3Detail") },
-            ]}
-          />
+          sessionUser ? undefined : (
+            <QuickStepsModule
+              title={t("landingAsideTitle")}
+              steps={[
+                { title: t("landingAsideStep1Title"), detail: t("landingAsideStep1Detail") },
+                { title: t("landingAsideStep2Title"), detail: t("landingAsideStep2Detail") },
+                { title: t("landingAsideStep3Title"), detail: t("landingAsideStep3Detail") },
+              ]}
+            />
+          )
         }
       >
         <div className="landing-sections">

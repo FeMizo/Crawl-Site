@@ -1,6 +1,6 @@
 import { Html, Head, Main, NextScript } from "next/document";
 
-const INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('seoCrawlerTheme')||'dark';document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('seoCrawlerLang')||'es';document.documentElement.lang=l;}catch(e){}})();`;
+const INIT_SCRIPT = `(function(){try{var stored=localStorage.getItem('seoCrawlerTheme');var t=stored||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('seoCrawlerLang')||'es';document.documentElement.lang=l;}catch(e){}})();`;
 
 export default function Document() {
   return (

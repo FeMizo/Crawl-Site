@@ -144,52 +144,69 @@ export default function ProjectsPage() {
           </p>
         ) : null}
 
-        <section className="grid">
-          {projects.map((project) => (
-            <Card key={project.id} className="project-card">
-              <div className="card-top">
-                <div>
-                  <Eyebrow>{t("eyebrowProject")}</Eyebrow>
-                  <h2>{project.name}</h2>
-                  <p>{project.targetUrl}</p>
-                </div>
-                <div className="card-actions">
-                  <Button href={{ pathname: "/dashboard", query: { projectId: project.id } }} variant="outline" tone="secondary" size="sm" iconLeft={<Icon name="external" size={14} />}>
-                    {t("btnOpen")}
-                  </Button>
-                  <Button type="button" variant="outline" tone="danger" size="sm" onClick={() => deleteProject(project.id)} iconLeft={<Icon name="trash" size={14} />}>
-                    {t("btnDelete")}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="metrics">
-                <StatCard label={t("statCrawlsLabel")} value={project.runCount} hint={t("hintSaved")} tone="primary" icon={<Icon name="run" size={14} />} />
-                <StatCard label={t("statCreatedLabel")} value={formatDate(project.createdAt, lang, t("noDate"))} hint={t("hintCreationDate")} tone="secondary" icon={<Icon name="history" size={14} />} />
-              </div>
-
-              <Card className="last-run" padding="sm">
-                <Eyebrow>{t("eyebrowLastRun")}</Eyebrow>
-                <strong>
-                  {project.lastRun
-                    ? `${formatDate(project.lastRun.createdAt, lang, t("noDate"))} - ${project.lastRun.withIssues}/${project.lastRun.total}`
-                    : t("noLastRun")}
-                </strong>
-              </Card>
-            </Card>
-          ))}
-          {!loading && !projects.length ? (
-            <Card className="project-card empty">
-              <Eyebrow>{t("noProjectsEyebrow")}</Eyebrow>
-              <h2>{t("noProjectsTitle")}</h2>
-              <p>{t("noProjectsDesc")}</p>
-              <p className="empty-hint">{t("noProjectsEmptyHint")}</p>
-              <Button href="/" variant="solid" tone="primary" size="lg" iconLeft={<Icon name="plus" size={15} />}>
-                {t("noProjectsCtaFirst")}
-              </Button>
-            </Card>
-          ) : null}
-        </section>
+        <Card className="table-card" padding="sm">
+          <div className="table-wrap">
+            <table className="projects-table">
+              <thead>
+                <tr>
+                  <th>{t("eyebrowProject")}</th>
+                  <th>{t("statCrawlsLabel")}</th>
+                  <th>{t("eyebrowLastRun")}</th>
+                  <th>{t("statCreatedLabel")}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map((project) => (
+                  <tr key={project.id}>
+                    <td>
+                      <div className="cell-name">
+                        <strong>{project.name}</strong>
+                        <span>{project.targetUrl}</span>
+                      </div>
+                    </td>
+                    <td className="cell-num">{project.runCount ?? 0}</td>
+                    <td className="cell-run">
+                      {project.lastRun ? (
+                        <>
+                          <span>{formatDate(project.lastRun.createdAt, lang, t("noDate"))}</span>
+                          <span className="run-issues">{project.lastRun.withIssues}/{project.lastRun.total} {t("hintSaved")}</span>
+                        </>
+                      ) : (
+                        <span className="muted">{t("noLastRun")}</span>
+                      )}
+                    </td>
+                    <td className="cell-date">{formatDate(project.createdAt, lang, t("noDate"))}</td>
+                    <td>
+                      <div className="row-actions">
+                        <Button href={{ pathname: "/dashboard", query: { projectId: project.id } }} variant="outline" tone="secondary" size="sm" iconLeft={<Icon name="external" size={14} />}>
+                          {t("btnOpen")}
+                        </Button>
+                        <Button type="button" variant="outline" tone="danger" size="sm" onClick={() => deleteProject(project.id)} iconLeft={<Icon name="trash" size={14} />}>
+                          {t("btnDelete")}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!loading && !projects.length ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <div className="empty-state">
+                        <Eyebrow>{t("noProjectsEyebrow")}</Eyebrow>
+                        <strong>{t("noProjectsTitle")}</strong>
+                        <span>{t("noProjectsDesc")}</span>
+                        <Button href="/" variant="solid" tone="primary" iconLeft={<Icon name="plus" size={15} />}>
+                          {t("noProjectsCtaFirst")}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
         {freePlanModal && (
           <Modal
@@ -277,11 +294,83 @@ export default function ProjectsPage() {
           .retry-btn:hover {
             background: var(--edim);
           }
-          .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 18px;
+          .table-card {
             min-width: 0;
+          }
+          .table-wrap {
+            overflow-x: auto;
+          }
+          .projects-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 680px;
+          }
+          .projects-table th,
+          .projects-table td {
+            text-align: left;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+          }
+          .projects-table th {
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.02);
+            white-space: nowrap;
+          }
+          .projects-table tbody tr:hover {
+            background: rgba(77,141,255,0.05);
+          }
+          .projects-table tbody tr:last-child td {
+            border-bottom: none;
+          }
+          .cell-name {
+            display: grid;
+            gap: 3px;
+          }
+          .cell-name strong {
+            font-size: 14px;
+          }
+          .cell-name span,
+          .cell-date,
+          .run-issues,
+          .muted {
+            color: var(--text2);
+            font-size: 12px;
+          }
+          .cell-run {
+            display: grid;
+            gap: 2px;
+          }
+          .cell-run span {
+            font-size: 13px;
+          }
+          .cell-num {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+          }
+          .row-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-wrap: nowrap;
+          }
+          .empty-state {
+            display: grid;
+            gap: 10px;
+            padding: 32px 16px;
+            text-align: center;
+            justify-items: center;
+          }
+          .empty-state strong {
+            font-size: 16px;
+          }
+          .empty-state span {
+            color: var(--text2);
+            font-size: 13px;
           }
           .pagination-row {
             display: flex;
@@ -293,70 +382,6 @@ export default function ProjectsPage() {
           .pagination-text {
             color: var(--text2);
             font-size: 13px;
-          }
-          .project-card {
-            display: grid;
-            gap: 18px;
-            min-width: 0;
-          }
-          .card-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            min-width: 0;
-          }
-          .card-top > div:first-child {
-            min-width: 0;
-          }
-          .card-top :global(.ui-eyebrow) {
-            margin-bottom: 12px;
-          }
-          .card-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: flex-start;
-            justify-content: flex-end;
-          }
-          h2 {
-            font-family: "Syne", "Manrope", sans-serif;
-            font-weight: 700;
-            margin: 0 0 8px;
-            font-size: 1.45rem;
-            overflow-wrap: anywhere;
-          }
-          p {
-            margin: 0;
-            color: var(--text2);
-            word-break: break-word;
-            overflow-wrap: anywhere;
-          }
-          .metrics {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 14px;
-            min-width: 0;
-          }
-          .last-run strong {
-            color: var(--text);
-            font-size: 14px;
-            overflow-wrap: anywhere;
-          }
-          .empty {
-            align-content: start;
-            min-height: 220px;
-            gap: 12px;
-          }
-          .empty-hint {
-            font-size: 13px;
-            color: var(--muted);
-          }
-          @media (max-width: 700px) {
-            .card-top,
-            .metrics {
-              grid-template-columns: 1fr;
-              display: grid;
-            }
           }
           .free-plan-body { display: grid; gap: 10px; }
           .free-plan-msg { margin: 0; color: var(--text); font-size: 14px; }

@@ -5,7 +5,8 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     id: "landing-hero",
     key: "hero",
     label: "Hero principal",
-    order: 0,
+    order: 1,
+    showFor: "all",
     content: {
       eyebrow: "URL inicial",
       title: "Define la URL principal de tu sitio y lanza el rastreo",
@@ -20,7 +21,8 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     id: "landing-steps",
     key: "steps",
     label: "Pasos rapidos",
-    order: 1,
+    order: 2,
+    showFor: "guest",
     content: {
       title: "Pasos rapidos",
       step1: "Crea tu cuenta e inicia sesion para habilitar tu espacio de trabajo.",
@@ -32,7 +34,8 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     id: "landing-features",
     key: "features",
     label: "Qué detecta",
-    order: 2,
+    order: 0,
+    showFor: "all",
     content: {},
   },
   {
@@ -40,6 +43,7 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     key: "pricing-teaser",
     label: "Planes (teaser)",
     order: 3,
+    showFor: "all",
     content: {},
   },
   {
@@ -47,6 +51,7 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     key: "faq",
     label: "Preguntas frecuentes",
     order: 4,
+    showFor: "guest",
     content: {},
   },
   {
@@ -54,6 +59,7 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     key: "contact",
     label: "Contacto",
     order: 5,
+    showFor: "guest",
     content: {},
   },
 ];
