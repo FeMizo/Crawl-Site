@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/router";
 import useSessionUser from "../../hooks/useSessionUser";
 import Icon from "../ui/Icon";
 
 export default function UserMenu({ user }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const router = useRouter();
   const { clearSessionUser } = useSessionUser();
 
   useEffect(() => {
@@ -22,7 +20,7 @@ export default function UserMenu({ user }) {
     setOpen(false);
     await fetch("/api/auth/logout", { method: "POST" });
     clearSessionUser();
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   const label = user?.name || user?.email || "Usuario";
