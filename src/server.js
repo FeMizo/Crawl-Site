@@ -413,9 +413,21 @@ function sanitizeUser(user) {
     phoneCountry: phone.country?.code || null,
     phoneNumber: phone.digits || "",
     phoneE164: phone.e164,
+    jobRole: user.jobRole || null,
     createdAt: user.createdAt,
   };
 }
+
+const VALID_JOB_ROLES = [
+  "developer",
+  "marketing",
+  "seo",
+  "business_owner",
+  "agency",
+  "consultant",
+  "designer",
+  "other",
+];
 
 async function buildMePayload(user, options = {}) {
   const includeCounts = options.includeCounts === true;
@@ -2930,6 +2942,8 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
     const name = normalizeDisplayName(req.body?.name);
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
+    const rawJobRole = req.body?.jobRole ? String(req.body.jobRole).trim() : null;
+    const jobRole = rawJobRole && VALID_JOB_ROLES.includes(rawJobRole) ? rawJobRole : null;
     const phone = validatePhoneInput(
       req.body?.phoneCountry,
       req.body?.phoneNumber,
@@ -2967,6 +2981,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
         role: USER_ROLE.USER.toUpperCase(),
         phoneCountry: phone.country?.code || null,
         phoneNumber: phone.digits || null,
+        jobRole: jobRole || null,
         passwordHash,
         emailVerified: false,
       },

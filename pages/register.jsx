@@ -9,11 +9,24 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import PhoneField from "../components/ui/PhoneField";
+import Select from "../components/ui/Select";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 
 const { validateEmail, validatePhoneInput } = require("../lib/contact-validation");
+
+const JOB_ROLE_OPTIONS = [
+  { value: "", label: "¿Cuál es tu rol? (opcional)" },
+  { value: "business_owner", label: "Propietario de negocio" },
+  { value: "marketing", label: "Marketing" },
+  { value: "seo", label: "Especialista SEO" },
+  { value: "agency", label: "Agencia" },
+  { value: "developer", label: "Desarrollador" },
+  { value: "consultant", label: "Consultor" },
+  { value: "designer", label: "Diseñador" },
+  { value: "other", label: "Otro" },
+];
 
 async function readResponsePayload(response) {
   const text = await response.text();
@@ -38,6 +51,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("MX");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [jobRole, setJobRole] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -81,7 +95,7 @@ export default function RegisterPage() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phoneCountry, phoneNumber, password }),
+        body: JSON.stringify({ name, email, phoneCountry, phoneNumber, jobRole: jobRole || undefined, password }),
       });
       const data = await readResponsePayload(response);
       if (!response.ok) throw new Error(data.error || "No se pudo registrar");
@@ -182,6 +196,15 @@ export default function RegisterPage() {
                 onPhoneChange={setPhoneNumber}
                 hint={t("hintPhoneSelect")}
               />
+              <Select
+                label="Tu perfil"
+                value={jobRole}
+                onChange={(e) => setJobRole(e.target.value)}
+              >
+                {JOB_ROLE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
               <Input
                 label={t("labelPassword")}
                 type="password"

@@ -39,6 +39,7 @@ model User {
   role         UserRole      @default(USER)
   phoneCountry String?
   phoneNumber  String?
+  jobRole      String?
   passwordHash String
   emailVerified       Boolean             @default(false)
   projects            Project[]
