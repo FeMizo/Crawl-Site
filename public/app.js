@@ -2221,9 +2221,28 @@ let __seoCrawlerInited = false;
 window.loadSeoCrawlerRun = applySavedRun;
 window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
+
+  // Autostart runs on every call so client-side navigation doesn't miss it.
+  // The param is deleted synchronously to prevent double-fire on re-renders.
+  const params = new URLSearchParams(window.location.search || "");
+  const initialUrl = (params.get("url") || "").trim();
+  const autostart = params.get("autostart") === "1";
+  const projectUrl = currentProject?.targetUrl || "";
+  const resolvedInitialUrl = initialUrl || projectUrl;
+  const input = document.getElementById("urlInput");
+  if (input && resolvedInitialUrl) {
+    input.value = resolvedInitialUrl;
+    updateCrawlButtonLabel();
+  }
+  if (autostart) {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("autostart");
+    window.history.replaceState({}, "", clean.pathname + clean.search);
+    setTimeout(() => startCrawl(), 0);
+  }
+
   if (__seoCrawlerInited) return;
   __seoCrawlerInited = true;
-  const input = document.getElementById("urlInput");
   if (input)
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") startCrawl();
@@ -2254,22 +2273,4 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   applyUrlSearchFilter();
   updateAllTablePagination(true);
   updateCrawlButtonLabel();
-
-  const params = new URLSearchParams(window.location.search || "");
-  const initialUrl = (params.get("url") || "").trim();
-  const autostart = params.get("autostart") === "1";
-  const projectUrl = currentProject?.targetUrl || "";
-  const resolvedInitialUrl = initialUrl || projectUrl;
-  if (input && resolvedInitialUrl) {
-    input.value = resolvedInitialUrl;
-    updateCrawlButtonLabel();
-    if (autostart) {
-      setTimeout(() => {
-        startCrawl();
-        const clean = new URL(window.location.href);
-        clean.searchParams.delete("autostart");
-        window.history.replaceState({}, "", clean.pathname + clean.search);
-      }, 0);
-    }
-  }
 };
