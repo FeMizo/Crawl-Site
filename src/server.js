@@ -593,7 +593,7 @@ async function getUserSubscription(userId) {
     maxPagesPerCrawl: inTrial ? effectiveDefaults.maxPagesPerCrawl : (sub.maxPagesPerCrawl || defaults.maxPagesPerCrawl),
     maxCrawlsPerMonth: inTrial ? effectiveDefaults.maxCrawlsPerMonth : (sub.maxCrawlsPerMonth || defaults.maxCrawlsPerMonth),
     maxHistoryRuns: inTrial ? effectiveDefaults.maxHistoryRuns : (sub.maxHistoryRuns || defaults.maxHistoryRuns),
-    features: inTrial ? effectiveDefaults.features : (sub.features?.length ? sub.features : defaults.features),
+    features: inTrial ? effectiveDefaults.features : [...new Set([...(sub.features || []), ...defaults.features])],
     expiresAt: sub.expiresAt,
     trialEndsAt: sub.trialEndsAt,
     inTrial,
