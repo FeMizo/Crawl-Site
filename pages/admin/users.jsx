@@ -308,7 +308,7 @@ export default function AdminUsersPage() {
                   <th>Rol</th>
                   <th>Estado</th>
                   <th>Creacion</th>
-                  <th>Acciones</th>
+                  <th style={{ width: '150px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -335,7 +335,6 @@ export default function AdminUsersPage() {
                           <Badge tone={getRoleTone(user.role)}>
                             {user.roleLabel || getRoleLabel(user.role)}
                           </Badge>
-                          <span>Asignado: {getRoleLabel(currentRole)}</span>
                         </div>
                       </td>
                       <td>

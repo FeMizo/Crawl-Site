@@ -6,4 +6,5 @@ export type LandingSectionDto = {
   label: string;
   order: number;
   content: Record<string, unknown>;
+  showFor?: "all" | "guest" | "auth";
 };

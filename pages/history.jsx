@@ -153,7 +153,7 @@ export default function HistoryPage() {
           }
           .history-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 18px;
             min-width: 0;
             align-items: start;

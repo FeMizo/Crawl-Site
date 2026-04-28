@@ -153,7 +153,6 @@ header {
   position: sticky;
   top: 0;
   z-index: 60;
-  background: transparent;
   transition:
     background 0.2s ease,
     box-shadow 0.2s ease,
@@ -2472,10 +2471,6 @@ body {
 [data-theme="light"] .global-user-avatar {
   background: linear-gradient(145deg, #cad9f3, #dfebff);
   border-color: #b8cceb;
-}
-
-header {
-  background: rgba(6, 19, 37, 0.72);
 }
 
 [data-theme="light"] header {
