@@ -36,6 +36,7 @@ const {
   getEffectiveRole,
   getOwnerEmails,
   getRoleLabel,
+  isSuperAdmin,
   normalizeRole,
 } = require("../lib/user-roles");
 const {
@@ -420,6 +421,7 @@ function sanitizeUser(user) {
     phoneE164: phone.e164,
     jobRole: user.jobRole || null,
     createdAt: user.createdAt,
+    subscription: user.subscription ? { plan: user.subscription.plan } : null,
   };
 }
 
@@ -864,6 +866,7 @@ const ADMIN_USER_LIST_SELECT = {
   phoneCountry: true,
   phoneNumber: true,
   createdAt: true,
+  subscription: { select: { plan: true } },
 };
 
 function setPrivateApiCache(res, maxAgeSeconds = 15, swrSeconds = 60) {
@@ -3031,7 +3034,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
       data: {
         name: name || null,
         email,
-        role: USER_ROLE.USER.toUpperCase(),
+        role: USER_ROLE.ADMIN.toUpperCase(),
         phoneCountry: phone.country?.code || null,
         phoneNumber: phone.digits || null,
         jobRole: jobRole || null,
@@ -4346,8 +4349,11 @@ app.post("/api/admin/users/:userId/reset-counters", requireAuth, requireUserMana
   }
 });
 
-// ADMIN: PUT /api/admin/users/:userId/plan - Admin assign plan to user
+// ADMIN: PUT /api/admin/users/:userId/plan - Super admin / owner assign plan to user
 app.put("/api/admin/users/:userId/plan", requireAuth, requireUserManagement, async (req, res) => {
+  if (!isSuperAdmin(req.user)) {
+    return res.status(403).json({ error: "Solo super administradores o propietarios pueden cambiar planes de usuario" });
+  }
   try {
     const targetUserId = req.params.userId;
     const newPlan = String(req.body?.plan || "").toUpperCase();

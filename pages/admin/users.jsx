@@ -11,6 +11,9 @@ import Select from "../../components/ui/Select";
 import useSessionUser from "../../hooks/useSessionUser";
 
 const { USER_ROLE, getRoleLabel } = require("../../lib/user-roles");
+const { PLANS } = require("../../lib/plan-data");
+
+const PLAN_OPTIONS = PLANS.map((p) => ({ key: p.key, label: p.label }));
 
 const ROLE_OPTIONS = [
   USER_ROLE.OWNER,
@@ -62,6 +65,9 @@ export default function AdminUsersPage() {
   const [pwdModal, setPwdModal] = useState(null); // { userId, userName }
   const [pwdValue, setPwdValue] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [planModal, setPlanModal] = useState(null); // { userId, userName, currentPlan }
+  const [planValue, setPlanValue] = useState("");
+  const [planLoading, setPlanLoading] = useState(false);
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -211,6 +217,46 @@ export default function AdminUsersPage() {
     setPwdValue("");
   };
 
+  const openPlanModal = (user) => {
+    const currentPlan = user.subscription?.plan || "FREE";
+    setPlanModal({ userId: user.id, userName: user.name || user.email, currentPlan });
+    setPlanValue(currentPlan);
+  };
+
+  const closePlanModal = () => {
+    setPlanModal(null);
+    setPlanValue("");
+  };
+
+  const submitPlan = async () => {
+    if (!planModal) return;
+    setPlanLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/users/${planModal.userId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planValue }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo cambiar el plan.");
+      setUsers((current) =>
+        current.map((u) =>
+          u.id === planModal.userId
+            ? { ...u, subscription: { plan: planValue } }
+            : u,
+        ),
+      );
+      setMessage(`Plan de ${planModal.userName} actualizado a ${planValue}.`);
+      closePlanModal();
+    } catch (err) {
+      setError(err.message || "No se pudo cambiar el plan.");
+    } finally {
+      setPlanLoading(false);
+    }
+  };
+
   const submitPassword = async () => {
     if (!pwdModal) return;
     setPwdLoading(true);
@@ -306,6 +352,7 @@ export default function AdminUsersPage() {
                   <th>Nombre</th>
                   <th>Correo</th>
                   <th>Rol</th>
+                  <th>Plan</th>
                   <th>Estado</th>
                   <th>Creacion</th>
                   <th style={{ width: '150px' }}>Acciones</th>
@@ -320,6 +367,9 @@ export default function AdminUsersPage() {
                     !assignableRoles.size ||
                     isSelf ||
                     isOwner;
+                  const canChangePlan =
+                    sessionUser?.permissions?.isOwner ||
+                    sessionUser?.role === USER_ROLE.SUPER_ADMIN;
 
                   return (
                     <tr key={user.id}>
@@ -336,6 +386,9 @@ export default function AdminUsersPage() {
                             {user.roleLabel || getRoleLabel(user.role)}
                           </Badge>
                         </div>
+                      </td>
+                      <td>
+                        <span className="plan-label">{user.subscription?.plan || "FREE"}</span>
                       </td>
                       <td>
                         <Badge tone={user.role === USER_ROLE.OWNER ? "primary" : "secondary"}>
@@ -362,13 +415,6 @@ export default function AdminUsersPage() {
                               </option>
                             ))}
                           </select>
-                          <span className="action-hint">
-                            {isSelf
-                              ? "No puedes editar tu propio rol."
-                              : isOwner
-                                ? "Propietario protegido por servidor."
-                                : "Cambio inmediato al guardar."}
-                          </span>
                           {!isSelf && !isOwner && (
                             <div className="grid col-2">
                               <button
@@ -378,6 +424,15 @@ export default function AdminUsersPage() {
                               >
                                 Cambiar contraseña
                               </button>
+                              {canChangePlan && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => openPlanModal(user)}
+                                >
+                                  Cambiar plan
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className="btn btn-sm btn-secondary"
@@ -396,6 +451,13 @@ export default function AdminUsersPage() {
                               </button>
                             </div>
                           )}
+                          <span className="action-hint">
+                            {isSelf
+                              ? "No puedes editar tu propio rol."
+                              : isOwner
+                                ? "Propietario protegido por servidor."
+                                : "Cambio inmediato al guardar."}
+                          </span>
                         </div>
                       </td>
                     </tr>
@@ -403,7 +465,7 @@ export default function AdminUsersPage() {
                 })}
                 {!loading && !users.length ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <div className="empty-state">
                         <strong>Sin resultados</strong>
                         <span>Ajusta la busqueda o el filtro para ver otros usuarios.</span>
@@ -470,6 +532,40 @@ export default function AdminUsersPage() {
                 </button>
                 <button type="button" className="confirm-btn" onClick={submitPassword} disabled={pwdLoading || pwdValue.length < 8}>
                   {pwdLoading ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {planModal && (
+          <div className="modal-overlay" onClick={closePlanModal}>
+            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+              <h3 className="modal-title">Cambiar plan</h3>
+              <p className="modal-desc">Usuario: <strong>{planModal.userName}</strong></p>
+              <label className="ui-field">
+                <span className="ui-field-label">Plan</span>
+                <select
+                  className="ui-select"
+                  value={planValue}
+                  onChange={(e) => setPlanValue(e.target.value)}
+                >
+                  {PLAN_OPTIONS.map((p) => (
+                    <option key={p.key} value={p.key}>{p.label}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={closePlanModal} disabled={planLoading}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="confirm-btn"
+                  onClick={submitPlan}
+                  disabled={planLoading || planValue === planModal.currentPlan}
+                >
+                  {planLoading ? "Guardando..." : "Guardar"}
                 </button>
               </div>
             </div>
@@ -577,6 +673,13 @@ export default function AdminUsersPage() {
           }
           .inline-select {
             min-width: 180px;
+          }
+          .plan-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
           }
           .modal-overlay {
             position: fixed;
