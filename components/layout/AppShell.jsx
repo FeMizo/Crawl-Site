@@ -386,7 +386,7 @@ export default function AppShell({
           letter-spacing: 0.12em;
           text-transform: uppercase;
           border: 1px solid transparent;
-          margin-left: auto;
+          margin-right: auto;
         }
         .ui-badge-primary {
           background: var(--adim);

@@ -536,10 +536,10 @@ function requireUserManagement(req, res, next) {
 // --- Plan limits ---
 const PLAN_DEFAULTS = {
   FREE:    { maxProjects: 1,  maxPagesPerCrawl: 50,   maxCrawlsPerMonth: 1,   maxHistoryRuns: 1,   features: [] },
-  BASIC:   { maxProjects: 1,  maxPagesPerCrawl: 30,   maxCrawlsPerMonth: 5,   maxHistoryRuns: 1,   features: [] },
+  BASIC:   { maxProjects: 1,  maxPagesPerCrawl: 100,   maxCrawlsPerMonth: 5,   maxHistoryRuns: 1,   features: [] },
   STARTER: { maxProjects: 5,  maxPagesPerCrawl: 500,  maxCrawlsPerMonth: 10,  maxHistoryRuns: 10,  features: ["excel_report"] },
-  PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl"] },
-  AGENCY:  { maxProjects: 999, maxPagesPerCrawl: 10000, maxCrawlsPerMonth: 999, maxHistoryRuns: 999, features: ["excel_report", "architecture", "performance", "scheduled_crawl", "api_access", "white_label", "multi_user"] },
+  PRO:     { maxProjects: 20, maxPagesPerCrawl: 2000, maxCrawlsPerMonth: 999, maxHistoryRuns: 50,  features: ["excel_report", "architecture", "performance", "scheduled_crawl", "js_crawl"] },
+  AGENCY:  { maxProjects: 999, maxPagesPerCrawl: 10000, maxCrawlsPerMonth: 999, maxHistoryRuns: 999, features: ["excel_report", "architecture", "performance", "scheduled_crawl", "multi_user", "js_crawl"] },
 };
 
 // Stripe price IDs from env — map plan names to Stripe Price IDs
@@ -1424,6 +1424,37 @@ function fetchSslInfo(hostname) {
       resolve(null);
     });
     socket.on("error", () => resolve(null));
+  });
+}
+
+//  Browserless.io — renders CSR pages and returns full HTML
+function fetchWithBrowserless(url) {
+  const token = process.env.BROWSERLESS_TOKEN;
+  if (!token) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ url });
+    const opts = {
+      hostname: "chrome.browserless.io",
+      path: `/content?token=${token}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+      timeout: 30000,
+    };
+    const req = https.request(opts, (res) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        if (res.statusCode !== 200) return resolve(null);
+        resolve(Buffer.concat(chunks).toString("utf8"));
+      });
+    });
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
   });
 }
 
@@ -4416,6 +4447,9 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const queue = [];
   let active = 0;
   let cancelled = false;
+  const JS_RENDER_CAP = 20;
+  let jsRenderCount = 0;
+  const canJsCrawl = hasFeature(sub, "js_crawl") && !!process.env.BROWSERLESS_TOKEN;
 
   // Robots
   const { disallowed, hasSitemap, sitemapUrls, rawContent } =
@@ -4479,8 +4513,17 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
 
       const statusCode = raw.statusCode;
       const finalUrl = currentUrl !== url ? currentUrl : "";
-      const meta = raw.body ? extractMeta(raw.body, currentUrl || url) : null;
-      const links = raw.body ? extractLinks(raw.body, currentUrl || url) : [];
+      let meta = raw.body ? extractMeta(raw.body, currentUrl || url) : null;
+      let links = raw.body ? extractLinks(raw.body, currentUrl || url) : [];
+
+      if (meta?.isJsRendered && canJsCrawl && jsRenderCount < JS_RENDER_CAP) {
+        jsRenderCount++;
+        const renderedHtml = await fetchWithBrowserless(currentUrl || url);
+        if (renderedHtml) {
+          meta = extractMeta(renderedHtml, currentUrl || url);
+          links = extractLinks(renderedHtml, currentUrl || url);
+        }
+      }
 
       for (const link of links) {
         const key = normalizeForCompare(link);

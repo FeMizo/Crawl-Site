@@ -32,7 +32,7 @@ const PLANS = [
     badgeBg: "rgba(245,158,11,0.10)",
     badgeBorder: "rgba(245,158,11,0.35)",
     maxProjects: 1,
-    maxPagesPerCrawl: 300,
+    maxPagesPerCrawl: 100,
     maxCrawlsPerMonth: 5,
     maxHistoryRuns: 1,
     features: [],
@@ -63,7 +63,7 @@ const PLANS = [
     maxPagesPerCrawl: 2000,
     maxCrawlsPerMonth: null,
     maxHistoryRuns: 50,
-    features: ["Reporte Excel", "Análisis de arquitectura", "Análisis de performance", "Rastreos programados"],
+    features: ["Reporte Excel", "Análisis de arquitectura", "Análisis de performance", "Rastreos programados", "Rastreo de sitios CSR (Next.js, Nuxt, React)"],
     highlighted: true,
   },
   {
@@ -78,7 +78,7 @@ const PLANS = [
     maxPagesPerCrawl: 10000,
     maxCrawlsPerMonth: null,
     maxHistoryRuns: null,
-    features: ["Reporte Excel", "Análisis de arquitectura", "Análisis de performance", "Rastreos programados", "Acceso API", "Marca blanca", "Multi-usuario"],
+    features: ["Reporte Excel", "Análisis de arquitectura", "Análisis de performance", "Rastreos programados", "Rastreo de sitios CSR (Next.js, Nuxt, React)", "Acceso API", "Marca blanca", "Multi-usuario"],
   },
 ];
 

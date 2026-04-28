@@ -357,7 +357,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
               ) : null}
-              {!appReady && !loadError ? (
+              {!appReady && !loadError && !!activeRunId ? (
                 <div className="embed-skeleton" aria-label={t("loadingResults")}>
                   <div className="sk-block sk-title" />
                   <div className="sk-block sk-wide" />
