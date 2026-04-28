@@ -960,7 +960,6 @@ header.is-scrolled {
   color: var(--accent);
   font-weight: 700;
   font-family: "Syne", sans-serif;
-  width: 22px;
   flex-shrink: 0;
 }
 

@@ -1294,7 +1294,7 @@ const esc = (s) =>
     .replace(/"/g, "&quot;");
 const trunc = (s, n) => {
   s = String(s || "");
-  return s.length > n ? "…" + s.slice(s.length - n + 1) : s;
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
 };
 const sameU = (a, b) => {
   if (!a || !b) return false;
@@ -1923,7 +1923,7 @@ function addPage(p) {
   const dScore = q.descScore ?? null;
 
   const issH = seoIss.length
-    ? `<div class="itags">${seoIss.map((i) => `<span class="itag ${gclass(i.group)}">${issueLabel(i)}</span>`).join("")}</div>`
+    ? `<div class="itags">${seoIss.map((i) => (function(l){return `<span class="itag ${gclass(i.group)}"${l.length>36?' title="'+esc(l)+'"':''}>${esc(l.length>36?l.slice(0,35)+'…':l)}</span>`;})(issueLabel(i))).join("")}</div>`
     : `<span style="color:var(--ok);font-size:10px;">✅ OK</span>`;
 
   //  ALL tab  clickable rows show SEO sidebar
@@ -1990,7 +1990,7 @@ function addPage(p) {
         urlA(p),
         sbadge(p.statusCode),
         gs.map(groupLabel).join(", "),
-        `<div class="itags">${seoIss.map((i) => `<span class="itag ${gclass(i.group)}">${issueLabel(i)}</span>`).join("")}</div>`,
+        `<div class="itags">${seoIss.map((i) => (function(l){return `<span class="itag ${gclass(i.group)}"${l.length>36?' title="'+esc(l)+'"':''}>${esc(l.length>36?l.slice(0,35)+'…':l)}</span>`;})(issueLabel(i))).join("")}</div>`,
         esc(trunc(p.title || "—", 34)),
       ],
       gs,

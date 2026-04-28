@@ -1427,8 +1427,14 @@ function fetchSslInfo(hostname) {
   });
 }
 
-//  Browserless.io — renders CSR pages and returns full HTML
+//  Browserless.io — serialized (free plan allows 1 concurrent session)
+let _browserlessQueue = Promise.resolve();
 function fetchWithBrowserless(url) {
+  const result = _browserlessQueue.then(() => _browserlessFetch(url));
+  _browserlessQueue = result.then(() => {}, () => {});
+  return result;
+}
+function _browserlessFetch(url) {
   const token = process.env.BROWSERLESS_TOKEN;
   if (!token) return Promise.resolve(null);
   return new Promise((resolve) => {
