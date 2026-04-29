@@ -7,10 +7,10 @@ export default function Logo({ compact = false, className = "" }) {
       aria-label="SEO CRAWLER"
       fill="none"
     >
-      <text x="0" y={compact ? "22" : "29"} fill="currentColor" fontFamily="Syne, Manrope, sans-serif" fontWeight="700" fontSize={compact ? "18" : "22"} letterSpacing="-0.02em">SEO</text>
-      <circle cx={compact ? "40" : "45"} cy={compact ? "19" : "25"} r={compact ? "3.6" : "4.2"} fill="currentColor" opacity=".55" />
-      <text x={compact ? "50" : "57"} y={compact ? "22" : "29"} fill="currentColor" fontFamily="Syne, Manrope, sans-serif" fontWeight="700" fontSize={compact ? "18" : "22"} letterSpacing="-0.02em">CRAWLER</text>
-      {!compact ? <text x="0" y="42" fill="currentColor" opacity="0.68" fontFamily="Manrope, sans-serif" fontWeight="700" fontSize="8.5" letterSpacing=".28em">ESPACIO TECNICO SEO</text> : null}
+      <text x="0" y="22" fill="currentColor" font-family="Syne, Manrope, sans-serif" font-weight="700" font-size="17" letter-spacing="-0.02em">SEO</text>
+      <circle cx="64" cy="20" r="2.2" fill="currentColor" opacity=".55"></circle>
+      <text x="68" y="22" fill="currentColor" font-family="Syne, Manrope, sans-serif" font-weight="700" font-size="17" letter-spacing="-0.02em">CRAWLER</text>
+      {!compact ? <text x="0" y="40" fill="currentColor" opacity="0.68" fontFamily="Manrope, sans-serif" fontWeight="700" fontSize="11" letterSpacing=".28em">ESPACIO TECNICO SEO</text> : null}
     </svg>
   );
 }

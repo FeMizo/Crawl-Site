@@ -95,7 +95,6 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
         </div>
         <div>
           <Logo className="sidebar-logo" />
-          <div className="logo-sub">SEO Crawler</div>
         </div>
       </div>
 

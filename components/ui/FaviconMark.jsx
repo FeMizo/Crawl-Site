@@ -8,28 +8,87 @@ export default function FaviconMark({ className = "" }) {
       fill="none"
     >
       <defs>
-        <linearGradient id="seoCrawlerMarkGradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#86b9ff" />
-          <stop offset="100%" stopColor="#4d8dff" />
+        <linearGradient id="seoCrawlerMarkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#5eb3ff" />
+          <stop offset="50%" stopColor="#4d8dff" />
+          <stop offset="100%" stopColor="#0066ff" />
         </linearGradient>
+        <linearGradient id="seoCrawlerAccent" x1="100%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#00ff88" />
+          <stop offset="100%" stopColor="#00cc6f" />
+        </linearGradient>
+        <filter id="seoCrawlerShadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15" />
+        </filter>
       </defs>
+
+      {/* Background with subtle border */}
       <rect
-        x="0.75"
-        y="0.75"
-        width="42.5"
-        height="42.5"
-        rx="12"
-        fill="rgba(77,141,255,.12)"
-        stroke="rgba(77,141,255,.32)"
+        x="1.5"
+        y="1.5"
+        width="41"
+        height="41"
+        rx="11"
+        fill="rgba(77,141,255,.1)"
+        stroke="rgba(77,141,255,.25)"
+        strokeWidth="0.5"
       />
-      <path
-        d="M13.5 15.6c6-2.8 12.8 2.3 12.8 9.1-2.1-1.2-4.4-.8-6 .7L18 27.6l-5.2-5.1 2.3-2.3c1.6-1.6 2-3.9 1-5.4Z"
+
+      {/* Main crawler path - left node and curve */}
+      <circle
+        cx="14"
+        cy="18"
+        r="2.5"
         fill="url(#seoCrawlerMarkGradient)"
+        filter="url(#seoCrawlerShadow)"
       />
+
+      {/* Primary path - main diagonal sweep */}
       <path
-        d="M10 28.7c.4-2.3 1.5-4.2 3.2-5.8l2.4 2.3-.9 3.4-2.8 1.4a1.1 1.1 0 0 1-1.9-1.3Z"
-        fill="#d5e6ff"
-        opacity=".95"
+        d="M16.5 16 Q24 14 28 20 Q30 22 29.5 26"
+        stroke="url(#seoCrawlerMarkGradient)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        filter="url(#seoCrawlerShadow)"
+      />
+
+      {/* End point - right node */}
+      <circle
+        cx="29"
+        cy="26"
+        r="2.5"
+        fill="url(#seoCrawlerMarkGradient)"
+        filter="url(#seoCrawlerShadow)"
+      />
+
+      {/* Secondary discovery path - accent accent */}
+      <path
+        d="M14 18 L19 23 L22 20"
+        stroke="url(#seoCrawlerAccent)"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.9"
+        filter="url(#seoCrawlerShadow)"
+      />
+
+      {/* Lower accent nodes */}
+      <circle
+        cx="19"
+        cy="23"
+        r="1.8"
+        fill="url(#seoCrawlerAccent)"
+        opacity="0.85"
+      />
+
+      {/* Small detail - spider leg indicator */}
+      <path
+        d="M22 20 L24 24"
+        stroke="rgba(77,141,255,.5)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.6"
       />
     </svg>
   );

@@ -1,56 +1,4 @@
 ﻿/*  THEMES  */
-[data-theme="dark"] {
-  --bg: #080808;
-  --bg2: #111;
-  --bg3: #1c1c1c;
-  --bg4: #252525;
-  --border: #2a2a2a;
-  --border2: #3a3a3a;
-  --text: #f2f2f2;
-  --text2: #c0c0c0;
-  --muted: #585858;
-  --accent: #00ff88;
-  --adim: rgba(0, 255, 136, 0.14);
-  --error: #ff5252;
-  --edim: rgba(255, 82, 82, 0.14);
-  --warn: #ffd740;
-  --wdim: rgba(255, 215, 64, 0.14);
-  --ok: #00e676;
-  --odim: rgba(0, 230, 118, 0.14);
-  --purple: #ce93d8;
-  --pdim: rgba(206, 147, 216, 0.14);
-  --blue: #64b5f6;
-  --bdim: rgba(100, 181, 246, 0.14);
-  --orange: #ffb74d;
-  --rdim: rgba(255, 183, 77, 0.14);
-}
-
-[data-theme="light"] {
-  --bg: #f0f2f5;
-  --bg2: #fff;
-  --bg3: #e8eaed;
-  --bg4: #dde0e5;
-  --border: #d0d4db;
-  --border2: #b8bec9;
-  --text: #1a1e27;
-  --text2: #3d4452;
-  --muted: #8b93a5;
-  --accent: #00875a;
-  --adim: rgba(0, 135, 90, 0.12);
-  --error: #c62828;
-  --edim: rgba(198, 40, 40, 0.12);
-  --warn: #b45309;
-  --wdim: rgba(180, 83, 9, 0.12);
-  --ok: #2e7d32;
-  --odim: rgba(46, 125, 50, 0.12);
-  --purple: #6a1b9a;
-  --pdim: rgba(106, 27, 154, 0.12);
-  --blue: #1565c0;
-  --bdim: rgba(21, 101, 192, 0.12);
-  --orange: #bf360c;
-  --rdim: rgba(191, 54, 12, 0.12);
-}
-
 [data-theme="hc-dark"] {
   --bg: #000;
   --bg2: #0c0c0c;
@@ -75,32 +23,6 @@
   --bdim: rgba(68, 204, 255, 0.2);
   --orange: #ffaa00;
   --rdim: rgba(255, 170, 0, 0.2);
-}
-
-[data-theme="hc-light"] {
-  --bg: #fff;
-  --bg2: #fff;
-  --bg3: #ececec;
-  --bg4: #d8d8d8;
-  --border: #000;
-  --border2: #333;
-  --text: #000;
-  --text2: #111;
-  --muted: #444;
-  --accent: #005c1a;
-  --adim: rgba(0, 92, 26, 0.18);
-  --error: #7f0000;
-  --edim: rgba(127, 0, 0, 0.18);
-  --warn: #5c2e00;
-  --wdim: rgba(92, 46, 0, 0.18);
-  --ok: #005c1a;
-  --odim: rgba(0, 92, 26, 0.18);
-  --purple: #350070;
-  --pdim: rgba(53, 0, 112, 0.18);
-  --blue: #00237a;
-  --bdim: rgba(0, 35, 122, 0.18);
-  --orange: #5c2e00;
-  --rdim: rgba(92, 46, 0, 0.18);
 }
 
 * {
@@ -166,23 +88,25 @@ header.is-scrolled {
 }
 
 .logo {
+  display: block;
+  width: min(100%, 245px);
   font-family: "Syne", sans-serif;
   font-weight: 800;
-  font-size: clamp(18px, 2.7vw, 25px);
-  letter-spacing: -2px;
-  line-height: 1;
+  font-size: 29px;
+  letter-spacing: -1px;
+  line-height: 0;
 }
 
 .logo span {
-  color: var(--accent);
+  color: #9cc0ff;
 }
 
 .logo-sub {
   font-size: 14px;
   color: var(--muted);
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  margin-top: 3px;
+  letter-spacing: 1px;
+  text-transform: none;
+  margin-top: 6px;
 }
 
 .hdr-r {
@@ -947,6 +871,9 @@ header.is-scrolled {
 .htree {
   font-size: 14px;
   line-height: 1.6;
+  max-height: 400px;
+  overflow: auto;
+  padding-right: 6px;
 }
 
 .htree-item {
@@ -1389,9 +1316,11 @@ thead th {
 }
 
 tbody tr {
-  border-bottom: 1px solid var(--bg3);
   transition: background 0.1s;
   animation: fi 0.15s ease;
+}
+tbody tr:not(:last-child) {
+  border-bottom: 1px solid var(--bg3);
 }
 
 @keyframes fi {
@@ -1811,17 +1740,17 @@ footer {
 
 /* ===== Dashboard Redesign 2026 ===== */
 [data-theme="dark"] {
-  --bg: #071226;
-  --bg2: #0d1b33;
-  --bg3: #152645;
-  --bg4: #1e3256;
-  --border: #213a63;
-  --border2: #345586;
-  --text: #f3f7ff;
-  --text2: #b8c9e6;
-  --muted: #7f95ba;
-  --accent: #4d8dff;
-  --adim: rgba(77, 141, 255, 0.16);
+  --bg: #061325;
+  --bg2: #0b1a33;
+  --bg3: #122544;
+  --bg4: #1a3157;
+  --border: #1f3b64;
+  --border2: #2b4f80;
+  --text: #eff5ff;
+  --text2: #b8cae8;
+  --muted: #7c96bf;
+  --accent: #3f8cff;
+  --adim: rgba(63, 140, 255, 0.16);
   --ok: #42d392;
   --odim: rgba(66, 211, 146, 0.15);
   --warn: #f3b343;
@@ -1862,8 +1791,8 @@ body {
   width: 270px;
   flex-shrink: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #08162d 0%, #091427 100%);
-  border-right: 1px solid var(--border);
+  background: linear-gradient(180deg, #08162f 0%, #09152a 100%);
+  border-right: 1px solid rgba(62, 111, 175, 0.35);
   padding: 26px 20px;
   display: flex;
   flex-direction: column;
@@ -1877,34 +1806,15 @@ body {
 }
 
 .brand-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #5f9eff, #3c74d4);
+  background: linear-gradient(145deg, #4f97ff, #2f6ad6);
   color: #fff;
   font-size: 18px;
-  box-shadow: 0 8px 24px rgba(39, 93, 193, 0.45);
-}
-
-.logo {
-  font-family: "Syne", sans-serif;
-  font-weight: 800;
-  font-size: 29px;
-  letter-spacing: -1px;
-  line-height: 1;
-}
-
-.logo span {
-  color: #9cc0ff;
-}
-
-.logo-sub {
-  margin-top: 6px;
-  letter-spacing: 1px;
-  text-transform: none;
-  font-size: 14px;
+  box-shadow: 0 10px 26px rgba(46, 100, 198, 0.42);
 }
 
 .global-nav {
@@ -2261,10 +2171,6 @@ td {
   font-size: 15px;
 }
 
-tbody tr {
-  border-bottom-color: rgba(36, 63, 104, 0.55);
-}
-
 tbody tr:hover {
   background: rgba(31, 55, 92, 0.54);
 }
@@ -2349,20 +2255,6 @@ footer {
 }
 
 /* ===== Dashboard Redesign 2026 - Iteration 2 ===== */
-[data-theme="dark"] {
-  --bg: #061325;
-  --bg2: #0b1a33;
-  --bg3: #122544;
-  --bg4: #1a3157;
-  --border: #1f3b64;
-  --border2: #2b4f80;
-  --text: #eff5ff;
-  --text2: #b8cae8;
-  --muted: #7c96bf;
-  --accent: #3f8cff;
-  --adim: rgba(63, 140, 255, 0.16);
-}
-
 [data-theme="light"] {
   --bg: #f2f6fc;
   --bg2: #ffffff;
@@ -2419,28 +2311,9 @@ body {
     var(--bg);
 }
 
-.global-sidebar {
-  background: linear-gradient(180deg, #08162f 0%, #09152a 100%);
-  border-right: 1px solid rgba(62, 111, 175, 0.35);
-}
-
 [data-theme="light"] .global-sidebar {
   background: linear-gradient(180deg, #eff4ff 0%, #e9f0ff 100%);
   border-right: 1px solid var(--border);
-}
-
-.brand-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #4f97ff, #2f6ad6);
-  box-shadow: 0 10px 26px rgba(46, 100, 198, 0.42);
-}
-
-.brand-icon svg {
-  width: 22px;
-  height: 22px;
-  color: #ffffff;
 }
 
 [data-theme="light"] .brand-icon {
@@ -2619,19 +2492,6 @@ body {
   box-shadow: 0 10px 26px rgba(34, 77, 140, 0.06);
 }
 
-[data-theme="light"] .cw,
-[data-theme="light"] .dlb,
-[data-theme="light"] .tnav,
-[data-theme="light"] .scope-tabs,
-[data-theme="light"] .tw,
-[data-theme="light"] .sidebar-card {
-  background: #ffffff;
-}
-
-[data-theme="light"] .sfbar {
-  background: #f4f8ff;
-}
-
 .tbtn.on {
   box-shadow: inset 0 0 0 1px rgba(63, 140, 255, 0.35);
 }
@@ -2654,24 +2514,6 @@ body {
   min-width: 24px;
   padding: 2px 8px;
   border-radius: 999px;
-}
-
-[data-theme="light"] thead th {
-  background: #edf4ff;
-  color: #5a7295;
-  border-bottom-color: #ceddf5;
-}
-
-[data-theme="light"] td {
-  color: #2f476a;
-}
-
-[data-theme="light"] tbody tr {
-  border-bottom-color: #e2ebfb;
-}
-
-[data-theme="light"] tbody tr:hover {
-  background: #f5f9ff;
 }
 
 [data-theme="light"] .badge.b2,
@@ -2700,15 +2542,6 @@ body {
   color: #225fc1;
   border-color: #8ab0ea;
   background: rgba(45, 116, 231, 0.1);
-}
-
-[data-theme="light"] .rbox,
-[data-theme="light"] .func-item,
-[data-theme="light"] .sug-box,
-[data-theme="light"] .ri-raw,
-[data-theme="light"] .seo-preview {
-  background: #f7faff;
-  border-color: #d4e2f9;
 }
 
 @media (max-width: 900px) {
@@ -2931,20 +2764,6 @@ body {
   border: none !important;
 }
 
-.app-shell .global-sidebar,
-.app-shell header,
-.app-shell .iz,
-.app-shell .cw,
-.app-shell .dlb,
-.app-shell .tnav,
-.app-shell .tw,
-.app-shell .sidebar-card,
-.app-shell .sfbar,
-.app-shell .sc,
-.app-shell .adv-p {
-  border: none !important;
-}
-
 .global-nav-item,
 .hbtn,
 .scope-btn,
@@ -3025,12 +2844,7 @@ body {
 .brand-icon svg {
   width: 24px;
   height: 24px;
-}
-
-.logo {
-  display: block;
-  width: min(100%, 245px);
-  line-height: 0;
+  color: #ffffff;
 }
 
 .logo-svg {
@@ -3261,12 +3075,6 @@ tbody tr.page-hide {
 [data-theme="light"] .sc-icon,
 [data-theme="hc-light"] .sc-icon {
   color: #2d74e7;
-}
-
-.htree {
-  max-height: 400px;
-  overflow: auto;
-  padding-right: 6px;
 }
 
 .url-cell {
