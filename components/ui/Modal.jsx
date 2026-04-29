@@ -1,10 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import Icon from "./Icon";
 
 export default function Modal({ title, children, onClose, actions }) {
+  const titleId = useId();
+  const cardRef = useRef(null);
+
   useEffect(() => {
+    const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const card = cardRef.current;
+    if (!card) return;
+
+    const focusables = Array.from(card.querySelectorAll(FOCUSABLE));
+    if (focusables.length) focusables[0].focus();
+
     function onKey(e) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -12,9 +30,16 @@ export default function Modal({ title, children, onClose, actions }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={cardRef}
+        className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <span className="modal-title">{title}</span>
+          <span id={titleId} className="modal-title">{title}</span>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar">
             <Icon name="close" size={16} />
           </button>
@@ -75,6 +100,10 @@ export default function Modal({ title, children, onClose, actions }) {
         .modal-close:hover {
           color: var(--text);
           background: var(--bg3);
+        }
+        .modal-close:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
         .modal-body {
           padding: 20px;

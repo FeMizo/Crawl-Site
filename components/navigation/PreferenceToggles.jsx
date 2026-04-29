@@ -73,6 +73,7 @@ export default function PreferenceToggles({ lang, theme, onLangChange, onThemeCh
                 key={opt.id}
                 type="button"
                 className={`pref-option${lang === opt.id ? " on" : ""}`}
+                aria-pressed={lang === opt.id}
                 onClick={() => { onLangChange(opt.id); setOpen(false); }}
               >
                 <span
@@ -94,6 +95,7 @@ export default function PreferenceToggles({ lang, theme, onLangChange, onThemeCh
                 key={opt.id}
                 type="button"
                 className={`pref-option${theme === opt.id ? " on" : ""}`}
+                aria-pressed={theme === opt.id}
                 onClick={() => { onThemeChange(opt.id); setOpen(false); }}
               >
                 <span aria-hidden="true">{opt.icon}</span>

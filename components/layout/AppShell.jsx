@@ -661,6 +661,11 @@ export default function AppShell({
         .footer-nav-link:hover {
           color: var(--accent);
         }
+        .footer-nav-link:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+          border-radius: 3px;
+        }
         .footer-nav-sep {
           font-size: 11px;
           color: var(--border2);

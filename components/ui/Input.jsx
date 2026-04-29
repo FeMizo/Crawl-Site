@@ -39,7 +39,7 @@ export default function Input({
               type="button"
               className="ui-password-toggle"
               onClick={() => setRevealed((current) => !current)}
-              aria-label={revealed ? "Ocultar contrasena" : "Mostrar contrasena"}
+              aria-label={revealed ? "Ocultar contraseña" : "Mostrar contraseña"}
               aria-pressed={revealed}
             >
               <Icon name={revealed ? "eyeOff" : "eye"} size={18} />

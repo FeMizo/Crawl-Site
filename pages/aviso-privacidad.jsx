@@ -22,6 +22,15 @@ export default function AvisoPrivacidadPage() {
         <meta property="og:title" content="Aviso de Privacidad | SEO Crawler" />
         <meta property="og:description" content="Aviso de privacidad de SEO Crawler. Conoce cómo tratamos tus datos personales conforme a la LFPDPPP." />
         <meta property="og:image" content={`${APP_URL}/assets/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="SEO Crawler — Aviso de Privacidad" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@aionsite" />
+        <meta name="twitter:title" content="Aviso de Privacidad | SEO Crawler" />
+        <meta name="twitter:description" content="Aviso de privacidad de SEO Crawler. Conoce cómo tratamos tus datos personales conforme a la LFPDPPP." />
+        <meta name="twitter:image" content={`${APP_URL}/assets/og-image.png`} />
+        <meta name="twitter:image:alt" content="SEO Crawler — Aviso de Privacidad" />
       </Head>
 
       <AppShell

@@ -110,6 +110,7 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
                   : ""
             }
             href={item.href}
+            aria-current={activeKey === item.key ? "page" : undefined}
             onClick={() => setPendingHref(item.href)}
           >
             <Icon name={item.icon} size={17} className="nav-icon" />

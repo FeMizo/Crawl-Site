@@ -253,6 +253,20 @@ export default function DashboardPage() {
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/dashboard`} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Inicio", "item": `${process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app"}/` },
+                { "@type": "ListItem", "position": 2, "name": "Proyectos", "item": `${process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app"}/projects` },
+                { "@type": "ListItem", "position": 3, "name": project?.name || "Panel", "item": `${process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app"}/dashboard` },
+              ],
+            }),
+          }}
+        />
       </Head>
       <Script src="/app.js" strategy="afterInteractive" onLoad={() => setAppReady(true)} />
       <AppShell
