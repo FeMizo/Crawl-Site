@@ -236,6 +236,7 @@ export default function PreciosPage() {
           name="description"
           content="Compara los planes de SEO Crawler: desde auditorías gratuitas hasta rastreos ilimitados con reporte Excel, análisis de arquitectura y acceso API. Desde $0 MXN/mes."
         />
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href={`${APP_URL}/precios`} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${APP_URL}/precios`} />

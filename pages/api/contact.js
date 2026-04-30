@@ -29,6 +29,15 @@ export default async function handler(req, res) {
 
   const { name, email, message } = req.body || {};
 
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   if (!name?.trim() || !email?.trim() || !message?.trim()) {
     return res.status(400).json({ error: "Todos los campos son requeridos." });
   }
@@ -55,7 +64,7 @@ export default async function handler(req, res) {
     replyTo: email,
     subject: `Nuevo contacto: ${name}`,
     text: `Nombre: ${name}\nCorreo: ${email}\n\n${message}`,
-    html: `<p><strong>Nombre:</strong> ${name}</p><p><strong>Correo:</strong> ${email}</p><hr><p style="white-space:pre-wrap">${message}</p>`,
+    html: `<p><strong>Nombre:</strong> ${escHtml(name)}</p><p><strong>Correo:</strong> ${escHtml(email)}</p><hr><p style="white-space:pre-wrap">${escHtml(message)}</p>`,
   });
 
   return res.status(200).json({ ok: true });

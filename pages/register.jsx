@@ -36,7 +36,7 @@ async function readResponsePayload(response) {
   } catch {
     return {
       error: response.ok
-        ? "Respuesta invalida del servidor."
+        ? "Respuesta inválida del servidor."
         : `Error del servidor (${response.status}).`,
     };
   }

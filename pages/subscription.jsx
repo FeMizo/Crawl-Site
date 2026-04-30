@@ -364,6 +364,7 @@ export default function SubscriptionPage() {
       <Head>
         <title>Planes y precios | SEO Crawler</title>
         <meta name="description" content="Elige el plan de SEO Crawler que mejor se adapte a tu equipo: desde auditorías básicas hasta rastreos ilimitados con exportación de reportes Excel." />
+        <meta name="robots" content="noindex, nofollow" />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/subscription`} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/subscription`} />

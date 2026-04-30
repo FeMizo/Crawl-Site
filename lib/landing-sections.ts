@@ -25,7 +25,7 @@ const DEFAULT_LANDING_SECTIONS: LandingSectionDto[] = [
     showFor: "guest",
     content: {
       title: "Pasos rapidos",
-      step1: "Crea tu cuenta e inicia sesion para habilitar tu espacio de trabajo.",
+      step1: "Crea tu cuenta e inicia sesión para habilitar tu espacio de trabajo.",
       step2: "Registra la URL principal del dominio que quieres auditar.",
       step3: "Lanza el rastreo, revisa hallazgos y guarda el historial.",
     },

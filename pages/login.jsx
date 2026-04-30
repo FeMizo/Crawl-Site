@@ -35,7 +35,7 @@ async function readResponsePayload(response) {
   } catch {
     return {
       error: response.ok
-        ? "Respuesta invalida del servidor."
+        ? "Respuesta inválida del servidor."
         : `Error del servidor (${response.status}).`,
     };
   }
@@ -107,14 +107,14 @@ export default function LoginPage() {
         if (data.error === "EMAIL_NOT_VERIFIED") {
           setUnverified(true);
         } else {
-          throw new Error(data.error || "No se pudo iniciar sesion");
+          throw new Error(data.error || "No se pudo iniciar sesión");
         }
         return;
       }
       setSessionUser(data.user || null);
       router.push(safeRedirect(router.query.next));
     } catch (err) {
-      setError(err.message || "No se pudo iniciar sesion");
+      setError(err.message || "No se pudo iniciar sesión");
     } finally {
       setSubmitting(false);
     }
@@ -123,17 +123,17 @@ export default function LoginPage() {
   return (
     <>
       <Head>
-        <title>Iniciar sesion | SEO Crawler</title>
+        <title>Iniciar sesión | SEO Crawler</title>
         <meta name="robots" content="noindex, nofollow" />
         <meta name="description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/login`} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/login`} />
-        <meta property="og:title" content="Iniciar sesion | SEO Crawler" />
+        <meta property="og:title" content="Iniciar sesión | SEO Crawler" />
         <meta property="og:description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
         <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Iniciar sesion | SEO Crawler" />
+        <meta name="twitter:title" content="Iniciar sesión | SEO Crawler" />
         <meta name="twitter:description" content="Accede a tu panel de SEO Crawler para gestionar proyectos, revisar el historial de rastreos y descargar reportes de auditoría SEO en Excel." />
         <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/assets/og-image.png`} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

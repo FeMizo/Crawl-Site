@@ -116,7 +116,7 @@ export default function HomePage() {
   const goToDashboard = async () => {
     const normalized = normalizeUrl(url);
     if (!normalized) {
-      setError("Ingresa una URL valida.");
+      setError("Ingresa una URL válida. Ej: ejemplo.com, www.miempresa.com");
       return;
     }
     if (!sessionUser) {
@@ -168,6 +168,7 @@ export default function HomePage() {
       <Head>
         <title>Auditor SEO Online | SEO Crawler</title>
         <meta name="description" content="Introduce una URL, crea el proyecto y obtén un análisis SEO completo: errores 404, noindex, redirecciones y metadatos faltantes detectados al instante." />
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${process.env.NEXT_PUBLIC_APP_URL || ""}/`} />
@@ -201,7 +202,7 @@ export default function HomePage() {
         actions={
           loadingUser ? (
             <span className="btn btn-md btn-ghost">
-              Cargando sesion...
+              Cargando sesión...
             </span>
           ) : sessionUser ? (
             <>
@@ -212,7 +213,7 @@ export default function HomePage() {
           ) : (
             <>
               <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
-                Iniciar sesion
+                Iniciar sesión
               </Button>
               <Button href="/register" variant="solid" tone="primary" iconLeft={<Icon name="register" size={15} />}>
                 Registro
@@ -267,10 +268,10 @@ export default function HomePage() {
           >
             <div className="upgrade-body">
               <p className="upgrade-msg">
-                Alcanzaste el limite de <strong>{upgradeModal.limit}</strong> proyecto en el plan Gratis.
+                Has alcanzado el límite de <strong>{upgradeModal.limit}</strong> proyecto en el plan Gratis.
               </p>
               <p className="upgrade-hint">
-                En el plan Gratis los proyectos eliminados no liberan espacio. Actualiza tu plan para crear mas proyectos.
+                En el plan Gratis los proyectos eliminados no liberan espacio. Actualiza tu plan para crear más proyectos.
               </p>
             </div>
           </Modal>

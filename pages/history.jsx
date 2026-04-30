@@ -75,6 +75,7 @@ export default function HistoryPage() {
       <Head>
         <title>Historial | SEO Crawler</title>
         <meta name="description" content="Consulta el historial completo de rastreos SEO por proyecto: compara ejecuciones, revisa errores pasados y descarga reportes." />
+        <meta name="robots" content="noindex, nofollow" />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/history`} />
       </Head>
       <AppShell
