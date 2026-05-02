@@ -723,6 +723,12 @@ let crawlSrc = "crawl";
 function toggleAdv() {
   document.getElementById("advPanel").classList.toggle("open");
 }
+function toggleSidebar(btn) {
+  const sidebar = btn.closest(".sidebar");
+  if (!sidebar) return;
+  const open = sidebar.classList.toggle("is-open");
+  btn.setAttribute("aria-expanded", open);
+}
 function setSrc(s) {
   crawlSrc = s;
   document.getElementById("srcCrawl").classList.toggle("on", s === "crawl");

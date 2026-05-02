@@ -26,6 +26,31 @@ const THEME_OPTIONS = [
   { value: "hc-light", label: "Alto contraste claro" },
 ];
 
+function CollapseCard({ as: Tag = "div", defaultOpen = false, eyebrow, children, onSubmit, className = "" }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const toggle = () => setOpen((v) => !v);
+  return (
+    <Card as={Tag} className={`settings-card${className ? ` ${className}` : ""}`} onSubmit={onSubmit}>
+      <div
+        className={`settings-card-header${open ? " is-open" : ""}`}
+        onClick={toggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggle(); }}
+        aria-expanded={open}
+      >
+        {eyebrow}
+        <svg className="settings-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
+      <div className={`settings-card-body${open ? " is-open" : ""}`}>
+        {children}
+      </div>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const lang = useUiLanguage();
@@ -208,12 +233,12 @@ export default function SettingsPage() {
         }
       >
         <div className="settings-grid">
-          <Card
+          <CollapseCard
             as="form"
-            className="settings-card"
+            defaultOpen
+            eyebrow={<Eyebrow icon={<Icon name="user" size={12} />}>{t("eyebrowProfile")}</Eyebrow>}
             onSubmit={handleProfileSubmit}
           >
-            <Eyebrow icon={<Icon name="user" size={12} />}>{t("eyebrowProfile")}</Eyebrow>
             <Input label={t("labelEmail")} value={sessionUser?.email || ""} disabled readOnly />
             <Input label={t("labelRole")} value={sessionUser?.roleLabel || ""} disabled readOnly />
             <Input
@@ -231,12 +256,8 @@ export default function SettingsPage() {
               onPhoneChange={setPhoneNumber}
               hint={t("hintPhoneOptional")}
             />
-            {profileError ? (
-              <p className="feedback error">{profileError}</p>
-            ) : null}
-            {profileMessage ? (
-              <p className="feedback ok">{profileMessage}</p>
-            ) : null}
+            {profileError ? <p className="feedback error">{profileError}</p> : null}
+            {profileMessage ? <p className="feedback ok">{profileMessage}</p> : null}
             <Button
               type="submit"
               variant="solid"
@@ -246,19 +267,18 @@ export default function SettingsPage() {
             >
               {t("btnSaveProfile")}
             </Button>
-          </Card>
+          </CollapseCard>
 
-          <Card className="settings-card">
-            <Eyebrow icon={<Icon name="settings" size={12} />}>{t("eyebrowPreferences")}</Eyebrow>
+          <CollapseCard
+            eyebrow={<Eyebrow icon={<Icon name="settings" size={12} />}>{t("eyebrowPreferences")}</Eyebrow>}
+          >
             <Select
               label={t("labelDefaultLang")}
               value={language}
               onChange={(event) => applyLanguage(event.target.value)}
             >
               {LANG_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </Select>
             <Select
@@ -267,9 +287,7 @@ export default function SettingsPage() {
               onChange={(event) => applyTheme(event.target.value)}
             >
               {THEME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </Select>
             <div className="meta-grid">
@@ -282,14 +300,13 @@ export default function SettingsPage() {
                 <span>{t("statCrawlsLabel")}</span>
               </div>
             </div>
-          </Card>
+          </CollapseCard>
 
-          <Card
+          <CollapseCard
             as="form"
-            className="settings-card"
+            eyebrow={<Eyebrow icon={<Icon name="shield" size={12} />}>{t("eyebrowSecurity")}</Eyebrow>}
             onSubmit={handlePasswordSubmit}
           >
-            <Eyebrow icon={<Icon name="shield" size={12} />}>{t("eyebrowSecurity")}</Eyebrow>
             <Input
               label={t("labelCurrentPassword")}
               type="password"
@@ -313,12 +330,8 @@ export default function SettingsPage() {
               minLength={8}
               required
             />
-            {passwordError ? (
-              <p className="feedback error">{passwordError}</p>
-            ) : null}
-            {passwordMessage ? (
-              <p className="feedback ok">{passwordMessage}</p>
-            ) : null}
+            {passwordError ? <p className="feedback error">{passwordError}</p> : null}
+            {passwordMessage ? <p className="feedback ok">{passwordMessage}</p> : null}
             <Button
               type="submit"
               variant="solid"
@@ -328,7 +341,7 @@ export default function SettingsPage() {
             >
               {t("btnUpdatePassword")}
             </Button>
-          </Card>
+          </CollapseCard>
         </div>
 
         <style jsx>{`
@@ -377,6 +390,42 @@ export default function SettingsPage() {
             font-size: 12px;
             letter-spacing: 0.08em;
             text-transform: uppercase;
+          }
+        `}</style>
+        <style jsx global>{`
+          .settings-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+          }
+          .settings-card-chevron {
+            display: none;
+            color: var(--muted);
+            flex: 0 0 auto;
+            transition: transform 0.2s;
+          }
+          .settings-card-header.is-open .settings-card-chevron {
+            transform: rotate(180deg);
+          }
+          .settings-card-body {
+            display: contents;
+          }
+          @media (max-width: 640px) {
+            .settings-card-header {
+              cursor: pointer;
+              user-select: none;
+            }
+            .settings-card-chevron {
+              display: block;
+            }
+            .settings-card-body {
+              display: none;
+            }
+            .settings-card-body.is-open {
+              display: grid;
+              gap: 14px;
+            }
           }
         `}</style>
       </AppShell>

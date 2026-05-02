@@ -150,6 +150,13 @@ function PlanCard({ plan, sessionUser }) {
           border-color: var(--plan-accent);
           box-shadow: 0 0 0 1px var(--plan-accent) inset, 0 12px 32px rgba(0,0,0,0.18);
         }
+        @media (max-width: 640px) {
+          .plan-card {
+            min-width: 80%;
+            scroll-snap-align: start;
+            flex-shrink: 0;
+          }
+        }
         .plan-header {
           display: flex;
           align-items: center;
@@ -400,9 +407,19 @@ export default function PreciosPage() {
               grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             }
           }
-          @media (max-width: 560px) {
+          @media (max-width: 640px) {
             .plans-grid {
-              grid-template-columns: 1fr 1fr;
+              display: flex;
+              flex-wrap: nowrap;
+              overflow-x: auto;
+              scroll-snap-type: x mandatory;
+              -webkit-overflow-scrolling: touch;
+              gap: 12px;
+              padding-bottom: 8px;
+              scrollbar-width: none;
+            }
+            .plans-grid::-webkit-scrollbar {
+              display: none;
             }
           }
         `}</style>

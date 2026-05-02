@@ -99,6 +99,11 @@ export default function LandingHeroSection({
           align-items: end;
           min-width: 0;
         }
+        @media (max-width: 980px) {
+          :global(.hero-card) {
+            order: -1;
+          }
+        }
         @media (max-width: 680px) {
           .hero-form {
             grid-template-columns: 1fr;

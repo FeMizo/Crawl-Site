@@ -235,9 +235,8 @@ body.feature-locked-excel #dlb { display: none !important; }
         <h3 data-i18n="reportReady">Reporte listo</h3>
         <p id="dldesc"></p>
       </div>
-      <a class="btn btn-sm" id="dllink" href="#" target="_blank" rel="noopener noreferrer"
-        data-i18n="download">Descargar
-        .xlsx</a>
+      <a class="btn btn-sm btn-primary" id="dllink" href="#" target="_blank" rel="noopener noreferrer"
+        data-i18n="download">Descargar .xlsx</a>
     </div>
 
     <div class="main-layout mode-seo" id="mainLayout" style="display:none;">
@@ -250,6 +249,12 @@ body.feature-locked-excel #dlb { display: none !important; }
       </div>
       <div class="workspace-row">
         <aside class="sidebar">
+          <button class="sidebar-toggle" type="button" onclick="toggleSidebar(this)" aria-expanded="false">
+            <span class="sidebar-toggle-label" data-i18n="sidebarPanelLabel">An&#225;lisis del sitio</span>
+            <svg class="sidebar-toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
           <div class="sidebar-card" id="seoCard">
             <div class="sidebar-head">
               <div class="sidebar-head-icon">&#128269;</div>

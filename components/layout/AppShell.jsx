@@ -67,6 +67,9 @@ export default function AppShell({
             user={user}
             aside={aside}
             lang={lang}
+            theme={theme}
+            onLangChange={applyLang}
+            onThemeChange={applyTheme}
           />
         ) : null}
         <div className="dashboard-main">
@@ -326,6 +329,15 @@ export default function AppShell({
           flex: 0 0 auto;
           opacity: 0.9;
         }
+        .nav-mobile-toggle {
+          display: none;
+        }
+        .sidebar-top-row {
+          display: contents;
+        }
+        .hdr-r.sidebar-hdr-r {
+          display: none;
+        }
         .ui-card {
           --ui-card-top-space: 8px;
           display: flex;
@@ -356,6 +368,14 @@ export default function AppShell({
           color: var(--text2);
           font-size: 14px;
           overflow-wrap: anywhere;
+        }
+        @media (max-width: 980px) {
+          .dashboard-side-card {
+            display: none;
+          }
+          .header-copy{
+            text-align: center;
+          }
         }
         .sidebar-kicker {
           margin-bottom: 8px;
@@ -625,8 +645,59 @@ export default function AppShell({
             grid-template-columns: 1fr;
           }
           .dashboard-sidebar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
             border-right: 0;
             border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: var(--space-2) var(--space-3);
+          }
+          .sidebar-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+          }
+          .nav-mobile-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--border2);
+            background: var(--bg3);
+            color: var(--text2);
+            cursor: pointer;
+            flex: 0 0 auto;
+            transition: all 0.2s;
+          }
+          .nav-mobile-toggle:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--adim);
+          }
+          .nav-mobile-toggle:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+          }
+          .dashboard-nav {
+            display: none;
+            padding-top: var(--space-2);
+          }
+          .dashboard-nav.open {
+            display: grid;
+          }
+          .hdr-r.sidebar-hdr-r {
+            display: flex;
+            flex-direction: row;
+          }
+          .dashboard-top-header .hdr-r {
+            display: none;
           }
         }
         .app-footer {

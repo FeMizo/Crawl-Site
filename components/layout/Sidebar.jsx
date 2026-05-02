@@ -6,12 +6,15 @@ import FaviconMark from "../ui/FaviconMark";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 import PlanWidget from "./PlanWidget";
+import PreferenceToggles from "../navigation/PreferenceToggles";
+import UserMenu from "./UserMenu";
 import { tUi } from "../../lib/ui-language";
 
 const { getRoleLabel } = require("../../lib/user-roles");
 
-export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
+export default function Sidebar({ activeKey, user, aside, lang = "es", theme, onLangChange, onThemeChange }) {
   const [pendingHref, setPendingHref] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const privateNav = [
     {
@@ -89,16 +92,43 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
 
   return (
     <aside className="dashboard-sidebar">
-      <div className="brand-block">
-        <div className="brand-icon" aria-hidden="true">
-          <FaviconMark />
+      <div className="sidebar-top-row">
+        <div className="brand-block">
+          <div className="brand-icon" aria-hidden="true">
+            <FaviconMark />
+          </div>
+          <div>
+            <Logo className="sidebar-logo" />
+          </div>
         </div>
-        <div>
-          <Logo className="sidebar-logo" />
+        <div className="hdr-r sidebar-hdr-r">
+          <PreferenceToggles
+            lang={lang}
+            theme={theme}
+            onLangChange={onLangChange}
+            onThemeChange={onThemeChange}
+          />
+          {user ? <UserMenu user={user} /> : null}
         </div>
+        <button
+          className="nav-mobile-toggle"
+          aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen((v) => !v)}
+        >
+          {mobileOpen ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          )}
+        </button>
       </div>
 
-      <nav className="dashboard-nav">
+      <nav className={`dashboard-nav${mobileOpen ? " open" : ""}`}>
         {navItems.map((item) => (
           <Link
             key={item.key}
@@ -111,7 +141,7 @@ export default function Sidebar({ activeKey, user, aside, lang = "es" }) {
             }
             href={item.href}
             aria-current={activeKey === item.key ? "page" : undefined}
-            onClick={() => setPendingHref(item.href)}
+            onClick={() => { setPendingHref(item.href); setMobileOpen(false); }}
           >
             <Icon name={item.icon} size={17} className="nav-icon" />
             {item.label}
