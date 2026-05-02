@@ -1,6 +1,7 @@
 import Card from "../ui/Card";
 import Eyebrow from "../ui/Eyebrow";
 import Icon from "../ui/Icon";
+import { motion } from "motion/react";
 
 const FEATURES = [
   {
@@ -39,9 +40,26 @@ export default function LandingFeaturesSection() {
   return (
     <Card className="features-card">
       <Eyebrow icon={<Icon name="shield" size={12} />}>Qué detecta el crawler</Eyebrow>
-      <div className="features-grid">
+      <motion.div 
+        className="features-grid"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.1 } }
+        }}
+      >
         {FEATURES.map((f) => (
-          <div key={f.title} className="feature-item">
+          <motion.div 
+            key={f.title} 
+            className="feature-item"
+            variants={{
+              hidden: { opacity: 0, y: 15 },
+              visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+            }}
+            whileHover={{ y: -2, scale: 1.02, transition: { duration: 0.2 } }}
+          >
             <span className="feature-icon">
               <Icon name={f.icon} size={15} />
             </span>
@@ -49,9 +67,9 @@ export default function LandingFeaturesSection() {
               <div className="feature-title">{f.title}</div>
               <div className="feature-desc">{f.desc}</div>
             </div>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <style jsx>{`
         .features-card {

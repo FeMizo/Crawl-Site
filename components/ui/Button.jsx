@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { motion } from "motion/react";
+
+const MotionLink = motion.create ? motion.create(Link) : motion(Link);
 
 function cx(...parts) {
   return parts.filter(Boolean).join(" ");
@@ -44,20 +47,30 @@ export default function Button({
 
   if (href) {
     return (
-      <Link
+      <MotionLink
         href={href}
         className={classes}
         aria-disabled={disabled || loading ? "true" : undefined}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ duration: 0.1 }}
         {...props}
       >
         {content}
-      </Link>
+      </MotionLink>
     );
   }
 
   return (
-    <button className={classes} disabled={disabled || loading} {...props}>
+    <motion.button 
+      className={classes} 
+      disabled={disabled || loading}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.1 }}
+      {...props}
+    >
       {content}
-    </button>
+    </motion.button>
   );
 }

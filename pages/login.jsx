@@ -24,6 +24,7 @@ import Input from "../components/ui/Input";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
+import { motion } from "motion/react";
 
 const { validateEmail } = require("../lib/contact-validation");
 
@@ -158,66 +159,78 @@ export default function LoginPage() {
           )
         }
       >
-        <div className="auth-grid">
-          <Card className="info-card">
-            <Eyebrow icon={<Icon name="workspace" size={12} />}>{t("eyebrowWorkspace")}</Eyebrow>
-            <h2>{t("loginInfoTitle")}</h2>
-            <QuickStepsModule
-              compact
-              steps={[
-                {
-                  title: t("loginStep1Title"),
-                  detail: t("loginStep1Detail"),
-                },
-                {
-                  title: t("loginStep2Title"),
-                  detail: t("loginStep2Detail"),
-                },
-                {
-                  title: t("loginStep3Title"),
-                  detail: t("loginStep3Detail"),
-                },
-              ]}
-            />
-          </Card>
+        <motion.div 
+          className="auth-grid"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
+          }}
+        >
+          <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
+            <Card className="info-card">
+              <Eyebrow icon={<Icon name="workspace" size={12} />}>{t("eyebrowWorkspace")}</Eyebrow>
+              <h2>{t("loginInfoTitle")}</h2>
+              <QuickStepsModule
+                compact
+                steps={[
+                  {
+                    title: t("loginStep1Title"),
+                    detail: t("loginStep1Detail"),
+                  },
+                  {
+                    title: t("loginStep2Title"),
+                    detail: t("loginStep2Detail"),
+                  },
+                  {
+                    title: t("loginStep3Title"),
+                    detail: t("loginStep3Detail"),
+                  },
+                ]}
+              />
+            </Card>
+          </motion.div>
 
-          <Card as="form" className="form-card" onSubmit={handleSubmit}>
-            <Eyebrow icon={<Icon name="login" size={12} />}>{t("eyebrowCredentials")}</Eyebrow>
-            <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input
-              label={t("labelPassword")}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            {error ? <p className="feedback error">{error}</p> : null}
-            {unverified ? (
-              <div className="unverified-box">
-                <p className="feedback error">{t("errEmailNotVerified")}</p>
-                {resendStatus === "sent" ? (
-                  <p className="feedback ok">{t("resendSuccess")}</p>
-                ) : resendStatus === "error" ? (
-                  <p className="feedback error">{t("resendError")}</p>
-                ) : (
-                  <button type="button" className="resend-btn" disabled={resendStatus === "sending"} onClick={handleResend}>
-                    {resendStatus === "sending" ? "…" : t("linkResendVerification")}
-                  </button>
-                )}
-              </div>
-            ) : null}
-            <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="login" size={15} />}>
-              {t("btnEnter")}
-            </Button>
-            <p className="foot-note">
-              {t("loginNoAccount")} <Link href="/register">{t("linkCreateAccount")}</Link>
-            </p>
-            <p className="foot-note">
-              <Link href="/forgot-password">{t("linkForgotPassword")}</Link>
-            </p>
-          </Card>
-        </div>
+          <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
+            <Card as="form" className="form-card" onSubmit={handleSubmit}>
+              <Eyebrow icon={<Icon name="login" size={12} />}>{t("eyebrowCredentials")}</Eyebrow>
+              <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                label={t("labelPassword")}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              {error ? <p className="feedback error">{error}</p> : null}
+              {unverified ? (
+                <div className="unverified-box">
+                  <p className="feedback error">{t("errEmailNotVerified")}</p>
+                  {resendStatus === "sent" ? (
+                    <p className="feedback ok">{t("resendSuccess")}</p>
+                  ) : resendStatus === "error" ? (
+                    <p className="feedback error">{t("resendError")}</p>
+                  ) : (
+                    <button type="button" className="resend-btn" disabled={resendStatus === "sending"} onClick={handleResend}>
+                      {resendStatus === "sending" ? "…" : t("linkResendVerification")}
+                    </button>
+                  )}
+                </div>
+              ) : null}
+              <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="login" size={15} />}>
+                {t("btnEnter")}
+              </Button>
+              <p className="foot-note">
+                {t("loginNoAccount")} <Link href="/register">{t("linkCreateAccount")}</Link>
+              </p>
+              <p className="foot-note">
+                <Link href="/forgot-password">{t("linkForgotPassword")}</Link>
+              </p>
+            </Card>
+          </motion.div>
+        </motion.div>
         <style jsx>{`
           .auth-grid {
             display: grid;

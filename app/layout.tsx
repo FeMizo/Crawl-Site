@@ -21,7 +21,7 @@ export default function RootLayout({
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@400;600;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Manrope:wght@400;500;700;800&family=Syne:wght@400;600;800&display=swap"
         />
       </head>
       <body>{children}</body>

@@ -2,6 +2,7 @@ import Button from "../ui/Button";
 import Card from "../ui/Card";
 import Icon from "../ui/Icon";
 import Input from "../ui/Input";
+import { motion } from "motion/react";
 
 type LandingHeroSectionProps = {
   content: Record<string, unknown>;
@@ -37,12 +38,41 @@ export default function LandingHeroSection({
 
   return (
     <Card className="hero-card">
-      <div className="hero-copy">
-        <div className="eyebrow">{eyebrow}</div>
-        <h2>{title}</h2>
-        <p>{description}</p>
-      </div>
-      <div className="hero-form">
+      <motion.div 
+        className="hero-copy"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div 
+          className="eyebrow"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          {eyebrow}
+        </motion.div>
+        <motion.h2
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          {title}
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          {description}
+        </motion.p>
+      </motion.div>
+      <motion.div 
+        className="hero-form"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
         <Input
           label={urlLabel}
           type="url"
@@ -61,7 +91,7 @@ export default function LandingHeroSection({
         >
           {ctaLabel}
         </Button>
-      </div>
+      </motion.div>
 
       <style jsx>{`
         .hero-card {

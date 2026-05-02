@@ -3272,3 +3272,158 @@ tbody tr.page-hide {
     width: 120px !important;
   }
 }
+
+/* ========================================= */
+/* --- REDISEÑO UX/UI (GLASSMORPHISM) --- */
+/* ========================================= */
+
+/* 1. TONOS DE COLORES ACTUALIZADOS */
+[data-theme="dark"] {
+  --bg: #0b0f19;
+  --bg2: rgba(20, 26, 38, 0.65);
+  --bg3: rgba(30, 38, 55, 0.85);
+  --bg4: rgba(45, 55, 75, 0.95);
+  --border: rgba(255, 255, 255, 0.08);
+  --border2: rgba(255, 255, 255, 0.15);
+  --text: #f8fafc;
+  --text2: #cbd5e1;
+  --muted: #64748b;
+  --accent: #3b82f6;
+  --adim: rgba(59, 130, 246, 0.15);
+  --error: #ef4444;
+  --edim: rgba(239, 68, 68, 0.15);
+  --warn: #eab308;
+  --wdim: rgba(234, 179, 8, 0.15);
+  --ok: #10b981;
+  --odim: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg2: rgba(255, 255, 255, 0.75);
+  --bg3: rgba(255, 255, 255, 0.95);
+  --bg4: #ffffff;
+  --border: rgba(15, 23, 42, 0.08);
+  --border2: rgba(15, 23, 42, 0.15);
+  --text: #0f172a;
+  --text2: #334155;
+  --muted: #94a3b8;
+  --accent: #2563eb;
+  --adim: rgba(37, 99, 235, 0.12);
+}
+
+[data-theme="hc-dark"] {
+  --bg: #000000;
+  --bg2: #111111;
+  --bg3: #222222;
+  --border: #444444;
+  --border2: #666666;
+  --text: #ffffff;
+  --text2: #eeeeee;
+  --accent: #00ff00;
+  --adim: rgba(0, 255, 0, 0.2);
+}
+
+[data-theme="hc-light"] {
+  --bg: #ffffff;
+  --bg2: #f0f0f0;
+  --bg3: #e0e0e0;
+  --border: #222222;
+  --border2: #444444;
+  --text: #000000;
+  --text2: #111111;
+  --accent: #0000ff;
+  --adim: rgba(0, 0, 255, 0.15);
+}
+
+/* 2. GLASSMORPHISM & BLUR EFFECTS */
+header, .sidebar-card, .sc, .sg-group, .pref-dropdown, .Modal-content {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+header.is-scrolled {
+  background: var(--bg2);
+  border-bottom-color: var(--border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-card, .sc, .sg-group {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* 3. PADDINGS Y ESPACIADOS (Mejorar respiración) */
+.sidebar-body {
+  padding: 20px;
+}
+.sc {
+  padding: 16px 18px;
+}
+.sg-group-label {
+  padding: 10px 14px;
+  font-size: 10px;
+}
+.app {
+  padding: 0 24px;
+}
+.iz {
+  padding: 24px 0 16px;
+}
+
+/* 4. ANIMACIONES BÁSICAS Y TRANSICIONES */
+.btn-go, .hbtn, .btn, .btn-md, .btn-primary {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-go:hover:not(:disabled), .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--adim);
+}
+
+.sc {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.sc:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  border-color: var(--border2);
+}
+
+.sidebar-card {
+  transition: box-shadow 0.3s ease;
+}
+.sidebar-card:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+/* Mejorar visualmente inputs */
+.url-input, .csel {
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  background: var(--bg3);
+}
+.url-input:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05), 0 0 0 3px var(--adim);
+}
+
+/* Animación de entrada suave para el contenido principal */
+.main-layout, .landing-sections {
+  animation: fadeSlideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes fadeSlideUp {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Ajuste de tipografía global más elegante */
+body {
+  font-family: "Inter", "Manrope", sans-serif;
+}
+h1, h2, h3, .logo, .sidebar-head-title, .sv {
+  font-family: "Outfit", "Syne", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+

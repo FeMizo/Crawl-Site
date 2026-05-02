@@ -13,6 +13,7 @@ import Select from "../components/ui/Select";
 import QuickStepsModule from "../components/shared/QuickStepsModule";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
+import { motion } from "motion/react";
 
 const { validateEmail, validatePhoneInput } = require("../lib/contact-validation");
 
@@ -150,80 +151,94 @@ export default function RegisterPage() {
           )
         }
       >
-        <div className="auth-grid">
-          <Card className="info-card">
-            <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowRegister")}</Eyebrow>
-            <h2>{t("registerInfoTitle")}</h2>
-            <QuickStepsModule
-              compact
-              steps={[
-                {
-                  title: t("registerStep1Title"),
-                  detail: t("registerStep1Detail"),
-                },
-                {
-                  title: t("registerStep2Title"),
-                  detail: t("registerStep2Detail"),
-                },
-                {
-                  title: t("registerStep3Title"),
-                  detail: t("registerStep3Detail"),
-                },
-              ]}
-            />
-          </Card>
+        <motion.div 
+          className="auth-grid"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
+          }}
+        >
+          <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
+            <Card className="info-card">
+              <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowRegister")}</Eyebrow>
+              <h2>{t("registerInfoTitle")}</h2>
+              <QuickStepsModule
+                compact
+                steps={[
+                  {
+                    title: t("registerStep1Title"),
+                    detail: t("registerStep1Detail"),
+                  },
+                  {
+                    title: t("registerStep2Title"),
+                    detail: t("registerStep2Detail"),
+                  },
+                  {
+                    title: t("registerStep3Title"),
+                    detail: t("registerStep3Detail"),
+                  },
+                ]}
+              />
+            </Card>
+          </motion.div>
 
           {pending ? (
-            <Card className="form-card">
-              <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
-              <h2>{t("registerPendingTitle")}</h2>
-              <p>{t("registerPendingDesc")}</p>
-              <p className="note">{t("registerPendingNote")}</p>
-              <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
-                {t("btnBackToLogin")}
-              </Button>
-            </Card>
+            <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
+              <Card className="form-card">
+                <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
+                <h2>{t("registerPendingTitle")}</h2>
+                <p>{t("registerPendingDesc")}</p>
+                <p className="note">{t("registerPendingNote")}</p>
+                <Button href="/login" variant="outline" tone="secondary" iconLeft={<Icon name="login" size={15} />}>
+                  {t("btnBackToLogin")}
+                </Button>
+              </Card>
+            </motion.div>
           ) : (
-            <Card as="form" className="form-card" onSubmit={handleSubmit}>
-              <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
-              <Input label={t("labelName")} type="text" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              <PhoneField
-                label={t("labelPhone")}
-                country={phoneCountry}
-                phone={phoneNumber}
-                onCountryChange={setPhoneCountry}
-                onPhoneChange={setPhoneNumber}
-                hint={t("hintPhoneSelect")}
-              />
-              <Select
-                label="Tu perfil"
-                value={jobRole}
-                onChange={(e) => setJobRole(e.target.value)}
-              >
-                {JOB_ROLE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </Select>
-              <Input
-                label={t("labelPassword")}
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              {error ? <p className="feedback error">{error}</p> : null}
-              <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="plus" size={15} />}>
-                {t("btnCreateAccount")}
-              </Button>
-              <p className="foot-note">
-                {t("registerHasAccount")} <Link href="/login">{t("linkSignIn")}</Link>
-              </p>
-            </Card>
+            <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
+              <Card as="form" className="form-card" onSubmit={handleSubmit}>
+                <Eyebrow icon={<Icon name="register" size={12} />}>{t("eyebrowNewUser")}</Eyebrow>
+                <Input label={t("labelName")} type="text" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input label={t("labelEmail")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <PhoneField
+                  label={t("labelPhone")}
+                  country={phoneCountry}
+                  phone={phoneNumber}
+                  onCountryChange={setPhoneCountry}
+                  onPhoneChange={setPhoneNumber}
+                  hint={t("hintPhoneSelect")}
+                />
+                <Select
+                  label="Tu perfil"
+                  value={jobRole}
+                  onChange={(e) => setJobRole(e.target.value)}
+                >
+                  {JOB_ROLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </Select>
+                <Input
+                  label={t("labelPassword")}
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                {error ? <p className="feedback error">{error}</p> : null}
+                <Button type="submit" variant="solid" tone="primary" size="lg" loading={submitting} iconLeft={<Icon name="plus" size={15} />}>
+                  {t("btnCreateAccount")}
+                </Button>
+                <p className="foot-note">
+                  {t("registerHasAccount")} <Link href="/login">{t("linkSignIn")}</Link>
+                </p>
+              </Card>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
         <style jsx>{`
           .auth-grid {
             display: grid;

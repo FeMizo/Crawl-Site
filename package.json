@@ -1,6 +1,6 @@
 {
   "name": "seo-crawler",
-  "version": "2.14.4",
+  "version": "2.15.1",
   "private": true,
   "description": "SEO Crawler con interfaz web y reporte Excel",
   "scripts": {
@@ -28,6 +28,7 @@
     "express-rate-limit": "^6.8.0",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
+    "motion": "^12.38.0",
     "next": "^14.2.25",
     "nodemailer": "^8.0.5",
     "react": "^18.3.1",
