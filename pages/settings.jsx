@@ -15,7 +15,7 @@ import { tUi, useUiLanguage } from "../lib/ui-language";
 const { validatePhoneInput } = require("../lib/contact-validation");
 
 const LANG_OPTIONS = [
-  { value: "es", label: "Espanol" },
+  { value: "es", label: "Español" },
   { value: "en", label: "Inglés" },
 ];
 
@@ -55,7 +55,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const lang = useUiLanguage();
   const t = (key) => tUi(lang, key);
-  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [counts, setCounts] = useState({ projects: 0, crawlRuns: 0 });
   const [name, setName] = useState(() => sessionUser?.name || "");
   const [phoneCountry, setPhoneCountry] = useState("MX");
@@ -75,6 +75,12 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
+    if (!sessionHydrated) return undefined;
+    if (!sessionUser) {
+      router.replace("/login?next=/settings");
+      return undefined;
+    }
+
     let active = true;
     fetch("/api/auth/me?includeCounts=1")
       .then(async (response) => {
@@ -92,7 +98,7 @@ export default function SettingsPage() {
         setCounts(data.counts || { projects: 0, crawlRuns: 0 });
         return data;
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const savedLang = window.localStorage.getItem("seoCrawlerLang") || "es";
     const savedTheme = window.localStorage.getItem("seoCrawlerTheme") || "dark";
@@ -102,7 +108,7 @@ export default function SettingsPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, setSessionUser]);
+  }, [clearSessionUser, router, sessionHydrated, sessionUser, setSessionUser]);
 
   const applyLanguage = (nextLanguage) => {
     setLanguage(nextLanguage);
@@ -111,7 +117,7 @@ export default function SettingsPage() {
     if (typeof window.setLang === "function") {
       try {
         window.setLang(nextLanguage);
-      } catch {}
+      } catch { }
     }
   };
 
@@ -122,7 +128,7 @@ export default function SettingsPage() {
     if (typeof window.setTheme === "function") {
       try {
         window.setTheme(nextTheme);
-      } catch {}
+      } catch { }
     }
   };
 

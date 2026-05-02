@@ -28,49 +28,25 @@ type MeResponse = {
 
 export default function RoadmapPage() {
   const router = useRouter();
-  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let active = true;
+    if (!sessionHydrated) return;
 
-    fetch("/api/auth/me")
-      .then(async (response) => {
-        if (response.status === 401) {
-          clearSessionUser();
-          router.replace(`/login?next=${encodeURIComponent("/dashboard/roadmap")}`);
-          return null;
-        }
+    if (!sessionUser) {
+      router.replace(`/login?next=${encodeURIComponent("/dashboard/roadmap")}`);
+      return;
+    }
 
-        const payload = (await response.json().catch(() => ({}))) as MeResponse;
+    if (sessionUser.role !== "owner" && !sessionUser.permissions?.isOwner) {
+      router.replace("/");
+      return;
+    }
 
-        if (!response.ok) {
-          throw new Error(payload.error || "No se pudo validar la sesion");
-        }
-
-        return payload;
-      })
-      .then((payload) => {
-        if (!active || !payload) return;
-        if (!payload.user?.permissions?.isOwner) {
-          router.replace("/");
-          return;
-        }
-        setSessionUser(payload.user ?? null);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "No se pudo validar la sesion");
-      })
-      .finally(() => {
-        if (active) setCheckingSession(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [clearSessionUser, router, setSessionUser]);
+    setCheckingSession(false);
+  }, [sessionHydrated, sessionUser, router]);
 
   return (
     <AppShell

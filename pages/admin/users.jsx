@@ -54,7 +54,7 @@ function getRoleTone(role) {
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,6 +84,12 @@ export default function AdminUsersPage() {
   }, [queryInput]);
 
   useEffect(() => {
+    if (!sessionHydrated) return undefined;
+    if (!sessionUser) {
+      router.replace("/login?next=/admin/users");
+      return undefined;
+    }
+
     let active = true;
     const filtersChanged =
       previousFiltersRef.current.query !== query ||
@@ -140,7 +146,7 @@ export default function AdminUsersPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, page, query, roleFilter, router, setSessionUser]);
+  }, [clearSessionUser, page, query, roleFilter, router, sessionHydrated, sessionUser, setSessionUser]);
 
   const deleteUser = async (userId, userLabel) => {
     if (!window.confirm(`Eliminar a ${userLabel} y todos sus datos? Esta accion no se puede deshacer.`)) return;

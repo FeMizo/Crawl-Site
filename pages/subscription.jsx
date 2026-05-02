@@ -12,233 +12,12 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import useSessionUser from "../hooks/useSessionUser";
-import { FEATURE_LABELS } from "../lib/plan-data";
+import { FEATURE_LABELS, PLANS } from "../lib/plan-data";
 
-const PLAN_COLORS = {
-  FREE:    { accent: "#64b5f6", badge: "var(--text2)",  badgeBg: "var(--bg3)",              badgeBorder: "var(--border2)" },
-  BASIC:   { accent: "#f59e0b", badge: "#fbbf24",       badgeBg: "rgba(245,158,11,0.10)",   badgeBorder: "rgba(245,158,11,0.35)" },
-  STARTER: { accent: "#4d8dff", badge: "#77abff",       badgeBg: "rgba(77,141,255,0.10)",   badgeBorder: "rgba(77,141,255,0.35)" },
-  PRO:     { accent: "#00ff88", badge: "var(--accent)",  badgeBg: "var(--adim)",             badgeBorder: "rgba(0,255,136,0.3)" },
-  AGENCY:  { accent: "#c084fc", badge: "#c084fc",       badgeBg: "rgba(192,132,252,0.10)",  badgeBorder: "rgba(192,132,252,0.35)" },
-};
-
-const PLAN_LABEL = { FREE: "Gratis", BASIC: "Basic", STARTER: "Starter", PRO: "Pro", AGENCY: "Agency" };
-
-const PLAN_ORDER = { FREE: 0, BASIC: 1, STARTER: 2, PRO: 3, AGENCY: 4 };
-
-function fmt(n) {
-  if (n >= 999) return "Ilimitado";
-  return String(n);
-}
-
-function PlanCard({ plan, currentPlan, onChange, changing, stripeManaged, onPortal, portalLoading }) {
-  const isCurrent = plan.plan === currentPlan;
-  const isFree = plan.plan === "FREE";
-  const colors = PLAN_COLORS[plan.plan] || PLAN_COLORS.FREE;
-  const currentRank = PLAN_ORDER[currentPlan] ?? 0;
-  const thisRank = PLAN_ORDER[plan.plan] ?? 0;
-  const isUpgrade = !isCurrent && thisRank > currentRank;
-  const isDowngrade = !isCurrent && thisRank < currentRank;
-  const hasPrice = plan.hasStripePrice;
-
-  return (
-    <div className={`plan-card${isCurrent ? " is-current" : ""}`} style={{ "--plan-accent": colors.accent }}>
-      <div className="plan-card-header">
-        <span className="plan-badge" style={{ color: colors.badge, background: colors.badgeBg, borderColor: colors.badgeBorder }}>
-          {PLAN_LABEL[plan.plan] || plan.plan}
-        </span>
-        {isCurrent && <span className="current-tag">Tu plan actual</span>}
-        {isDowngrade && !isCurrent && <span className="downgrade-tag">Bajar de plan</span>}
-      </div>
-
-      <div className="plan-price">
-        {isFree
-          ? <span className="price-amount">Gratis</span>
-          : (
-            <>
-              <span className="price-amount">${plan.price.toLocaleString("es-MX")}</span>
-              <span className="price-currency"> {plan.currency}/mes</span>
-            </>
-          )
-        }
-      </div>
-
-      <ul className="plan-limits">
-        <li><Icon name="projects" size={12} />{fmt(plan.maxProjects)} proyecto{plan.maxProjects !== 1 ? "s" : ""}</li>
-        <li><Icon name="run" size={12} />{fmt(plan.maxPagesPerCrawl)} paginas por rastreo</li>
-        <li><Icon name="history" size={12} />{fmt(plan.maxCrawlsPerMonth)} rastreos/mes</li>
-        <li><Icon name="history" size={12} />{fmt(plan.maxHistoryRuns)} historial guardado</li>
-      </ul>
-
-      {plan.features?.length > 0 && (
-        <ul className="plan-features">
-          {plan.features.map((f) => (
-            <li key={f}><Icon name="check" size={11} />{FEATURE_LABELS[f] || f}</li>
-          ))}
-        </ul>
-      )}
-
-      <div className="plan-action">
-        {isCurrent && isFree && (
-          <Button variant="outline" tone="secondary" disabled>Plan actual</Button>
-        )}
-        {isCurrent && !isFree && stripeManaged && (
-          <Button
-            type="button"
-            variant="outline"
-            tone="secondary"
-            onClick={onPortal}
-            loading={portalLoading}
-            iconLeft={<Icon name="settings" size={14} />}
-          >
-            Gestionar facturacion
-          </Button>
-        )}
-        {isCurrent && !isFree && !stripeManaged && (
-          <Button variant="outline" tone="secondary" disabled>Plan activo</Button>
-        )}
-        {isUpgrade && hasPrice && (
-          <Button
-            type="button"
-            variant="solid"
-            tone="primary"
-            onClick={() => onChange(plan.plan)}
-            loading={changing === plan.plan}
-            iconLeft={<Icon name="plus" size={14} />}
-          >
-            {stripeManaged ? "Subir de plan" : "Suscribirse"}
-          </Button>
-        )}
-        {isUpgrade && !hasPrice && (
-          <Button variant="outline" tone="secondary" disabled>No disponible</Button>
-        )}
-        {isDowngrade && isFree && (
-          <Button
-            type="button"
-            variant="outline"
-            tone="danger"
-            onClick={() => onChange("FREE")}
-            loading={changing === "FREE"}
-          >
-            Volver a gratis
-          </Button>
-        )}
-        {isDowngrade && !isFree && hasPrice && (
-          <Button
-            type="button"
-            variant="outline"
-            tone="secondary"
-            onClick={() => onChange(plan.plan)}
-            loading={changing === plan.plan}
-          >
-            Cambiar a {PLAN_LABEL[plan.plan]}
-          </Button>
-        )}
-        {isDowngrade && !isFree && !hasPrice && (
-          <Button variant="outline" tone="secondary" disabled>No disponible</Button>
-        )}
-      </div>
-
-      <style jsx>{`
-        .plan-card {
-          display: grid;
-          gap: 16px;
-          padding: 20px;
-          border: 1px solid var(--border);
-          border-radius: 18px;
-          background: var(--bg2);
-          transition: border-color 0.2s, box-shadow 0.2s;
-          align-content: start;
-        }
-        .plan-card.is-current {
-          border-color: var(--plan-accent);
-          box-shadow: 0 0 0 1px var(--plan-accent) inset, 0 12px 32px rgba(0,0,0,0.18);
-        }
-        .plan-card-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-        }
-        .plan-badge {
-          display: inline-flex;
-          align-items: center;
-          min-height: 22px;
-          padding: 0 10px;
-          border-radius: 999px;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          border: 1px solid;
-        }
-        .current-tag {
-          font-size: 10px;
-          font-weight: 600;
-          color: var(--plan-accent);
-          letter-spacing: 0.06em;
-        }
-        .plan-price {
-          display: flex;
-          align-items: baseline;
-          gap: 2px;
-          line-height: 1;
-        }
-        .price-amount {
-          font-size: 1.8rem;
-          font-weight: 800;
-          font-family: "Syne", sans-serif;
-          color: var(--text);
-        }
-        .price-currency {
-          font-size: 0.75rem;
-          color: var(--muted);
-          font-weight: 500;
-        }
-        .plan-limits, .plan-features {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          display: grid;
-          gap: 8px;
-        }
-        .plan-limits li, .plan-features li {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          font-size: 12px;
-          color: var(--text2);
-        }
-        .plan-features {
-          border-top: 1px solid var(--border);
-          padding-top: 12px;
-          margin-top: 4px;
-        }
-        .plan-features li {
-          color: var(--plan-accent);
-          font-weight: 600;
-        }
-        .plan-action {
-          margin-top: 4px;
-        }
-        .plan-action :global(.btn) {
-          width: 100%;
-          justify-content: center;
-        }
-        .downgrade-tag {
-          font-size: 10px;
-          font-weight: 600;
-          color: var(--muted);
-          letter-spacing: 0.06em;
-        }
-      `}</style>
-    </div>
-  );
-}
-
+import PlanCard from "../components/subscription/PlanCard";
 export default function SubscriptionPage() {
   const router = useRouter();
-  const { sessionUser, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [subData, setSubData] = useState(null);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -248,6 +27,12 @@ export default function SubscriptionPage() {
   const [banner, setBanner] = useState("");
 
   useEffect(() => {
+    if (!sessionHydrated) return undefined;
+    if (!sessionUser) {
+      router.replace("/login?next=/subscription");
+      return undefined;
+    }
+
     let active = true;
     setLoading(true);
 
@@ -304,8 +89,7 @@ export default function SubscriptionPage() {
       });
 
     return () => { active = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router, sessionHydrated, sessionUser]);
 
   const handleChange = async (plan) => {
     const isFree = plan === "FREE";
@@ -435,7 +219,7 @@ export default function SubscriptionPage() {
                   <div className="sub-current-grid">
                     <div className="sub-stat">
                       <span className="sub-stat-label">Plan activo</span>
-                      <strong className="sub-stat-val">{PLAN_LABEL[currentPlan] || currentPlan}</strong>
+                      <strong className="sub-stat-val">{PLANS.find(p => p.key === currentPlan)?.label || currentPlan}</strong>
                     </div>
                     <div className="sub-stat">
                       <span className="sub-stat-label">Proyectos</span>
