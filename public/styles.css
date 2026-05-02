@@ -1,29 +1,5 @@
-﻿/*  THEMES  */
-[data-theme="hc-dark"] {
-  --bg: #000;
-  --bg2: #0c0c0c;
-  --bg3: #1a1a1a;
-  --bg4: #222;
-  --border: #5a5a5a;
-  --border2: #888;
-  --text: #fff;
-  --text2: #eee;
-  --muted: #bbb;
-  --accent: #00ff44;
-  --adim: rgba(0, 255, 68, 0.2);
-  --error: #ff4444;
-  --edim: rgba(255, 68, 68, 0.2);
-  --warn: #ffee00;
-  --wdim: rgba(255, 238, 0, 0.2);
-  --ok: #00ff44;
-  --odim: rgba(0, 255, 68, 0.2);
-  --purple: #ff88ff;
-  --pdim: rgba(255, 136, 255, 0.2);
-  --blue: #44ccff;
-  --bdim: rgba(68, 204, 255, 0.2);
-  --orange: #ffaa00;
-  --rdim: rgba(255, 170, 0, 0.2);
-}
+/*  THEMES  */
+
 
 * {
   margin: 0;
@@ -1739,31 +1715,7 @@ footer {
 }
 
 /* ===== Dashboard Redesign 2026 ===== */
-[data-theme="dark"] {
-  --bg: #061325;
-  --bg2: #0b1a33;
-  --bg3: #122544;
-  --bg4: #1a3157;
-  --border: #1f3b64;
-  --border2: #2b4f80;
-  --text: #eff5ff;
-  --text2: #b8cae8;
-  --muted: #7c96bf;
-  --accent: #3f8cff;
-  --adim: rgba(63, 140, 255, 0.16);
-  --ok: #42d392;
-  --odim: rgba(66, 211, 146, 0.15);
-  --warn: #f3b343;
-  --wdim: rgba(243, 179, 67, 0.15);
-  --error: #ff6b7c;
-  --edim: rgba(255, 107, 124, 0.15);
-  --purple: #b07bff;
-  --pdim: rgba(176, 123, 255, 0.15);
-  --blue: #57b5ff;
-  --bdim: rgba(87, 181, 255, 0.15);
-  --orange: #ffa24d;
-  --rdim: rgba(255, 162, 77, 0.15);
-}
+
 
 body {
   background:
@@ -2259,31 +2211,7 @@ footer {
 }
 
 /* ===== Dashboard Redesign 2026 - Iteration 2 ===== */
-[data-theme="light"] {
-  --bg: #f2f6fc;
-  --bg2: #ffffff;
-  --bg3: #eef4ff;
-  --bg4: #dde8ff;
-  --border: #d4e1f8;
-  --border2: #b5c9ec;
-  --text: #0d1b32;
-  --text2: #31486d;
-  --muted: #657ea6;
-  --accent: #2d74e7;
-  --adim: rgba(45, 116, 231, 0.14);
-  --ok: #1f9962;
-  --odim: rgba(31, 153, 98, 0.14);
-  --warn: #b1731a;
-  --wdim: rgba(177, 115, 26, 0.13);
-  --error: #cc3f59;
-  --edim: rgba(204, 63, 89, 0.12);
-  --purple: #7d54cf;
-  --pdim: rgba(125, 84, 207, 0.12);
-  --blue: #2d74e7;
-  --bdim: rgba(45, 116, 231, 0.12);
-  --orange: #cf7b2e;
-  --rdim: rgba(207, 123, 46, 0.12);
-}
+
 
 body {
   background:
@@ -2563,31 +2491,7 @@ body {
 }
 
 /* ===== HC Light + Borderless Controls Fix ===== */
-[data-theme="hc-light"] {
-  --bg: #ffffff;
-  --bg2: #ffffff;
-  --bg3: #f3f6fb;
-  --bg4: #e8eef8;
-  --border: #dbe4f3;
-  --border2: #c7d5eb;
-  --text: #07162e;
-  --text2: #1d3559;
-  --muted: #4a648d;
-  --accent: #0059d6;
-  --adim: rgba(0, 89, 214, 0.14);
-  --ok: #00753f;
-  --odim: rgba(0, 117, 63, 0.14);
-  --warn: #8a4f00;
-  --wdim: rgba(138, 79, 0, 0.14);
-  --error: #a81432;
-  --edim: rgba(168, 20, 50, 0.12);
-  --purple: #5230a3;
-  --pdim: rgba(82, 48, 163, 0.12);
-  --blue: #0059d6;
-  --bdim: rgba(0, 89, 214, 0.12);
-  --orange: #a35e12;
-  --rdim: rgba(163, 94, 18, 0.12);
-}
+
 
 [data-theme="hc-light"] body {
   background: var(--bg) !important;
