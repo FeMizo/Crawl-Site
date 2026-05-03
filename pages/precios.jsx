@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -78,6 +79,69 @@ const SCHEMA = {
 };
 
 import PlanCard from "../components/subscription/PlanCard";
+
+function StaticPlanCarousel({ plans, sessionUser }) {
+  const scrollRef = useRef(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const items = Array.from(el.children);
+      const center = el.scrollLeft + el.clientWidth / 2;
+      let closest = 0;
+      let minDist = Infinity;
+      items.forEach((item, i) => {
+        const itemCenter = item.offsetLeft + item.offsetWidth / 2;
+        const dist = Math.abs(center - itemCenter);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      setActiveIdx(closest);
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [plans.length]);
+
+  const scrollTo = (idx) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const item = el.children[idx];
+    if (item) item.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    setActiveIdx(idx);
+  };
+
+  return (
+    <div className="plans-carousel-wrap">
+      {/* Desktop grid */}
+      <div className="plans-grid">
+        {plans.map((plan) => (
+          <PlanCard key={plan.key} plan={plan} sessionUser={sessionUser} isStatic={true} />
+        ))}
+      </div>
+      {/* Tablet / Mobile carousel */}
+      <div className="plans-carousel" ref={scrollRef}>
+        {plans.map((plan) => (
+          <div key={plan.key} className="plans-carousel-item">
+            <PlanCard plan={plan} sessionUser={sessionUser} isStatic={true} />
+          </div>
+        ))}
+      </div>
+      <div className="plans-carousel-dots">
+        {plans.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={"plans-dot" + (i === activeIdx ? " active" : "")}
+            onClick={() => scrollTo(i)}
+            aria-label={"Plan " + (i + 1)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PreciosPage() {
   const { sessionUser } = useSessionUser();
 
@@ -167,11 +231,7 @@ export default function PreciosPage() {
             </p>
           </Card>
 
-          <div className="plans-grid">
-            {PLANS.map((plan) => (
-              <PlanCard key={plan.key} plan={plan} sessionUser={sessionUser} isStatic={true} />
-            ))}
-          </div>
+          <StaticPlanCarousel plans={PLANS} sessionUser={sessionUser} />
 
           <Card className="faq-card">
             <Eyebrow icon={<Icon name="history" size={12} />}>Preguntas frecuentes</Eyebrow>
@@ -221,11 +281,66 @@ export default function PreciosPage() {
             font-size: 13px;
             line-height: 1.6;
           }
+          /* PlanCarousel */
+          .plans-carousel-wrap {
+            display: contents;
+          }
           .plans-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
             gap: 14px;
             align-items: start;
+          }
+          .plans-carousel {
+            display: none;
+          }
+          .plans-carousel-dots {
+            display: none;
+          }
+          @media (max-width: 900px) {
+            .plans-grid {
+              display: none;
+            }
+            .plans-carousel {
+              display: flex;
+              overflow-x: auto;
+              scroll-snap-type: x mandatory;
+              -webkit-overflow-scrolling: touch;
+              gap: 14px;
+              padding-bottom: 12px;
+              scrollbar-width: none;
+            }
+            .plans-carousel::-webkit-scrollbar { display: none; }
+            .plans-carousel-item {
+              flex: 0 0 80%;
+              max-width: 340px;
+              scroll-snap-align: center;
+            }
+            .plans-carousel-dots {
+              display: flex;
+              justify-content: center;
+              gap: 8px;
+              margin-top: 14px;
+            }
+            .plans-dot {
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background: var(--border);
+              border: none;
+              padding: 0;
+              cursor: pointer;
+              transition: background 0.2s, transform 0.2s;
+            }
+            .plans-dot.active {
+              background: var(--accent);
+              transform: scale(1.3);
+            }
+          }
+          @media (max-width: 480px) {
+            .plans-carousel-item {
+              flex: 0 0 88%;
+            }
           }
           .faq-card {
             display: grid;
@@ -247,26 +362,6 @@ export default function PreciosPage() {
             font-size: 12px;
             color: var(--text2);
             line-height: 1.6;
-          }
-          @media (max-width: 860px) {
-            .plans-grid {
-              grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            }
-          }
-          @media (max-width: 640px) {
-            .plans-grid {
-              display: flex;
-              flex-wrap: nowrap;
-              overflow-x: auto;
-              scroll-snap-type: x mandatory;
-              -webkit-overflow-scrolling: touch;
-              gap: 12px;
-              padding-bottom: 8px;
-              scrollbar-width: none;
-            }
-            .plans-grid::-webkit-scrollbar {
-              display: none;
-            }
           }
         `}</style>
       </AppShell>

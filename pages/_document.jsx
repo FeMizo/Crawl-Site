@@ -14,8 +14,7 @@ export default function Document() {
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Manrope:wght@400;500;700;800&family=Syne:wght@400;600;800&display=swap"
         />
         <link rel="stylesheet" href="/styles.css" />
-        {/* Default viewport — individual pages can override */}
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* Default viewport moved to _app.jsx */}
         {/* Default favicon */}
         <link rel="icon" type="image/svg+xml" href="/assets/favicon-seo-crawler.svg" />
         {/* Theme and language initializer — runs before first paint to avoid flicker */}

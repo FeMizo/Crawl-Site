@@ -8,6 +8,7 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Modal from "../components/ui/Modal";
 import StatCard from "../components/ui/StatCard";
+import { SkeletonProjectList, SkeletonProjectGrid } from "../components/ui/Skeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 import ProjectListView from "../components/projects/ProjectListView";
@@ -174,7 +175,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {loading ? <p className="feedback">{t("loadingProjects")}</p> : null}
+        {loading ? (view === "list" ? <SkeletonProjectList /> : <SkeletonProjectGrid />) : null}
         {error ? (
           <p className="feedback error">
             <span>{error}</span>

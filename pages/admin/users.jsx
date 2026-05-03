@@ -8,6 +8,7 @@ import Card from "../../components/ui/Card";
 import Eyebrow from "../../components/ui/Eyebrow";
 import Icon from "../../components/ui/Icon";
 import Select from "../../components/ui/Select";
+import { SkeletonPage } from "../../components/ui/Skeleton";
 import useSessionUser from "../../hooks/useSessionUser";
 
 const { USER_ROLE, getRoleLabel } = require("../../lib/user-roles");
@@ -304,7 +305,7 @@ export default function AdminUsersPage() {
           </Button>
         }
       >
-        {loading ? <p className="feedback">Cargando usuarios...</p> : null}
+        {loading ? <SkeletonPage /> : null}
         {error ? <p className="feedback error">{error}</p> : null}
         {message ? <p className="feedback ok">{message}</p> : null}
 

@@ -8,6 +8,7 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
+import { SkeletonDashboard } from "../components/ui/Skeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 import HistoryPanel from "../components/dashboard/HistoryPanel";
@@ -396,9 +397,9 @@ export default function DashboardPage() {
               </button>
             </div>
           </Card>
-        ) : (
-          <Card><div className="feedback">{t("loadingDashboard")}</div></Card>
-        )}
+        ) : !canInit ? (
+          <SkeletonDashboard />
+        ) : null}
 
         <style jsx global>{`
           .legacy-embed .global-sidebar,

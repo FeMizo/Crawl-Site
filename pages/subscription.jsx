@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function fmtDate(val) {
   if (!val) return "—";
@@ -11,10 +11,89 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
+import { SkeletonPage } from "../components/ui/Skeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { FEATURE_LABELS, PLANS } from "../lib/plan-data";
 
 import PlanCard from "../components/subscription/PlanCard";
+
+function PlanCarousel({ plans, currentPlan, onChange, changing, stripeManaged, onPortal, portalLoading }) {
+  const scrollRef = useRef(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const items = Array.from(el.children);
+      const center = el.scrollLeft + el.clientWidth / 2;
+      let closest = 0;
+      let minDist = Infinity;
+      items.forEach((item, i) => {
+        const itemCenter = item.offsetLeft + item.offsetWidth / 2;
+        const dist = Math.abs(center - itemCenter);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      setActiveIdx(closest);
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [plans.length]);
+
+  const scrollTo = (idx) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const item = el.children[idx];
+    if (item) item.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    setActiveIdx(idx);
+  };
+
+  return (
+    <div className="plans-carousel-wrap">
+      <div className="plans-grid">
+        {plans.map((plan) => (
+          <PlanCard
+            key={plan.plan}
+            plan={plan}
+            currentPlan={currentPlan}
+            onChange={onChange}
+            changing={changing}
+            stripeManaged={stripeManaged}
+            onPortal={onPortal}
+            portalLoading={portalLoading}
+          />
+        ))}
+      </div>
+      <div className="plans-carousel" ref={scrollRef}>
+        {plans.map((plan) => (
+          <div key={plan.plan} className="plans-carousel-item">
+            <PlanCard
+              plan={plan}
+              currentPlan={currentPlan}
+              onChange={onChange}
+              changing={changing}
+              stripeManaged={stripeManaged}
+              onPortal={onPortal}
+              portalLoading={portalLoading}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="plans-carousel-dots">
+        {plans.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={"plans-dot" + (i === activeIdx ? " active" : "")}
+            onClick={() => scrollTo(i)}
+            aria-label={"Plan " + (i + 1)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SubscriptionPage() {
   const router = useRouter();
   const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
@@ -193,7 +272,7 @@ export default function SubscriptionPage() {
           {error && <div className="sub-error">{error}</div>}
 
           {loading ? (
-            <div className="sub-loading">Cargando informacion del plan...</div>
+            <SkeletonPage />
           ) : (
             <>
               {sub && (
@@ -275,20 +354,15 @@ export default function SubscriptionPage() {
                 </Card>
               )}
 
-              <div className="plans-grid">
-                {plans.map((plan) => (
-                  <PlanCard
-                    key={plan.plan}
-                    plan={plan}
-                    currentPlan={currentPlan}
-                    onChange={handleChange}
-                    changing={changing}
-                    stripeManaged={stripeManaged}
-                    onPortal={handlePortal}
-                    portalLoading={portalLoading}
-                  />
-                ))}
-              </div>
+              <PlanCarousel
+                plans={plans}
+                currentPlan={currentPlan}
+                onChange={handleChange}
+                changing={changing}
+                stripeManaged={stripeManaged}
+                onPortal={handlePortal}
+                portalLoading={portalLoading}
+              />
             </>
           )}
         </div>
@@ -393,11 +467,66 @@ export default function SubscriptionPage() {
           .portal-row {
             display: flex;
           }
+          /* PlanCarousel – desktop: grid; tablet/mobile: horizontal scroll-snap */
+          .plans-carousel-wrap {
+            display: contents;
+          }
           .plans-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
             align-items: start;
+          }
+          .plans-carousel {
+            display: none; /* hidden on desktop */
+          }
+          @media (max-width: 900px) {
+            .plans-grid {
+              display: none;
+            }
+            .plans-carousel {
+              display: flex;
+              overflow-x: auto;
+              scroll-snap-type: x mandatory;
+              -webkit-overflow-scrolling: touch;
+              gap: 16px;
+              padding-bottom: 12px;
+              /* hide scrollbar */
+              scrollbar-width: none;
+            }
+            .plans-carousel::-webkit-scrollbar {
+              display: none;
+            }
+            .plans-carousel-item {
+              flex: 0 0 80%;
+              max-width: 340px;
+              scroll-snap-align: center;
+            }
+            .plans-carousel-dots {
+              display: flex;
+              justify-content: center;
+              gap: 8px;
+              margin-top: 14px;
+            }
+            .plans-dot {
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background: var(--border);
+              border: none;
+              padding: 0;
+              cursor: pointer;
+              transition: background 0.2s, transform 0.2s;
+            }
+            .plans-dot.active {
+              background: var(--accent);
+              transform: scale(1.3);
+            }
+          }
+          @media (max-width: 480px) {
+            .plans-carousel-item {
+              flex: 0 0 88%;
+            }
           }
         `}</style>
       </AppShell>

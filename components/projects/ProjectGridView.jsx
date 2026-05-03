@@ -35,54 +35,72 @@ export default function ProjectGridView({ projects, loading, t, lang, formatDate
 
   return (
     <div className="grid-view">
-      {projects.map((project) => (
-        <div key={project.id} className="grid-card">
-          <a href={`/dashboard?projectId=${project.id}`} className="gc-link">
-            <div className="gc-top">
-              <div className="gc-avatar">{(project.name || "P")[0].toUpperCase()}</div>
-              <div className="gc-identity">
-                <strong className="gc-name">{project.name}</strong>
-                <span className="gc-url">{project.targetUrl.replace(/^https?:\/\//, "")}</span>
+      {projects.map((project) => {
+        const hasRun = !!project.lastRun;
+        const issues = project.lastRun?.withIssues ?? 0;
+        const total = project.lastRun?.total ?? 0;
+        const healthPct = hasRun && total > 0 ? Math.round(((total - issues) / total) * 100) : null;
+        const healthStatus = !hasRun ? "none" : issues === 0 ? "ok" : issues / total > 0.3 ? "bad" : "warn";
+        const healthLabel = { none: lang === "en" ? "Not crawled" : "Sin rastreo", ok: lang === "en" ? "Healthy" : "Saludable", warn: lang === "en" ? "Warnings" : "Advertencias", bad: lang === "en" ? "Issues" : "Con errores" }[healthStatus];
+
+        return (
+          <div key={project.id} className="grid-card">
+            <a href={`/dashboard?projectId=${project.id}`} className="gc-link">
+              <div className="gc-top">
+                <div className="gc-avatar">{(project.name || "P")[0].toUpperCase()}</div>
+                <div className="gc-identity">
+                  <strong className="gc-name">{project.name}</strong>
+                  <span className="gc-url">{project.targetUrl.replace(/^https?:\/\//, "")}</span>
+                </div>
+                <span className={`health-badge health-${healthStatus}`}>{healthLabel}</span>
               </div>
-            </div>
-            <div className="gc-stats">
-              <div className="gc-stat">
-                <span className="gc-stat-val">{project.runCount ?? 0}</span>
-                <span className="gc-stat-lbl">{t("statCrawlsLabel")}</span>
+              <div className="gc-stats">
+                <div className="gc-stat">
+                  <span className="gc-stat-val">{project.runCount ?? 0}</span>
+                  <span className="gc-stat-lbl">{t("statCrawlsLabel")}</span>
+                </div>
+                {project.lastRun ? (
+                  <>
+                    <div className="gc-stat-sep" />
+                    <div className="gc-stat">
+                      <span className={`gc-stat-val${project.lastRun.withIssues > 0 ? " has-issues" : " no-issues"}`}>
+                        {project.lastRun.withIssues}
+                      </span>
+                      <span className="gc-stat-lbl">Issues</span>
+                    </div>
+                    <div className="gc-stat-sep" />
+                    <div className="gc-stat">
+                      <span className="gc-stat-val">{project.lastRun.total}</span>
+                      <span className="gc-stat-lbl">{lang === "en" ? "Pages" : "Páginas"}</span>
+                    </div>
+                  </>
+                ) : (
+                  <span className="gc-no-run">{t("noLastRun")}</span>
+                )}
               </div>
-              {project.lastRun ? (
-                <>
-                  <div className="gc-stat-sep" />
-                  <div className="gc-stat">
-                    <span className={`gc-stat-val${project.lastRun.withIssues > 0 ? " has-issues" : " no-issues"}`}>
-                      {project.lastRun.withIssues}
-                    </span>
-                    <span className="gc-stat-lbl">Issues</span>
+              {healthPct !== null && (
+                <div className="gc-health-bar">
+                  <div className="gc-health-track">
+                    <div className={`gc-health-fill health-fill-${healthStatus}`} style={{ width: `${healthPct}%` }} />
                   </div>
-                  <div className="gc-stat-sep" />
-                  <div className="gc-stat">
-                    <span className="gc-stat-val">{project.lastRun.total}</span>
-                    <span className="gc-stat-lbl">{lang === "en" ? "Pages" : "Páginas"}</span>
-                  </div>
-                </>
-              ) : (
-                <span className="gc-no-run">{t("noLastRun")}</span>
+                  <span className="gc-health-pct">{healthPct}% {lang === "en" ? "OK" : "sin errores"}</span>
+                </div>
               )}
+            </a>
+            <div className="gc-footer">
+              <span className="gc-date">{formatDate(project.createdAt, lang, t("noDate"))}</span>
+              <button
+                type="button"
+                className="btn btn-danger gc-del-btn"
+                onClick={() => deleteProject(project.id)}
+                aria-label={t("btnDelete")}
+              >
+                <Icon name="trash" size={13} />
+              </button>
             </div>
-          </a>
-          <div className="gc-footer">
-            <span className="gc-date">{formatDate(project.createdAt, lang, t("noDate"))}</span>
-            <button
-              type="button"
-              className="btn btn-danger gc-del-btn"
-              onClick={() => deleteProject(project.id)}
-              aria-label={t("btnDelete")}
-            >
-              <Icon name="trash" size={13} />
-            </button>
           </div>
-        </div>
-      ))}
+        );
+      })}
       <style jsx>{`
         .grid-view {
           display: grid;
@@ -142,6 +160,7 @@ export default function ProjectGridView({ projects, loading, t, lang, formatDate
           display: grid;
           gap: 3px;
           min-width: 0;
+          flex: 1;
         }
         .gc-name {
           font-size: 15px;
@@ -158,6 +177,67 @@ export default function ProjectGridView({ projects, loading, t, lang, formatDate
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        /* Health Badge */
+        .health-badge {
+          flex: 0 0 auto;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          padding: 3px 8px;
+          border-radius: 20px;
+          border: 1px solid;
+          white-space: nowrap;
+          align-self: flex-start;
+          margin-top: 2px;
+        }
+        .health-none {
+          background: rgba(150,150,170,0.08);
+          border-color: rgba(150,150,170,0.2);
+          color: var(--text3);
+        }
+        .health-ok {
+          background: rgba(34,197,94,0.1);
+          border-color: rgba(34,197,94,0.3);
+          color: #4ade80;
+        }
+        .health-warn {
+          background: rgba(234,179,8,0.1);
+          border-color: rgba(234,179,8,0.3);
+          color: #facc15;
+        }
+        .health-bad {
+          background: rgba(239,68,68,0.1);
+          border-color: rgba(239,68,68,0.3);
+          color: var(--error);
+        }
+        /* Health Progress Bar */
+        .gc-health-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .gc-health-track {
+          flex: 1;
+          height: 4px;
+          background: var(--bg3);
+          border-radius: 99px;
+          overflow: hidden;
+        }
+        .gc-health-fill {
+          height: 100%;
+          border-radius: 99px;
+          transition: width 0.5s ease;
+        }
+        .health-fill-ok  { background: #4ade80; }
+        .health-fill-warn { background: #facc15; }
+        .health-fill-bad  { background: var(--error); }
+        .gc-health-pct {
+          font-size: 10px;
+          color: var(--text3);
+          white-space: nowrap;
+          flex: 0 0 auto;
         }
         .gc-stats {
           display: flex;

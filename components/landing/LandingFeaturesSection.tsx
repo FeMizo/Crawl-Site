@@ -71,17 +71,21 @@ export default function LandingFeaturesSection() {
         ))}
       </motion.div>
 
-      <style jsx>{`
+      <style jsx global>{`
         .features-card {
-          display: grid;
+          display: flex;
+          flex-direction: column;
           gap: 16px;
+          overflow: hidden;
         }
         .features-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
         }
         .feature-item {
+          flex: 1 1 calc(33.333% - 16px);
+          min-width: 200px;
           display: flex;
           gap: 10px;
           align-items: flex-start;
@@ -103,9 +107,21 @@ export default function LandingFeaturesSection() {
           color: var(--text2);
           line-height: 1.5;
         }
-        @media (max-width: 560px) {
+        @media (max-width: 640px) {
           .features-grid {
-            grid-template-columns: 1fr 1fr;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 8px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .features-grid::-webkit-scrollbar {
+            display: none;
+          }
+          .feature-item {
+            flex: 0 0 240px;
+            scroll-snap-align: start;
           }
         }
       `}</style>

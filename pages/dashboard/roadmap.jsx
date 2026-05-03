@@ -1,34 +1,16 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import AppShell from "../../../components/layout/AppShell";
-import RoadmapBoard from "../../../components/roadmap/RoadmapBoard";
-import Button from "../../../components/ui/Button";
-import Card from "../../../components/ui/Card";
-import Icon from "../../../components/ui/Icon";
-import useSessionUser from "../../../hooks/useSessionUser";
-
-type Viewer = {
-  id: string;
-  email: string;
-  name: string | null;
-  permissions?: {
-    isOwner?: boolean;
-    canManageUsers?: boolean;
-    canEditContent?: boolean;
-    assignableRoles?: string[];
-  } | null;
-};
-
-type MeResponse = {
-  user?: Viewer;
-  error?: string;
-};
+import AppShell from "../../components/layout/AppShell";
+import RoadmapBoard from "../../components/roadmap/RoadmapBoard";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Icon from "../../components/ui/Icon";
+import { SkeletonPage } from "../../components/ui/Skeleton";
+import useSessionUser from "../../hooks/useSessionUser";
 
 export default function RoadmapPage() {
   const router = useRouter();
-  const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
+  const { sessionUser, sessionHydrated } = useSessionUser();
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
 
@@ -51,7 +33,7 @@ export default function RoadmapPage() {
   return (
     <AppShell
       activeKey="roadmap"
-      user={sessionUser as Viewer | null}
+      user={sessionUser}
       kicker="Espacio de trabajo / Roadmap interno"
       title="Roadmap del proyecto"
       description="Fases, tareas y progreso persistente para coordinar ejecucion interna."
@@ -76,7 +58,7 @@ export default function RoadmapPage() {
       }
     >
       {checkingSession ? (
-        <Card><p className="feedback">Validando sesion...</p></Card>
+        <SkeletonPage />
       ) : error ? (
         <Card><p className="feedback error">{error}</p></Card>
       ) : (
