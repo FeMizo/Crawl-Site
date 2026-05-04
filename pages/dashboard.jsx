@@ -8,7 +8,7 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
-import { SkeletonDashboard } from "../components/ui/Skeleton";
+import DashboardSkeleton from "../components/dashboard/DashboardSkeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 import HistoryPanel from "../components/dashboard/HistoryPanel";
@@ -129,7 +129,8 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, router, sessionHydrated, setSessionUser, retryKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionHydrated, retryKey]);
 
   const canInit = useMemo(
     () => appReady && !!markup && !!project && typeof window !== "undefined",
@@ -398,7 +399,7 @@ export default function DashboardPage() {
             </div>
           </Card>
         ) : !canInit ? (
-          <SkeletonDashboard />
+          <DashboardSkeleton />
         ) : null}
 
         <style jsx global>{`

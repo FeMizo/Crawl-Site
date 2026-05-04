@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -8,7 +8,7 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import Modal from "../components/ui/Modal";
 import StatCard from "../components/ui/StatCard";
-import { SkeletonProjectList, SkeletonProjectGrid } from "../components/ui/Skeleton";
+import { ProjectListSkeleton, ProjectGridSkeleton } from "../components/projects/ProjectSkeletons";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 import ProjectListView from "../components/projects/ProjectListView";
@@ -37,12 +37,14 @@ export default function ProjectsPage() {
   const { sessionUser, sessionHydrated, setSessionUser, clearSessionUser } = useSessionUser();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
   const [reloadKey, setReloadKey] = useState(0);
   const [freePlanModal, setFreePlanModal] = useState(false);
   const [view, setView] = useState("list");
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(VIEW_KEY) : null;
@@ -62,7 +64,10 @@ export default function ProjectsPage() {
     }
 
     let active = true;
-    setLoading(true);
+    if (!initialLoadDone.current) {
+      setLoading(true);
+    }
+    setFetching(true);
     setError("");
 
     fetch(`/api/projects?page=${page}&limit=${DEFAULT_PAGINATION.limit}`)
@@ -88,13 +93,18 @@ export default function ProjectsPage() {
         if (active) setError(err.message || "No se pudieron cargar los proyectos");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setFetching(false);
+          initialLoadDone.current = true;
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [clearSessionUser, page, reloadKey, router, sessionHydrated, setSessionUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, reloadKey, sessionHydrated]);
 
   useEffect(() => {
     if (!sessionHydrated || !sessionUser) return;
@@ -175,7 +185,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {loading ? (view === "list" ? <SkeletonProjectList /> : <SkeletonProjectGrid />) : null}
+        {loading ? (view === "list" ? <ProjectListSkeleton /> : <ProjectGridSkeleton />) : null}
         {error ? (
           <p className="feedback error">
             <span>{error}</span>

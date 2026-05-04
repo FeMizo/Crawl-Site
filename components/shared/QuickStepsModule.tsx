@@ -1,3 +1,5 @@
+import { motion } from "motion/react";
+
 type QuickStep = {
   title: string;
   detail?: string;
@@ -10,6 +12,32 @@ type QuickStepsModuleProps = {
   className?: string;
 };
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.12, delayChildren: 0.05 },
+  },
+};
+
+const stepVariants = {
+  hidden: { opacity: 0, x: -12 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { type: "spring", stiffness: 140, damping: 20 },
+  },
+};
+
+const badgeVariants = {
+  hidden: { scale: 0, opacity: 0 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 300, damping: 18, delay: 0.08 },
+  },
+};
+
 export default function QuickStepsModule({
   title = "Pasos rapidos",
   steps,
@@ -19,17 +47,29 @@ export default function QuickStepsModule({
   return (
     <div className={["quick-steps-module", compact ? "compact" : "", className].filter(Boolean).join(" ")}>
       <div className="quick-steps-title">{title}</div>
-      <div className="quick-steps-list">
+      <motion.div
+        className="quick-steps-list"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-30px" }}
+      >
         {steps.map((step, index) => (
-          <div key={`${step.title}-${index}`} className="quick-step">
-            <strong>{index + 1}</strong>
+          <motion.div
+            key={`${step.title}-${index}`}
+            className="quick-step"
+            variants={stepVariants}
+          >
+            <motion.strong variants={badgeVariants}>
+              {index + 1}
+            </motion.strong>
             <div>
               <span>{step.title}</span>
               {step.detail ? <small>{step.detail}</small> : null}
             </div>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <style jsx>{`
         .quick-steps-module {

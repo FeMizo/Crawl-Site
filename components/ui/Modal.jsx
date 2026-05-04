@@ -1,5 +1,28 @@
 import { useEffect, useId, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import Icon from "./Icon";
+
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
+  exit: { opacity: 0, transition: { duration: 0.15, ease: "easeIn" } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, scale: 0.92, y: 16 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 320, damping: 28, mass: 0.8 },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: 8,
+    transition: { duration: 0.15, ease: "easeIn" },
+  },
+};
 
 export default function Modal({ title, children, onClose, actions }) {
   const titleId = useId();
@@ -29,92 +52,112 @@ export default function Modal({ title, children, onClose, actions }) {
   }, [onClose]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        ref={cardRef}
-        className="modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
+    <AnimatePresence>
+      <motion.div
+        className="modal-overlay"
+        variants={overlayVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        onClick={onClose}
       >
-        <div className="modal-header">
-          <span id={titleId} className="modal-title">{title}</span>
-          <button className="modal-close" onClick={onClose} aria-label="Cerrar">
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {actions && <div className="modal-actions">{actions}</div>}
-      </div>
+        <motion.div
+          ref={cardRef}
+          className="modal-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-header">
+            <span id={titleId} className="modal-title">{title}</span>
+            <motion.button
+              className="modal-close"
+              onClick={onClose}
+              aria-label="Cerrar"
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            >
+              <Icon name="close" size={16} />
+            </motion.button>
+          </div>
+          <div className="modal-body">{children}</div>
+          {actions && <div className="modal-actions">{actions}</div>}
+        </motion.div>
 
-      <style jsx>{`
-        .modal-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 1000;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-        }
-        .modal-card {
-          background: var(--bg2);
-          border: 1px solid var(--border2);
-          border-radius: 14px;
-          width: 100%;
-          max-width: 420px;
-          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-          display: grid;
-          gap: 0;
-        }
-        .modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 18px 20px 16px;
-          border-bottom: 1px solid var(--border2);
-        }
-        .modal-title {
-          font-size: 15px;
-          font-weight: 700;
-          color: var(--text);
-          font-family: "Syne", sans-serif;
-        }
-        .modal-close {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border: none;
-          background: none;
-          color: var(--muted);
-          border-radius: 6px;
-          cursor: pointer;
-          transition: color 0.15s, background 0.15s;
-        }
-        .modal-close:hover {
-          color: var(--text);
-          background: var(--bg3);
-        }
-        .modal-close:focus-visible {
-          outline: 2px solid var(--accent);
-          outline-offset: 2px;
-        }
-        .modal-body {
-          padding: 20px;
-        }
-        .modal-actions {
-          padding: 0 20px 20px;
-          display: flex;
-          gap: 10px;
-          justify-content: flex-end;
-        }
-      `}</style>
-    </div>
+        <style jsx>{`
+          .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+          }
+          .modal-card {
+            background: var(--bg2);
+            border: 1px solid var(--border2);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+            display: grid;
+            gap: 0;
+          }
+          .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px 16px;
+            border-bottom: 1px solid var(--border2);
+          }
+          .modal-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            font-family: "Syne", sans-serif;
+          }
+          .modal-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: none;
+            color: var(--muted);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: color 0.15s, background 0.15s;
+          }
+          .modal-close:hover {
+            color: var(--text);
+            background: var(--bg3);
+          }
+          .modal-close:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+          }
+          .modal-body {
+            padding: 20px;
+          }
+          .modal-actions {
+            padding: 0 20px 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+          }
+        `}</style>
+      </motion.div>
+    </AnimatePresence>
   );
 }

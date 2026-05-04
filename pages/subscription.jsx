@@ -11,7 +11,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
-import { SkeletonPage } from "../components/ui/Skeleton";
+import SubscriptionSkeleton from "../components/subscription/SubscriptionSkeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { FEATURE_LABELS, PLANS } from "../lib/plan-data";
 
@@ -104,6 +104,7 @@ export default function SubscriptionPage() {
   const [changing, setChanging] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
   const [banner, setBanner] = useState("");
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     if (!sessionHydrated) return undefined;
@@ -113,7 +114,9 @@ export default function SubscriptionPage() {
     }
 
     let active = true;
-    setLoading(true);
+    if (!initialLoadDone.current) {
+      setLoading(true);
+    }
 
     const params = new URLSearchParams(window.location.search || "");
     const sessionId = params.get("session_id");
@@ -132,10 +135,10 @@ export default function SubscriptionPage() {
     // plan is written to the DB before we load /api/subscription below.
     const maybeVerify = (isSuccess && sessionId)
       ? fetch("/api/subscription/verify-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        }).catch(() => {})
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => { })
       : Promise.resolve();
 
     maybeVerify.then(() => {
@@ -164,11 +167,15 @@ export default function SubscriptionPage() {
         if (active) setError(err.message || "No se pudo cargar la informacion del plan");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          initialLoadDone.current = true;
+        }
       });
 
     return () => { active = false; };
-  }, [router, sessionHydrated, sessionUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionHydrated]);
 
   const handleChange = async (plan) => {
     const isFree = plan === "FREE";
@@ -272,7 +279,7 @@ export default function SubscriptionPage() {
           {error && <div className="sub-error">{error}</div>}
 
           {loading ? (
-            <SkeletonPage />
+            <SubscriptionSkeleton />
           ) : (
             <>
               {sub && (
@@ -367,7 +374,7 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        <style jsx>{`
+        <style jsx global>{`
           .sub-page {
             display: grid;
             gap: 20px;

@@ -1,11 +1,12 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
+import HistorySkeleton from "../components/history/HistorySkeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 
@@ -33,10 +34,13 @@ export default function HistoryPage() {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    if (!initialLoadDone.current) {
+      setLoading(true);
+    }
     setError("");
 
     fetch(`/api/history?page=${page}&limit=${DEFAULT_PAGINATION.limit}`)
@@ -62,7 +66,10 @@ export default function HistoryPage() {
         if (active) setError(err.message || "No se pudo cargar el historial");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          initialLoadDone.current = true;
+        }
       });
 
     return () => {
@@ -85,7 +92,7 @@ export default function HistoryPage() {
         title={t("historyPageTitle")}
         description={t("historyPageDesc")}
       >
-        {loading ? <p className="feedback">{t("loadingHistory")}</p> : null}
+        {loading ? <HistorySkeleton /> : null}
         {error ? <p className="feedback error">{error}</p> : null}
         <div className="history-grid">
           {runs.map((run) => (

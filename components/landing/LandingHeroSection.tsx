@@ -93,7 +93,7 @@ export default function LandingHeroSection({
         </Button>
       </motion.div>
 
-      <style jsx>{`
+      <style jsx global>{`
         .hero-card {
           background: linear-gradient(180deg, rgba(18, 36, 66, 0.95), rgba(12, 25, 48, 0.95));
           display: grid;

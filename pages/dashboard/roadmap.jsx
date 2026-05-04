@@ -5,7 +5,7 @@ import RoadmapBoard from "../../components/roadmap/RoadmapBoard";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
-import { SkeletonPage } from "../../components/ui/Skeleton";
+import RoadmapSkeleton from "../../components/roadmap/RoadmapSkeleton";
 import useSessionUser from "../../hooks/useSessionUser";
 
 export default function RoadmapPage() {
@@ -58,7 +58,7 @@ export default function RoadmapPage() {
       }
     >
       {checkingSession ? (
-        <SkeletonPage />
+        <RoadmapSkeleton />
       ) : error ? (
         <Card><p className="feedback error">{error}</p></Card>
       ) : (

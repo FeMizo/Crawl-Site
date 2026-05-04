@@ -231,7 +231,7 @@ export default function LoginPage() {
             </Card>
           </motion.div>
         </motion.div>
-        <style jsx>{`
+        <style jsx global>{`
           .auth-grid {
             display: grid;
             grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 0.9fr);

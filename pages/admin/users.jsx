@@ -8,7 +8,7 @@ import Card from "../../components/ui/Card";
 import Eyebrow from "../../components/ui/Eyebrow";
 import Icon from "../../components/ui/Icon";
 import Select from "../../components/ui/Select";
-import { SkeletonPage } from "../../components/ui/Skeleton";
+import AdminUsersSkeleton from "../../components/admin/AdminUsersSkeleton";
 import useSessionUser from "../../hooks/useSessionUser";
 
 const { USER_ROLE, getRoleLabel } = require("../../lib/user-roles");
@@ -147,7 +147,8 @@ export default function AdminUsersPage() {
     return () => {
       active = false;
     };
-  }, [clearSessionUser, page, query, roleFilter, router, sessionHydrated, sessionUser, setSessionUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, query, roleFilter, sessionHydrated]);
 
   const deleteUser = async (userId, userLabel) => {
     if (!window.confirm(`Eliminar a ${userLabel} y todos sus datos? Esta accion no se puede deshacer.`)) return;
@@ -305,7 +306,7 @@ export default function AdminUsersPage() {
           </Button>
         }
       >
-        {loading ? <SkeletonPage /> : null}
+        {loading ? <AdminUsersSkeleton /> : null}
         {error ? <p className="feedback error">{error}</p> : null}
         {message ? <p className="feedback ok">{message}</p> : null}
 

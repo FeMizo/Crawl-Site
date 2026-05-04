@@ -256,7 +256,7 @@ export default function PreciosPage() {
           </Card>
         </div>
 
-        <style jsx>{`
+        <style jsx global>{`
           .precios-aside {
             display: grid;
             gap: 8px;
