@@ -1,7 +1,7 @@
 import React from "react";
 import Button from "../ui/Button";
 import Icon from "../ui/Icon";
-import { FEATURE_LABELS } from "../../lib/plan-data";
+import { FEATURE_LABELS, FEATURE_TOOLTIPS, LIMIT_TOOLTIPS } from "../../lib/plan-data";
 
 const PLAN_COLORS = {
   FREE:    { accent: "#64b5f6", badge: "var(--text2)",  badgeBg: "var(--bg3)",              badgeBorder: "var(--border2)" },
@@ -155,16 +155,38 @@ export default function PlanCard({
       </div>
 
       <ul className="plan-limits">
-        <li><Icon name="projects" size={12} />{fmt(plan.maxProjects)} proyecto{plan.maxProjects !== 1 ? "s" : ""}</li>
-        <li><Icon name="run" size={12} />{fmt(plan.maxPagesPerCrawl)} páginas por rastreo</li>
-        <li><Icon name="history" size={12} />{fmt(plan.maxCrawlsPerMonth)} rastreos/mes</li>
-        <li><Icon name="history" size={12} />{fmt(plan.maxHistoryRuns)} historial guardado</li>
+        <li>
+          <Icon name="projects" size={12} />
+          {fmt(plan.maxProjects)} proyecto{plan.maxProjects !== 1 ? "s" : ""}
+          <span className="tip" data-tip={LIMIT_TOOLTIPS.maxProjects}>?</span>
+        </li>
+        <li>
+          <Icon name="run" size={12} />
+          {fmt(plan.maxPagesPerCrawl)} páginas por rastreo
+          <span className="tip" data-tip={LIMIT_TOOLTIPS.maxPagesPerCrawl}>?</span>
+        </li>
+        <li>
+          <Icon name="history" size={12} />
+          {fmt(plan.maxCrawlsPerMonth)} rastreos/mes
+          <span className="tip" data-tip={LIMIT_TOOLTIPS.maxCrawlsPerMonth}>?</span>
+        </li>
+        <li>
+          <Icon name="history" size={12} />
+          {fmt(plan.maxHistoryRuns)} historial guardado
+          <span className="tip" data-tip={LIMIT_TOOLTIPS.maxHistoryRuns}>?</span>
+        </li>
       </ul>
 
       {plan.features?.length > 0 && (
         <ul className="plan-features">
           {plan.features.map((f) => (
-            <li key={f}><Icon name="check" size={11} />{FEATURE_LABELS[f] || f}</li>
+            <li key={f}>
+              <Icon name="check" size={11} />
+              {FEATURE_LABELS[f] || f}
+              {FEATURE_TOOLTIPS[f] && (
+                <span className="tip" data-tip={FEATURE_TOOLTIPS[f]}>?</span>
+              )}
+            </li>
           ))}
         </ul>
       )}
@@ -271,6 +293,49 @@ export default function PlanCard({
         .plan-action :global(.btn) {
           width: 100%;
           justify-content: center;
+        }
+        .tip {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+          flex-shrink: 0;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: var(--bg3);
+          border: 1px solid var(--border2);
+          color: var(--muted);
+          font-size: 9px;
+          font-weight: 700;
+          cursor: default;
+          line-height: 1;
+        }
+        .tip::after {
+          content: attr(data-tip);
+          position: absolute;
+          bottom: calc(100% + 6px);
+          right: 0;
+          min-width: 180px;
+          max-width: 240px;
+          background: var(--bg3);
+          border: 1px solid var(--border2);
+          border-radius: 8px;
+          padding: 8px 10px;
+          font-size: 11px;
+          font-weight: 400;
+          color: var(--text2);
+          line-height: 1.5;
+          white-space: normal;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.15s;
+          z-index: 10;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        .tip:hover::after {
+          opacity: 1;
         }
       `}</style>
     </div>

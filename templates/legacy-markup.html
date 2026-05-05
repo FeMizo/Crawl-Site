@@ -317,24 +317,18 @@ body.feature-locked-excel #dlb { display: none !important; }
               aria-label="Buscar por URL">
           </div>
           <div class="tnav">
-            <button class="tbtn on" onclick="goTab('all',this)"><span data-i18n="tabAll">Todas</span> <span class="tc"
-                id="tc-all">0</span></button>
-            <button class="tbtn" onclick="goTab('seo',this)">&#128269; SEO <span class="tc"
-                id="tc-seo">0</span></button>
-            <button class="tbtn" onclick="goTab('issues',this)">&#9888;&#65039; <span
-                data-i18n="tabIssues">Problemas</span> <span class="tc" id="tc-issues">0</span></button>
-            <button class="tbtn" onclick="goTab('titles',this)"><span data-i18n="tabTitles">Titulos</span> <span
-                class="tc" id="tc-titles">0</span></button>
-            <button class="tbtn" onclick="goTab('desc',this)"><span data-i18n="tabDesc">Descripciones</span> <span
-                class="tc" id="tc-desc">0</span></button>
-            <button class="tbtn" onclick="goTab('h1',this)">H1 <span class="tc" id="tc-h1">0</span></button>
-            <button class="tbtn" onclick="goTab('images',this)"><span data-i18n="tabImages">Imagenes</span> <span
-                class="tc" id="tc-images">0</span></button>
-            <button class="tbtn" onclick="goTab('errors',this)"><span data-i18n="tabErrors">Errores</span> <span
-                class="tc" id="tc-errors">0</span></button>
-            <button class="tbtn" onclick="goTab('dup',this)"><span data-i18n="tabDup">Duplicados</span> <span class="tc"
-                id="tc-dup">0</span></button>
-            <button class="tbtn" onclick="goTab('robots',this)" data-i18n="robotsTab">Robots.txt</button>
+            <button class="tbtn on" onclick="goTab('all',this)">&#128196; <span data-i18n="tabAll">Todas</span> <span class="tc" id="tc-all">0</span></button>
+            <button class="tbtn" onclick="goTab('seo',this)">&#128269; SEO <span class="tc" id="tc-seo">0</span></button>
+            <button class="tbtn" onclick="goTab('issues',this)">&#9888;&#65039; <span data-i18n="tabIssues">Problemas</span> <span class="tc" id="tc-issues">0</span></button>
+            <button class="tbtn" onclick="goTab('titles',this)">&#128214; <span data-i18n="tabTitles">Titulos</span> <span class="tc" id="tc-titles">0</span></button>
+            <button class="tbtn" onclick="goTab('desc',this)">&#128221; <span data-i18n="tabDesc">Descripciones</span> <span class="tc" id="tc-desc">0</span></button>
+            <button class="tbtn" onclick="goTab('h1',this)">&#127381; H1 <span class="tc" id="tc-h1">0</span></button>
+            <button class="tbtn" onclick="goTab('images',this)">&#128247; <span data-i18n="tabImages">Imagenes</span> <span class="tc" id="tc-images">0</span></button>
+            <button class="tbtn" onclick="goTab('errors',this)">&#128308; <span data-i18n="tabErrors">Errores</span> <span class="tc" id="tc-errors">0</span></button>
+            <button class="tbtn" onclick="goTab('dup',this)">&#128260; <span data-i18n="tabDup">Duplicados</span> <span class="tc" id="tc-dup">0</span></button>
+            <button class="tbtn" onclick="goTab('robots',this)">&#129302; Robots.txt</button>
+            <button class="tbtn" onclick="goTab('googletools',this)">&#128200; Google Tools</button>
+            <button class="tbtn" onclick="goTab('sitemap',this)">&#128506; Sitemap.xml</button>
           </div>
 
           <div class="tpane on" id="tab-all">
@@ -361,7 +355,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="title">Titulo</th>
                     <th data-i18n-tooltip="thTipTitleChars">Ch.</th>
@@ -369,7 +363,7 @@ body.feature-locked-excel #dlb { display: none !important; }
                     <th data-i18n-tooltip="thTipDescChars">Ch.</th>
                     <th data-i18n-tooltip="thTipH1Text">H1</th>
                     <th data-i18n="imgsNoAlt" data-i18n-tooltip="thTipImgsNoAlt">Imgs s/alt</th>
-                    <th data-i18n="issues" data-i18n-tooltip="thTipIssues">Problemas</th>
+                    <th data-i18n="issues" data-i18n-tooltip="thTipIssues" style="width:200px;min-width:200px;">Problemas</th>
                   </tr>
                 </thead>
                 <tbody id="tbAll"></tbody>
@@ -392,7 +386,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="titleScore" data-i18n-tooltip="thTipTitleScore">Score Titulo</th>
                     <th data-i18n="descScore" data-i18n-tooltip="thTipDescScore">Score Desc</th>
@@ -420,7 +414,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="group" data-i18n-tooltip="thTipGroup">Grupo</th>
                     <th data-i18n="issues" data-i18n-tooltip="thTipIssues">Problemas</th>
@@ -446,7 +440,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="title">Titulo</th>
                     <th data-i18n-tooltip="thTipTitleChars">Chars</th>
@@ -470,7 +464,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="description">Descripcion</th>
                     <th data-i18n-tooltip="thTipDescChars">Chars</th>
@@ -495,7 +489,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n-tooltip="thTipH1Text">H1</th>
                     <th data-i18n-tooltip="thTipH1Count"># H1</th>
@@ -521,7 +515,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="totalImgs">Total</th>
                     <th data-i18n="noAlt" data-i18n-tooltip="thTipImgNoAlt">Sin alt</th>
@@ -549,7 +543,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
                     <th data-i18n-tooltip="thTipHttp">HTTP</th>
                     <th data-i18n="redirectTo" data-i18n-tooltip="thTipRedirectTo">Redirect a</th>
                     <th data-i18n="blocked" data-i18n-tooltip="thTipBlocked">Bloqueada</th>
@@ -584,7 +578,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <table>
                 <thead>
                   <tr>
-                    <th data-i18n="url">URL</th>
+                    <th class="th-sticky" data-i18n="url">URL</th>
                     <th>HTTP</th>
                     <th data-i18n="buttonNoLink">Boton sin link</th>
                     <th data-i18n="brokenButton">Boton roto</th>
@@ -608,6 +602,18 @@ body.feature-locked-excel #dlb { display: none !important; }
 
           <div class="tpane" id="tab-robots">
             <div class="rbox" id="robotsBox">
+              <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+            </div>
+          </div>
+
+          <div class="tpane" id="tab-googletools">
+            <div id="googletoolsBox" style="display:grid;gap:16px;padding:4px 0;">
+              <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+            </div>
+          </div>
+
+          <div class="tpane" id="tab-sitemap">
+            <div id="sitemapBox" style="display:grid;gap:16px;padding:4px 0;">
               <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
             </div>
           </div>

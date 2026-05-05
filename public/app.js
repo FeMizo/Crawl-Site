@@ -682,6 +682,8 @@ function setLang(l) {
   }
   if (crawlState.hosting) renderHosting(crawlState.hosting);
   if (crawlState.robots) renderRobots(crawlState.robots);
+  renderSitemapTab();
+  renderGoogleTools();
   if (crawlState.pages.length) {
     rerenderTablesFromState();
     if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
@@ -1205,6 +1207,7 @@ function startCrawl() {
     const robots = JSON.parse(e.data);
     crawlState.robots = robots;
     renderRobots(robots);
+    renderSitemapTab();
   });
   es.addEventListener("sitemap", (e) => {
     sv("stxt", `${T("sitemapCount")}: ${JSON.parse(e.data).count} URLs`);
@@ -1218,6 +1221,7 @@ function startCrawl() {
     setProgress(p.total);
     sv("vT", p.total);
     updateAggregateSgStats();
+    renderGoogleTools();
   });
   es.addEventListener("done", (e) => {
     const d = JSON.parse(e.data);
@@ -1396,6 +1400,12 @@ const gmap = {
   h1: "gh",
   images: "gi",
   functionality: "gb",
+  google_tools: "gg",
+  technical: "gtech",
+  content: "gcont",
+  social: "gsoc",
+  performance: "gperf",
+  warnings: "gwarn",
 };
 function gclass(g) {
   return gmap[g] || "ge";
@@ -1917,9 +1927,12 @@ function renderHosting(info) {
 //
 // ADD PAGE TO TABS
 //
+const SOFT_GROUPS = new Set(["performance", "content", "social", "technical", "warnings", "google_tools"]);
+const HARD_GROUPS = new Set(["errors", "titles", "desc", "h1", "images", "functionality"]);
+
 function addPage(p) {
   const iss = p.issues || [];
-  const seoIss = iss.filter((i) => i.group !== "functionality");
+  const seoIss = iss.filter((i) => i.group !== "functionality" && i.group !== "google_tools");
   const types = iss.map((i) => i.type || "errors");
   const hasRR = p.redirectTo && !sameU(p.redirectTo, p.url);
   const tLen = p.titleLen || 0;
@@ -1928,16 +1941,23 @@ function addPage(p) {
   const tScore = q.titleScore ?? null;
   const dScore = q.descScore ?? null;
 
-  const issH = seoIss.length
-    ? `<div class="itags">${seoIss.map((i) => (function(l){return `<span class="itag ${gclass(i.group)}"${l.length>36?' title="'+esc(l)+'"':''}>${esc(l.length>36?l.slice(0,35)+'…':l)}</span>`;})(issueLabel(i))).join("")}</div>`
-    : `<span style="color:var(--ok);font-size:10px;">✅ OK</span>`;
+  const hardIss = seoIss.filter((i) => HARD_GROUPS.has(i.group));
+  const softIss = seoIss.filter((i) => SOFT_GROUPS.has(i.group));
+  const is2xx = p.statusCode >= 200 && p.statusCode < 300;
+  const issH = hardIss.length
+    ? `<div class="itags">${hardIss.map((i) => (function(l){return `<span class="itag ${gclass(i.group)}"${l.length>36?' title="'+esc(l)+'"':''}>${esc(l.length>36?l.slice(0,35)+'…':l)}</span>`;})(issueLabel(i))).join("")}</div>`
+    : softIss.length
+      ? `<span class="issue-soft">&#9888;&#65039; Advertencias</span>`
+      : is2xx
+        ? `<span class="issue-ok">&#9989; OK</span>`
+        : `<span style="color:var(--muted);font-size:11px;">—</span>`;
 
   //  ALL tab  clickable rows show SEO sidebar
   const trA = document.createElement("tr");
   trA.innerHTML = `
     <td class="uc">${urlA(p)}</td>
     <td>${sbadge(p.statusCode)}</td>
-    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${p.title ? esc(trunc(p.title, 30)) : `<span style="color:var(--error);font-size:10px;">—</span>`}</td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${p.title ? esc(trunc(p.title.charAt(0).toUpperCase() + p.title.slice(1), 30)) : `<span style="color:var(--error);font-size:10px;">—</span>`}</td>
     <td><span class="${lcls(tLen, 30, 60)}">${tLen || "—"}</span></td>
     <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.description)}">${p.description ? esc(trunc(p.description, 34)) : `<span style="color:var(--muted);font-size:10px;">—</span>`}</td>
     <td><span class="${lcls(dLen, 70, 160)}">${dLen || "—"}</span></td>
@@ -2221,6 +2241,60 @@ function renderRobots(d) {
     <p style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:${smH ? "14px" : 0} 0 8px;">${T("disallowedTitle")}</p>
     ${disH}
     ${d.rawContent ? `<details style="margin-top:12px;"><summary style="font-size:10px;color:var(--muted);cursor:pointer;letter-spacing:2px;text-transform:uppercase;">${T("rawTitle")}</summary><div class="ri-raw">${esc(d.rawContent)}</div></details>` : ""}`;
+}
+
+function renderGoogleTools() {
+  const box = document.getElementById("googletoolsBox");
+  if (!box) return;
+
+  const pages = crawlState.pages || [];
+  const hasGTM = pages.some((p) => p.meta?.googleTools?.hasGTM);
+  const hasGA4 = pages.some((p) => p.meta?.googleTools?.hasGA4);
+
+  if (!pages.length) {
+    box.innerHTML = `<p style="color:var(--muted);font-size:12px;">Esperando crawl...</p>`;
+    return;
+  }
+
+  const ok = (label) => `<div class="seotools-row ok">&#9989; <span>${label}</span></div>`;
+  const warn = (label) => `<div class="seotools-row warn">&#9888;&#65039; <span>${label}</span></div>`;
+
+  box.innerHTML = `
+    <div class="seotools-group">
+      <div class="seotools-group-label">Google Tools</div>
+      ${hasGTM ? ok("Google Tag Manager (GTM) detectado") : warn("Sin Google Tag Manager — sin GTM no puedes disparar otros tags fácilmente")}
+      ${hasGA4 ? ok("Google Analytics 4 (GA4) detectado") : warn("Sin GA4 — no hay medición de tráfico ni conversiones")}
+    </div>`;
+}
+
+function renderSitemapTab() {
+  const box = document.getElementById("sitemapBox");
+  if (!box) return;
+
+  const robots = crawlState.robots || {};
+  const hasSitemap = !!robots.hasSitemap;
+  const sitemapUrls = robots.sitemapUrls || [];
+
+  if (!crawlState.robots) {
+    box.innerHTML = `<p style="color:var(--muted);font-size:12px;">Esperando crawl...</p>`;
+    return;
+  }
+
+  const ok = (label) => `<div class="seotools-row ok">&#9989; <span>${label}</span></div>`;
+  const warn = (label) => `<div class="seotools-row warn">&#9888;&#65039; <span>${label}</span></div>`;
+
+  const linksHtml = sitemapUrls.length
+    ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">${sitemapUrls.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:var(--blue);word-break:break-all;">${esc(u)}</a>`).join("")}</div>`
+    : "";
+
+  box.innerHTML = `
+    <div class="seotools-group">
+      <div class="seotools-group-label">Sitemap.xml</div>
+      ${hasSitemap
+        ? ok(`Sitemap detectado${sitemapUrls.length ? ` — ${sitemapUrls.length} archivo(s)` : ""}`)
+        : warn("No se detectó sitemap.xml — necesario para indexación en buscadores")}
+      ${linksHtml}
+    </div>`;
 }
 
 let __seoCrawlerInited = false;

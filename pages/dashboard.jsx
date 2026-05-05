@@ -9,6 +9,7 @@ import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
 import DashboardSkeleton from "../components/dashboard/DashboardSkeleton";
+import Skeleton from "../components/ui/Skeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 import HistoryPanel from "../components/dashboard/HistoryPanel";
@@ -374,16 +375,23 @@ export default function DashboardPage() {
               ) : null}
               {!appReady && !loadError && !!activeRunId ? (
                 <div className="embed-skeleton" aria-label={t("loadingResults")}>
-                  <div className="sk-block sk-title" />
-                  <div className="sk-block sk-wide" />
-                  <div className="sk-block sk-wide" />
-                  <div className="sk-row">
-                    <div className="sk-block sk-cell" />
-                    <div className="sk-block sk-cell" />
-                    <div className="sk-block sk-cell" />
+                  <div className="esk-stats">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="esk-stat-box">
+                        <Skeleton width="50px" height="11px" borderRadius="4px" />
+                        <Skeleton width="64px" height="26px" borderRadius="6px" />
+                      </div>
+                    ))}
                   </div>
-                  <div className="sk-block sk-wide" />
-                  <div className="sk-block sk-medium" />
+                  <Skeleton width="100%" height="32px" borderRadius="6px" />
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <div key={i} className="esk-row">
+                      <Skeleton width={`${38 + (i % 3) * 8}%`} height="14px" borderRadius="4px" />
+                      <Skeleton width="10%" height="14px" borderRadius="4px" />
+                      <Skeleton width="10%" height="14px" borderRadius="4px" />
+                      <Skeleton width="15%" height="14px" borderRadius="4px" />
+                    </div>
+                  ))}
                 </div>
               ) : null}
               <div className="legacy-embed" dangerouslySetInnerHTML={{ __html: markup }} />
@@ -420,13 +428,6 @@ export default function DashboardPage() {
           .legacy-embed .dlb,
           .legacy-embed .main-layout {
             margin-left: 0 !important;
-          }
-          @keyframes sk-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
-          }
-          .sk-block {
-            animation: sk-pulse 1.5s ease-in-out infinite;
           }
         `}</style>
         <style jsx>{`
@@ -508,23 +509,32 @@ export default function DashboardPage() {
           }
           .embed-skeleton {
             display: grid;
-            gap: 10px;
+            gap: 8px;
             padding: 4px 0 8px;
           }
-          .sk-block {
-            background: var(--bg3);
-            border-radius: 8px;
-            height: 18px;
-          }
-          .sk-title { height: 24px; width: 40%; }
-          .sk-wide { width: 100%; }
-          .sk-medium { width: 65%; }
-          .sk-row {
+          .esk-stats {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
+            margin-bottom: 8px;
           }
-          .sk-cell { height: 48px; }
+          .esk-stat-box {
+            display: grid;
+            gap: 8px;
+            background: var(--bg3);
+            border-radius: 10px;
+            padding: 12px;
+          }
+          .esk-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 7px 0;
+            border-top: 1px solid var(--border);
+          }
+          @media (max-width: 600px) {
+            .esk-stats { grid-template-columns: repeat(2, 1fr); }
+          }
         `}</style>
       </AppShell>
     </>

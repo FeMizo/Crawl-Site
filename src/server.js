@@ -1873,6 +1873,17 @@ async function fetchRobots(siteUrl) {
         if (p && p !== "/") disallowed.push(p);
       }
     }
+    // If robots.txt didn't reference a sitemap, probe /sitemap.xml directly
+    if (!sitemapUrls.length) {
+      try {
+        const smUrl = `${base}/sitemap.xml`;
+        const smRaw = await fetchRaw(smUrl);
+        if (smRaw.statusCode === 200 && smRaw.body && smRaw.body.includes("<urlset")) {
+          sitemapUrls.push(smUrl);
+        }
+      } catch {}
+    }
+
     return {
       disallowed,
       hasSitemap: sitemapUrls.length > 0,
@@ -2210,6 +2221,13 @@ function extractMeta(body, pageUrl) {
     .trim();
   const wordCount = visibleText ? visibleText.split(/\s+/).length : 0;
 
+  // Google tag detection (GA4, GTM)
+  const hasGTM = /googletagmanager\.com\/gtm\.js/i.test(body) || /GTM-[A-Z0-9]+/i.test(body);
+  const hasGA4 = /googletagmanager\.com\/gtag\/js/i.test(body) || /gtag\(['"]config['"],\s*['"]G-/i.test(body);
+
+  // Favicon detection
+  const hasFavicon = /<link[^>]+rel=["'](?:shortcut icon|icon|apple-touch-icon)["'][^>]*>/i.test(body);
+
   // CSR detection: JS framework shell with no rendered content
   const hasJsSpaMarker =
     body.includes('id="__next"') || body.includes("id='__next'") ||
@@ -2274,6 +2292,8 @@ function extractMeta(body, pageUrl) {
     wordCount,
     isJsRendered,
     internalLinks,
+    googleTools: { hasGTM, hasGA4 },
+    hasFavicon,
   };
 }
 
@@ -2802,6 +2822,86 @@ function getIssues(page, crawlLang = "es") {
           `Large HTML (${Math.round(m.htmlSizeBytes / 1024)} KB)`,
         ),
         group: "performance",
+      });
+
+    // Google Tools
+    if (!m.googleTools?.hasGTM)
+      issues.push({
+        type: "no_gtm",
+        label: T("Sin Google Tag Manager", "No Google Tag Manager"),
+        group: "google_tools",
+      });
+    if (!m.googleTools?.hasGA4)
+      issues.push({
+        type: "no_ga4",
+        label: T("Sin GA4", "No GA4"),
+        group: "google_tools",
+      });
+
+    // HTML lang attribute
+    if (!m.pageLang)
+      issues.push({
+        type: "html_no_lang",
+        label: T("HTML sin atributo lang", "HTML missing lang attribute"),
+        group: "technical",
+      });
+
+    // Favicon
+    if (!m.hasFavicon)
+      issues.push({
+        type: "no_favicon",
+        label: T("Sin favicon", "No favicon"),
+        group: "technical",
+      });
+
+    // Title equals description
+    if (
+      m.title &&
+      m.description &&
+      m.title.toLowerCase().trim() === m.description.toLowerCase().trim()
+    )
+      issues.push({
+        type: "title_equals_desc",
+        label: T("Title igual a meta description", "Title equals meta description"),
+        group: "content",
+      });
+
+    // URL too long
+    if ((page.url || "").length > 115)
+      issues.push({
+        type: "url_too_long",
+        label: T(
+          `URL muy larga (${page.url.length} chars)`,
+          `URL too long (${page.url.length} chars)`,
+        ),
+        group: "technical",
+      });
+
+    // URL depth > 5 path segments
+    (() => {
+      try {
+        const segments = new URL(page.url).pathname.split("/").filter(Boolean);
+        if (segments.length > 5)
+          issues.push({
+            type: "url_deep",
+            label: T(
+              `URL muy profunda (${segments.length} niveles)`,
+              `URL too deep (${segments.length} levels)`,
+            ),
+            group: "technical",
+          });
+      } catch {}
+    })();
+
+    // Broken external links
+    if ((page.brokenExternalLinks || []).length > 0)
+      issues.push({
+        type: "broken_external_link",
+        label: T(
+          `${page.brokenExternalLinks.length} enlace(s) externo(s) roto(s)`,
+          `${page.brokenExternalLinks.length} broken external link(s)`,
+        ),
+        group: "functionality",
       });
   }
 
