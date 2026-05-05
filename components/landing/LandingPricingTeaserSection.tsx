@@ -104,14 +104,14 @@ export default function LandingPricingTeaserSection() {
           min-height: 20px;
           padding: 0 8px;
           border-radius: 999px;
-          font-size: 9px;
+          font-size:12px;
           font-weight: 700;
           letter-spacing: 0.14em;
           text-transform: uppercase;
           border: 1px solid;
         }
         .teaser-popular {
-          font-size: 9px;
+          font-size:12px;
           font-weight: 600;
           color: var(--plan-accent);
           letter-spacing: 0.06em;
@@ -144,7 +144,7 @@ export default function LandingPricingTeaserSection() {
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 11px;
+          font-size: 13px;
           color: var(--text2);
         }
         .teaser-cta {

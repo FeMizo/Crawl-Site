@@ -78,7 +78,7 @@ export default function NotFoundPage() {
             max-width: 480px;
           }
           .not-found-kicker {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--muted);
             letter-spacing: 0.22em;
             text-transform: uppercase;

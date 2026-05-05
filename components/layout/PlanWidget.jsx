@@ -70,7 +70,7 @@ function StatRow({ icon, label, used, max, color }) {
         .pw-stat-val {
           font-variant-numeric: tabular-nums;
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
         }
       `}</style>
     </div>
@@ -156,7 +156,7 @@ export default function PlanWidget({ user }) {
           border: 1px solid;
         }
         .pw-upgrade-link {
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 700;
           color: var(--accent);
           text-decoration: none;

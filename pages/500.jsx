@@ -79,7 +79,7 @@ export default function ServerErrorPage() {
             max-width: 480px;
           }
           .error-kicker {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--muted);
             letter-spacing: 0.22em;
             text-transform: uppercase;

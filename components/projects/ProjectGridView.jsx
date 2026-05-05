@@ -172,7 +172,7 @@ export default function ProjectGridView({ projects, loading, t, lang, formatDate
           line-height: 1.2;
         }
         .gc-url {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--text3);
           white-space: nowrap;
           overflow: hidden;
@@ -294,7 +294,7 @@ export default function ProjectGridView({ projects, loading, t, lang, formatDate
           border-top: 1px solid var(--border2);
         }
         .gc-date {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--text3);
         }
         .gc-del-btn {

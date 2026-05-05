@@ -104,7 +104,7 @@ export default function ProjectListView({ projects, loading, t, lang, formatDate
         }
         .projects-table th {
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.1em;
           text-transform: uppercase;
           background: rgba(255, 255, 255, 0.02);

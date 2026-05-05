@@ -32,7 +32,7 @@ export default function HistoryPanel({ project, activeRunId, openRun, formatDate
         }
         .history-list {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 12px;
           min-width: 0;
           align-items: start;
@@ -56,7 +56,7 @@ export default function HistoryPanel({ project, activeRunId, openRun, formatDate
           transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
         }
         .history-item span {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--muted);
         }
         .history-item strong {
@@ -67,7 +67,7 @@ export default function HistoryPanel({ project, activeRunId, openRun, formatDate
           letter-spacing: -0.01em;
         }
         .history-item small {
-          font-size: 11px;
+          font-size: 13px;
           display: block;
           white-space: nowrap;
           overflow: hidden;

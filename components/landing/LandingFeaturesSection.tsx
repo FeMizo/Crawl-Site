@@ -103,7 +103,7 @@ export default function LandingFeaturesSection() {
           margin-bottom: 2px;
         }
         .feature-desc {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--text2);
           line-height: 1.5;
         }

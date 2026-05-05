@@ -226,6 +226,15 @@ const L = {
     thTipDetail: "Información adicional sobre el problema detectado",
     thTipCharsTitle: "Chars del título",
     thTipCharsDesc: "Chars de la descripción",
+    tabKeywords: "Keywords",
+    keywords: "Keywords",
+    kwCount: "#",
+    kwHas: "¿Tiene Keywords?",
+    kwSuggestions: "Sugerencias",
+    noKeywords: "Sin keywords",
+    hasKeywords: "Con keywords",
+    noKeywordsFilter: "Sin keywords",
+    keywordsLocked: "Disponible desde plan Starter. Actualiza tu plan para ver keywords por pagina.",
   },
   en: {
     heroTitle: "New crawl",
@@ -451,6 +460,15 @@ const L = {
     thTipDetail: "Additional information about the detected issue",
     thTipCharsTitle: "Title chars",
     thTipCharsDesc: "Description chars",
+    tabKeywords: "Keywords",
+    keywords: "Keywords",
+    kwCount: "#",
+    kwHas: "Has Keywords?",
+    kwSuggestions: "Suggestions",
+    noKeywords: "No keywords",
+    hasKeywords: "With keywords",
+    noKeywordsFilter: "No keywords",
+    keywordsLocked: "Available from Starter plan. Upgrade to see keywords per page.",
   },
 };
 let lang =
@@ -1057,6 +1075,9 @@ async function applySavedRun(run) {
   sv("tc-images", stats.imgIssues || 0);
   sv("tc-errors", (stats["404"] || 0) + (stats.redirects || 0));
   sv("tc-dup", stats.duplicates || 0);
+  sv("tc-keywords", stats.withKeywords || 0);
+  const kwNotice = document.getElementById("kw-plan-notice");
+  if (kwNotice) kwNotice.style.display = (stats.withKeywords || 0) === 0 && (run.total || 0) > 0 ? "" : "none";
   renderChart({
     "404": stats["404"] || 0,
     redirects: stats.redirects || 0,
@@ -1251,6 +1272,9 @@ function startCrawl() {
     sv("tc-images", s.imgIssues);
     sv("tc-errors", s["404"] + s.redirects);
     sv("tc-dup", s.duplicates);
+    sv("tc-keywords", s.withKeywords || 0);
+    const kwNotice = document.getElementById("kw-plan-notice");
+    if (kwNotice) kwNotice.style.display = (s.withKeywords || 0) === 0 && d.total > 0 ? "" : "none";
     renderChart(s);
     crawlState.duplicates = d.duplicates || [];
     if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
@@ -1392,7 +1416,7 @@ function urlA(p) {
     </svg>
   </a>`;
   return hasRR
-    ? `<div class="url-cell"><span class="url-text">${esc(trunc(d, 48))}</span>${openIcon}</div><br><small style="color:var(--orange);font-size:10px;">↳${esc(trunc(p.url, 44))}</small>`
+    ? `<div class="url-cell"><span class="url-text">${esc(trunc(d, 48))}</span>${openIcon}</div><br><small style="color:var(--orange);font-size:13px;">↳${esc(trunc(p.url, 44))}</small>`
     : `<div class="url-cell"><span class="url-text">${esc(trunc(d, 56))}</span>${openIcon}</div>`;
 }
 function mkTr(cells, types) {
@@ -1522,7 +1546,7 @@ function toggleHeadings(url) {
 // Heading tree render
 function renderHeadingTree(headings, skips, pageUrl) {
   if (!headings || !headings.length)
-    return `<span style="color:var(--muted);font-size:10px;"></span>`;
+    return `<span style="color:var(--muted);font-size:13px;"></span>`;
   const skipFroms = new Set((skips || []).map((s) => s.to));
   const expanded = isHeadingExpanded(pageUrl);
   const visible = expanded ? headings : headings.slice(0, 8);
@@ -1654,50 +1678,119 @@ function showPageSEO(p) {
   const dl = p.descLen || 0;
   const opts = buildSeoOptions(p);
 
-  const sugHtml = (sugs, score) =>
-    sugs.length
-      ? sugs
-          .map(
-            (s) =>
-              `<div class="seo-sug-item warn">💡 ${esc(lang === "en" ? s.en : s.es)}</div>`,
-          )
-          .join("")
-      : score > 0
-        ? `<div class="seo-sug-item ok">✅ ${lang === "en" ? "Looks good!" : "Se ve bien"}</div>`
-        : `<div class="seo-sug-item warn">💡 ${lang === "en" ? "No data available." : "Sin datos disponibles."}</div>`;
+  const scoreColor = (s) => s >= 70 ? "#00ff88" : s >= 40 ? "#f59e0b" : "#ff4d6a";
 
-  const optionsHtml = (label, items) => `
-      <div style="margin-top:8px;">
-        <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">${label}</div>
-        <div class="seo-sug-item opt"><strong>${T("option1")}:</strong> ${esc(items[0] || "")}</div>
-        <div class="seo-sug-item opt"><strong>${T("option2")}:</strong> ${esc(items[1] || "")}</div>
-      </div>`;
+  const lenIssue = (len, lo, hi, labelEmpty, labelShort, labelLong, labelOk) => {
+    if (len === 0) return { sev: "error", text: labelEmpty, gain: 3 };
+    if (len < lo)  return { sev: "warn",  text: labelShort, gain: 2 };
+    if (len > hi)  return { sev: "warn",  text: labelLong,  gain: 1 };
+    return { sev: "ok", text: labelOk, gain: 0 };
+  };
+
+  const iRow = (sev, text, gain) => {
+    const ic = sev === "ok" ? "✓" : sev === "error" ? "⊗" : "⚠";
+    const g = gain > 0
+      ? `<span class="si-gain">+${gain}</span>`
+      : `<span class="si-gain none">—</span>`;
+    return `<div class="si-row"><span class="si-ic ${sev}">${ic}</span><span class="si-txt">${text}</span>${g}</div>`;
+  };
+
+  const lenBar = (len, lo, hi) => {
+    const max = hi * 1.4;
+    const pct = Math.min(len / max * 100, 100);
+    const optL = lo / max * 100;
+    const optW = (hi - lo) / max * 100;
+    const col = len === 0 ? "#ff4d6a" : (len >= lo && len <= hi) ? "#00ff88" : "#f59e0b";
+    return `<div class="si-lenbar">
+      <div class="si-lentrack">
+        <div class="si-lenopt" style="left:${optL}%;width:${optW}%"></div>
+        <div class="si-lenfill" style="width:${pct}%;background:${col}"></div>
+      </div>
+      <div class="si-lenmeta">
+        <span style="color:${col};font-weight:600;">${len} ${T("chars")}</span>
+        <span>${lo}–${hi} ${T("chars")}</span>
+      </div>
+    </div>`;
+  };
+
+  const optBlock = (items) => (items[0] || items[1]) ? `
+    <div class="si-opts">
+      <div class="si-opts-label">${lang === "en" ? "Suggestions" : "Sugerencias"}</div>
+      ${items[0] ? `<div class="si-opt">${esc(items[0])}</div>` : ""}
+      ${items[1] ? `<div class="si-opt">${esc(items[1])}</div>` : ""}
+    </div>` : "";
+
+  const metaSection = (letter, bg, title, preview, bar, issuesHtml, options) => `
+    <div class="si-section">
+      <div class="si-head">
+        <div class="si-icon" style="background:${bg}">${letter}</div>
+        <div class="si-title">${title}</div>
+      </div>
+      ${preview}${bar}
+      <div class="si-issues">${issuesHtml}</div>
+      ${options}
+    </div>`;
+
+  const tLenIssue = lenIssue(tl, 30, 60,
+    lang === "en" ? "Title missing" : "Título ausente",
+    lang === "en" ? "Title too short" : "Título demasiado corto",
+    lang === "en" ? "Title too long" : "Título demasiado largo",
+    lang === "en" ? "Title length is optimal" : "Longitud óptima");
+  const dLenIssue = lenIssue(dl, 120, 160,
+    lang === "en" ? "Description missing" : "Descripción ausente",
+    lang === "en" ? "Description too short" : "Descripción demasiado corta",
+    lang === "en" ? "Description too long" : "Descripción demasiado larga",
+    lang === "en" ? "Description length is optimal" : "Longitud óptima");
+
+  const deficit = (score) => 100 - score;
+  const sugGain = (score, idx) => idx === 0 && deficit(score) > 50 ? 3 : idx === 0 && deficit(score) > 20 ? 2 : 1;
+
+  const tIssues = iRow(tLenIssue.sev, tLenIssue.text, tLenIssue.gain)
+    + tSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(tScore, i))).join("");
+  const dIssues = iRow(dLenIssue.sev, dLenIssue.text, dLenIssue.gain)
+    + dSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(dScore, i))).join("");
+
+  const hTags = (p.headings || []).map(h => h.tag);
+  const h1Count = hTags.filter(t => t === "H1").length;
+  const hIssues = [
+    h1Count === 0
+      ? iRow("error", lang === "en" ? "H1 tag missing" : "Falta etiqueta H1", 3)
+      : iRow("ok",    lang === "en" ? "H1 tag present" : "H1 presente", 0),
+    h1Count > 1
+      ? iRow("warn",  lang === "en" ? "Multiple H1 found" : "Múltiples H1 detectados", 1)
+      : "",
+    (p.headingSkips || []).length
+      ? iRow("warn",  lang === "en" ? "Heading level skipped" : "Nivel de encabezado omitido", 1)
+      : "",
+  ].join("");
 
   const seoCard = document.getElementById("seoCard");
   const seoCardBody = seoCard?.querySelector(".sidebar-body");
   if (!seoCardBody) return;
-  seoCardBody.innerHTML =
-    `
-    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.url)}">${esc(trunc(p.url, 36))}</div>
-    <div class="score-row">
-      ${scoreRing(tScore, T("titleQuality"))}
-      ${scoreRing(dScore, T("descQuality"))}
-    </div>
-    <div style="margin-top:8px;">
-      <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">${T("title")} <span style="color:var(--text2);">(${tl} ${T("chars")})</span></div>
-      <div style="font-size:10px;color:var(--text2);background:var(--bg3);padding:6px 8px;border-radius:4px;margin-bottom:4px;word-break:break-word;">${esc(p.title || "")}</div>
-      ${sugHtml(tSugs, tScore)}
-      ${optionsHtml(T("seoOptionsTitle"), opts.title)}
-    </div>
-    <div style="margin-top:10px;">
-      <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">${T("description")} <span style="color:var(--text2);">(${dl} ${T("chars")})</span></div>
-      <div style="font-size:10px;color:var(--text2);background:var(--bg3);padding:6px 8px;border-radius:4px;margin-bottom:4px;word-break:break-word;">${esc(p.description || "")}</div>
-      ${sugHtml(dSugs, dScore)}
-      ${optionsHtml(T("seoOptionsDesc"), opts.desc)}
-    </div>
-    <div style="margin-top:10px;">
-      <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">${T("headings")}</div>
-      ${renderHeadingTree(p.headings, p.headingSkips, p.url)}
+
+  seoCardBody.innerHTML = `
+    <div class="si-url" title="${esc(p.url)}">${esc(trunc(p.url, 44))}</div>
+    ${metaSection(
+      "T", scoreColor(tScore) + "22", T("title"),
+      p.title
+        ? `<div class="si-preview">${esc(p.title)}</div>`
+        : `<div class="si-preview empty">${T("noTitle")}</div>`,
+      lenBar(tl, 30, 60), tIssues, optBlock(opts.title)
+    )}
+    ${metaSection(
+      "D", scoreColor(dScore) + "22", T("description"),
+      p.description
+        ? `<div class="si-preview">${esc(p.description)}</div>`
+        : `<div class="si-preview empty">${T("noDesc")}</div>`,
+      lenBar(dl, 120, 160), dIssues, optBlock(opts.desc)
+    )}
+    <div class="si-section">
+      <div class="si-head">
+        <div class="si-icon" style="background:rgba(77,141,255,0.15);color:#4d8dff">#</div>
+        <div class="si-title">${T("headings")}</div>
+      </div>
+      <div class="si-issues">${hIssues}</div>
+      <div class="si-htree">${renderHeadingTree(p.headings, p.headingSkips, p.url)}</div>
     </div>
   `;
 }
@@ -1812,17 +1905,17 @@ function renderHosting(info) {
     ${row(T("server"), info.serverSoftware || info.hostingHint)}
     ${row(T("hostingLocation"), info.hostingLocation)}
     ${row(T("ipOrg"), info.ipOrganization)}
-    ${info.nameservers?.length ? rowHtml(T("nameservers"), `<span style="font-size:10px;">${listHtml(info.nameservers)}</span>`) : ""}
-    ${info.mxRecords?.length ? rowHtml(T("mx"), `<span style="font-size:10px;">${listHtml(info.mxRecords)}</span>`) : ""}
-    ${info.cnameRecords?.length ? rowHtml(T("cname"), `<span style="font-size:10px;">${listHtml(info.cnameRecords)}</span>`) : ""}
-    ${info.txtRecords?.length ? rowHtml(T("txtRecords"), `<span style="font-size:10px;">${listHtml(info.txtRecords, 4)}</span>`) : ""}
-    ${info.dmarcRecords?.length ? rowHtml(T("dmarc"), `<span style="font-size:10px;">${listHtml(info.dmarcRecords, 2)}</span>`) : ""}
+    ${info.nameservers?.length ? rowHtml(T("nameservers"), `<span style="font-size:13px;">${listHtml(info.nameservers)}</span>`) : ""}
+    ${info.mxRecords?.length ? rowHtml(T("mx"), `<span style="font-size:13px;">${listHtml(info.mxRecords)}</span>`) : ""}
+    ${info.cnameRecords?.length ? rowHtml(T("cname"), `<span style="font-size:13px;">${listHtml(info.cnameRecords)}</span>`) : ""}
+    ${info.txtRecords?.length ? rowHtml(T("txtRecords"), `<span style="font-size:13px;">${listHtml(info.txtRecords, 4)}</span>`) : ""}
+    ${info.dmarcRecords?.length ? rowHtml(T("dmarc"), `<span style="font-size:13px;">${listHtml(info.dmarcRecords, 2)}</span>`) : ""}
     ${
       info.observations?.length
         ? `<div class="host-row"><div class="host-lbl">${T("observations")}</div><div class="host-val">${info.observations.map((note) => `<div class="host-note">${esc(note)}</div>`).join("")}</div></div>`
         : ""
     }
-    ${!info.ip && !info.dnsProvider ? `<p style="font-size:10px;color:var(--muted);">${T("dnsError")}</p>` : ""}
+    ${!info.ip && !info.dnsProvider ? `<p style="font-size:13px;color:var(--muted);">${T("dnsError")}</p>` : ""}
   `;
 
   const cms = info.cms || null;
@@ -1832,7 +1925,7 @@ function renderHosting(info) {
   const siteType = info.siteType || null;
 
   document.getElementById("techBody").innerHTML = `
-    ${rowHtml(T("cms"), cms ? `<span class="host-badge">${esc(cms)}</span>` : `<span style="color:var(--muted);font-size:10px;">${custom ? T("customUnknown") : "—"}</span>`)}
+    ${rowHtml(T("cms"), cms ? `<span class="host-badge">${esc(cms)}</span>` : `<span style="color:var(--muted);font-size:13px;">${custom ? T("customUnknown") : "—"}</span>`)}
     ${framework ? rowHtml(T("framework"), `<span class="host-badge">${esc(framework)}</span>`) : ""}
     ${hosting ? rowHtml(T("server"), `<span class="host-badge">${esc(hosting)}</span>`) : ""}
     ${siteType?.primary ? rowHtml(T("siteTypePrimary"), `<span class="host-badge">${esc(siteType.primary)}</span>`) : ""}
@@ -1842,7 +1935,7 @@ function renderHosting(info) {
       siteType?.signals?.length
         ? rowHtml(
             T("detectedSignals"),
-            `<span style="font-size:10px;">${siteType.signals
+            `<span style="font-size:13px;">${siteType.signals
               .map((signal) => esc(signal))
               .join("<br>")}</span>`,
           )
@@ -1922,9 +2015,9 @@ function renderHosting(info) {
              .join("")}</div>`
         : ""
     }
-    <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:2px 0 8px;">${T("securityHeaders")}</div>
+    <div style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:2px 0 8px;">${T("securityHeaders")}</div>
     ${securityHeaders.map(([label, value]) => secRow(label, value)).join("")}
-    <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:10px 0 8px;">${T("ssl")}</div>
+    <div style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:10px 0 8px;">${T("ssl")}</div>
     ${
       ssl
         ? `
@@ -1933,7 +2026,7 @@ function renderHosting(info) {
       ${row(T("sslValidUntil"), ssl.validTo ? new Date(ssl.validTo).toLocaleDateString() : null)}
       ${row(T("sslDaysLeft"), ssl.validDaysRemaining)}
     `
-        : `<p style="font-size:10px;color:var(--muted);">—</p>`
+        : `<p style="font-size:13px;color:var(--muted);">—</p>`
     }
   `;
 }
@@ -1964,18 +2057,18 @@ function addPage(p) {
       ? `<span class="issue-soft">&#9888;&#65039; Advertencias</span>`
       : is2xx
         ? `<span class="issue-ok">&#9989; OK</span>`
-        : `<span style="color:var(--muted);font-size:11px;">—</span>`;
+        : `<span style="color:var(--muted);font-size:13px;">—</span>`;
 
   //  ALL tab  clickable rows show SEO sidebar
   const trA = document.createElement("tr");
   trA.innerHTML = `
     <td class="uc">${urlA(p)}</td>
     <td>${sbadge(p.statusCode)}</td>
-    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${p.title ? esc(trunc(p.title.charAt(0).toUpperCase() + p.title.slice(1), 30)) : `<span style="color:var(--error);font-size:10px;">—</span>`}</td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${p.title ? esc(trunc(p.title.charAt(0).toUpperCase() + p.title.slice(1), 30)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noTitle")}</span>`}</td>
     <td><span class="${lcls(tLen, 30, 60)}">${tLen || "—"}</span></td>
-    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.description)}">${p.description ? esc(trunc(p.description, 34)) : `<span style="color:var(--muted);font-size:10px;">—</span>`}</td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.description)}">${p.description ? esc(trunc(p.description, 34)) : `<span style="color:var(--muted);font-size:13px;font-style:italic;">${T("noDesc")}</span>`}</td>
     <td><span class="${lcls(dLen, 70, 160)}">${dLen || "—"}</span></td>
-    <td style="max-width:95px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(p.h1s || []).length ? esc(trunc(p.h1s[0], 20)) : `<span style="color:var(--error);font-size:10px;">—</span>`}</td>
+    <td style="max-width:95px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(p.h1s || []).length ? esc(trunc(p.h1s[0], 20)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noH1")}</span>`}</td>
     <td>${p.imgsNoAlt > 0 ? `<span style="color:var(--warn);">${p.imgsNoAlt}</span>` : `<span style="color:var(--muted);">—</span>`}</td>
     <td>${issH}</td>`;
   attachSeoRowBehavior(trA, p);
@@ -1993,7 +2086,7 @@ function addPage(p) {
   const skipCount = (p.headingSkips || []).length;
   const skipHtml = skipCount
     ? `<div class="itags">${(p.headingSkips || []).map((s) => `<span class="itag gh">${T("headingSkip")} ${s.from}->${s.to}</span>`).join("")}</div>`
-    : `<span style="color:var(--ok);font-size:10px;">✅</span>`;
+    : `<span style="color:var(--ok);font-size:13px;">✅</span>`;
 
   const tScoreHtml =
     tScore !== null
@@ -2015,7 +2108,7 @@ function addPage(p) {
       tScoreHtml,
       dScoreHtml,
       idxHtml,
-      `<span style="font-size:10px;color:var(--muted);">${hCount} ${hCount !== 1 ? T("headingWords") : T("headingWord")}</span>`,
+      `<span style="font-size:13px;color:var(--muted);">${hCount} ${hCount !== 1 ? T("headingWords") : T("headingWord")}</span>`,
       skipHtml,
     ],
     seoTypes,
@@ -2031,7 +2124,7 @@ function addPage(p) {
         sbadge(p.statusCode),
         gs.map(groupLabel).join(", "),
         `<div class="itags">${seoIss.map((i) => (function(l){return `<span class="itag ${gclass(i.group)}"${l.length>36?' title="'+esc(l)+'"':''}>${esc(l.length>36?l.slice(0,35)+'…':l)}</span>`;})(issueLabel(i))).join("")}</div>`,
-        esc(trunc(p.title || "—", 34)),
+        p.title ? esc(trunc(p.title, 34)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noTitle")}</span>`,
       ],
       gs,
     );
@@ -2047,7 +2140,7 @@ function addPage(p) {
       [
         urlA(p),
         sbadge(p.statusCode),
-        `<span style="max-width:190px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${esc(trunc(p.title || "—", 44))}</span>`,
+        `<span style="max-width:190px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${p.title ? esc(trunc(p.title, 44)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noTitle")}</span>`}</span>`,
         `<span class="${lcls(tLen, 30, 60)}">${tLen}</span>`,
         `<div class="itags">${tIss.map((i) => `<span class="itag gt">${issueLabel(i)}</span>`).join("")}</div>`,
       ],
@@ -2065,7 +2158,7 @@ function addPage(p) {
       [
         urlA(p),
         sbadge(p.statusCode),
-        `<span style="max-width:230px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.description)}">${esc(trunc(p.description || "—", 48))}</span>`,
+        `<span style="max-width:230px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.description)}">${p.description ? esc(trunc(p.description, 48)) : `<span style="color:var(--muted);font-size:13px;font-style:italic;">${T("noDesc")}</span>`}</span>`,
         `<span class="${lcls(dLen, 70, 160)}">${dLen || 0}</span>`,
         `<div class="itags">${dIss.map((i) => `<span class="itag gd">${issueLabel(i)}</span>`).join("")}</div>`,
       ],
@@ -2092,13 +2185,36 @@ function addPage(p) {
       [
         urlA(p),
         sbadge(p.statusCode),
-        esc(trunc((p.h1s || [])[0] || "—", 40)),
+        (p.h1s || [])[0] ? esc(trunc(p.h1s[0], 40)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noH1")}</span>`,
         `<span style="font-weight:700;color:${h1cnt === 0 ? "var(--error)" : h1cnt > 1 ? "var(--warn)" : "var(--ok)"};">${h1cnt}</span>`,
         `<div class="itags">${hIss.map((i) => `<span class="itag gh">${issueLabel(i)}</span>`).join("")}${skipTags}</div>`,
       ],
       [...new Set(allH1Types)],
     );
     document.getElementById("tbH1").appendChild(attachSeoRowBehavior(trH1, p));
+  }
+
+  //  KEYWORDS tab
+  if (p.statusCode >= 200 && p.statusCode < 300) {
+    const kws = p.keywords || [];
+    const hasKw = kws.length > 0;
+    const kwTypes = hasKw ? ["has_keywords"] : ["no_keywords"];
+    const kwHasBadge = hasKw
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(0,255,136,0.10);color:#00ff88;border:1px solid rgba(0,255,136,0.3);font-size:13px;font-weight:600;">✓ Sí</span>`
+      : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:var(--bg3);color:var(--muted);border:1px solid var(--border2);font-size:13px;font-weight:600;">— No</span>`;
+    const kwSuggestionsCell = hasKw
+      ? `<div class="kw-tags">${kws.map((w) => `<span class="kw-tag">${esc(w)}</span>`).join("")}</div>`
+      : `<span style="color:var(--muted);font-size:13px;font-style:italic;">${T("noKeywords")}</span>`;
+    const trKw = mkTr(
+      [
+        urlA(p),
+        sbadge(p.statusCode),
+        kwHasBadge,
+        kwSuggestionsCell,
+      ],
+      kwTypes,
+    );
+    document.getElementById("tbKeywords").appendChild(attachSeoRowBehavior(trKw, p));
   }
 
   //  IMAGES tab
@@ -2146,7 +2262,7 @@ function addPage(p) {
         urlA(p),
         sbadge(p.statusCode),
         hasRR
-          ? `<span style="color:var(--orange);font-size:10px;">${esc(trunc(p.redirectTo, 40))}</span>`
+          ? `<span style="color:var(--orange);font-size:13px;">${esc(trunc(p.redirectTo, 40))}</span>`
           : "",
         p.blocked ? `<span class="badge bb">${T("blocked")}</span>` : "",
         `<div class="itags">${eIss.map((i) => `<span class="itag ge">${issueLabel(i)}</span>`).join("")}</div>` ||
@@ -2195,7 +2311,7 @@ function addPage(p) {
       extraSignals.push(`${T("weakNavigation")} (${Number(p.mainNavLinks || 0)})`);
     }
     const detailSignals = extraSignals.length
-      ? `<div style="margin-top:4px;color:var(--muted);font-size:10px;">${extraSignals
+      ? `<div style="margin-top:4px;color:var(--muted);font-size:13px;">${extraSignals
           .map((text) => esc(text))
           .join("<br>")}</div>`
       : "";
@@ -2242,19 +2358,19 @@ function renderDups(dups) {
 //
 function renderRobots(d) {
   const smH = d.sitemapUrls?.length
-    ? `<p style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">${T("sitemapCount")}:</p>${d.sitemapUrls.map((u) => `<div class="ri ri-sm">${T("sitemapCount")}: ${esc(u)}</div>`).join("")}`
+    ? `<p style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">${T("sitemapCount")}:</p>${d.sitemapUrls.map((u) => `<div class="ri ri-sm">${T("sitemapCount")}: ${esc(u)}</div>`).join("")}`
     : "";
   const disH = d.disallowed?.length
     ? d.disallowed
         .map((r) => `<div class="ri ri-dis">Disallow: ${esc(r)}</div>`)
         .join("")
-    : `<p style="color:var(--ok);font-size:10px;margin-bottom:10px;">${T("noPaths")}</p>`;
+    : `<p style="color:var(--ok);font-size:13px;margin-bottom:10px;">${T("noPaths")}</p>`;
   document.getElementById("robotsBox").innerHTML = `
-    <p style="font-size:11px;color:var(--text2);margin-bottom:13px;font-weight:700;">${d.hasSitemap ? T("hasSitemap") : T("noSitemap")}</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:13px;font-weight:700;">${d.hasSitemap ? T("hasSitemap") : T("noSitemap")}</p>
     ${smH}
-    <p style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:${smH ? "14px" : 0} 0 8px;">${T("disallowedTitle")}</p>
+    <p style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:${smH ? "14px" : 0} 0 8px;">${T("disallowedTitle")}</p>
     ${disH}
-    ${d.rawContent ? `<details style="margin-top:12px;"><summary style="font-size:10px;color:var(--muted);cursor:pointer;letter-spacing:2px;text-transform:uppercase;">${T("rawTitle")}</summary><div class="ri-raw">${esc(d.rawContent)}</div></details>` : ""}`;
+    ${d.rawContent ? `<details style="margin-top:12px;"><summary style="font-size:13px;color:var(--muted);cursor:pointer;letter-spacing:2px;text-transform:uppercase;">${T("rawTitle")}</summary><div class="ri-raw">${esc(d.rawContent)}</div></details>` : ""}`;
 }
 
 function renderGoogleTools() {
@@ -2298,7 +2414,7 @@ function renderSitemapTab() {
   const warn = (label) => `<div class="seotools-row warn">&#9888;&#65039; <span>${label}</span></div>`;
 
   const linksHtml = sitemapUrls.length
-    ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">${sitemapUrls.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:var(--blue);word-break:break-all;">${esc(u)}</a>`).join("")}</div>`
+    ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">${sitemapUrls.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--blue);word-break:break-all;">${esc(u)}</a>`).join("")}</div>`
     : "";
 
   box.innerHTML = `

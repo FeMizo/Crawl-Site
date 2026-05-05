@@ -307,7 +307,7 @@ export default function PlanCard({
           background: var(--bg3);
           border: 1px solid var(--border2);
           color: var(--muted);
-          font-size: 9px;
+          font-size:12px;
           font-weight: 700;
           cursor: default;
           line-height: 1;
@@ -323,7 +323,7 @@ export default function PlanCard({
           border: 1px solid var(--border2);
           border-radius: 8px;
           padding: 8px 10px;
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 400;
           color: var(--text2);
           line-height: 1.5;

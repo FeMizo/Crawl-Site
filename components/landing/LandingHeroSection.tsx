@@ -117,7 +117,7 @@ export default function LandingHeroSection({
         }
         .eyebrow {
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
           margin-bottom: 12px;

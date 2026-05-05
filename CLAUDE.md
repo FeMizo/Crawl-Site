@@ -80,6 +80,12 @@ When editing this repository:
 5. Do not revert unrelated user changes.
 6. Validate with the narrowest useful test or build command after the change.
 
+## Content Rules
+
+- Never remove emojis or icons from UI text, labels, or buttons — they are intentional design decisions.
+- Never rephrase existing UI text or copy unless explicitly asked to do so.
+- Minimum font size is 13px. Never use font sizes below 13px in any UI element.
+
 ## Frontend Rules
 
 - Preserve the established visual language: dark-first, Manrope + Syne, compact information density.

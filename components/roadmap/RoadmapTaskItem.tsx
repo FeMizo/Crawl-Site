@@ -149,7 +149,7 @@ export default function RoadmapTaskItem({ task, canEdit, busy, onToggle, onDelet
         }
         .task-evidence span {
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
           overflow-wrap: anywhere;
         }
         @media (max-width: 720px) {

@@ -1,5 +1,34 @@
 <style>
 body.feature-locked-excel #dlb { display: none !important; }
+
+/* seoCard panel */
+.si-url { font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-bottom:10px; border-bottom:1px solid var(--border); }
+.si-section { border-top:1px solid var(--border); padding-top:12px; margin-top:10px; display:grid; gap:8px; }
+.si-head { display:flex; align-items:center; gap:8px; }
+.si-icon { width:22px; height:22px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; font-family:"Syne",sans-serif; flex-shrink:0; }
+.si-title { font-size:13px; font-weight:700; color:var(--text); }
+.si-preview { font-size:13px; color:var(--text2); background:var(--bg3); padding:6px 8px; border-radius:6px; word-break:break-word; line-height:1.5; }
+.si-preview.empty { color:var(--muted); font-style:italic; }
+.si-lenbar { display:grid; gap:4px; }
+.si-lentrack { position:relative; height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; }
+.si-lenopt { position:absolute; top:0; height:100%; background:rgba(0,255,136,0.12); }
+.si-lenfill { position:absolute; top:0; left:0; height:100%; border-radius:2px; transition:width 0.3s; }
+.si-lenmeta { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); }
+.si-issues { display:grid; gap:3px; }
+.si-row { display:flex; align-items:flex-start; gap:6px; font-size:13px; }
+.si-ic { width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; margin-top:1px; }
+.si-ic.ok    { background:rgba(0,255,136,0.12); color:#00ff88; }
+.si-ic.warn  { background:rgba(245,158,11,0.12); color:#f59e0b; }
+.si-ic.error { background:rgba(255,77,106,0.12);  color:#ff4d6a; }
+.si-txt { flex:1; color:var(--text2); line-height:1.4; }
+.si-gain { font-size:13px; font-weight:700; color:#00ff88; white-space:nowrap; margin-top:1px; }
+.si-gain.none { color:var(--muted); font-weight:400; }
+.si-opts { border-top:1px solid var(--border); padding-top:8px; display:grid; gap:4px; }
+.si-opts-label { font-size:13px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; }
+.si-opt { font-size:13px; color:var(--text2); background:var(--bg3); padding:5px 8px; border-radius:5px; line-height:1.5; border-left:2px solid var(--border2); }
+.si-htree { margin-top:4px; }
+.kw-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.kw-tag { display:inline-block; padding:2px 8px; border-radius:999px; background:rgba(77,141,255,0.12); color:#77abff; border:1px solid rgba(77,141,255,0.25); font-size:13px; font-weight:600; }
 </style>
 <div class="app-shell">
   <aside class="global-sidebar">
@@ -116,7 +145,7 @@ body.feature-locked-excel #dlb { display: none !important; }
             <button class="pbtn" id="srcSitemap" onclick="setSrc('sitemap')">&#128506; Sitemap</button>
           </div>
           <span class="al" style="margin-left:8px;" data-i18n="rateLimit">Rate limit</span>
-          <select class="csel" id="rateDelay" style="padding:6px 8px;font-size:12px;">
+          <select class="csel" id="rateDelay" style="padding:6px 8px;font-size:13px;">
             <option value="0" data-i18n="noDelay">Sin delay</option>
             <option value="200">200ms</option>
             <option value="500">500ms</option>
@@ -261,18 +290,19 @@ body.feature-locked-excel #dlb { display: none !important; }
           
           <!-- TNAV moved to Sidebar for vertical navigation -->
           <div class="tnav">
-            <button class="tbtn on" onclick="goTab('all',this)">&#128196; <span data-i18n="tabAll">Todas</span> <span class="tc" id="tc-all">0</span></button>
-            <button class="tbtn" onclick="goTab('seo',this)"><span data-i18n="tabSeo">&#128269; SEO</span> <span class="tc" id="tc-seo">0</span></button>
-            <button class="tbtn" onclick="goTab('issues',this)"><span data-i18n="tabIssues">&#9888;&#65039; Problemas</span> <span class="tc" id="tc-issues">0</span></button>
-            <button class="tbtn" onclick="goTab('titles',this)"><span data-i18n="tabTitles">&#128204; Titulos</span> <span class="tc" id="tc-titles">0</span></button>
-            <button class="tbtn" onclick="goTab('desc',this)"><span data-i18n="tabDesc">&#128203; Descripciones</span> <span class="tc" id="tc-desc">0</span></button>
-            <button class="tbtn" onclick="goTab('h1',this)"><span data-i18n="tabH1"># H1</span> <span class="tc" id="tc-h1">0</span></button>
-            <button class="tbtn" onclick="goTab('images',this)"><span data-i18n="tabImages">&#128444;&#65039; Imagenes</span> <span class="tc" id="tc-images">0</span></button>
-            <button class="tbtn" onclick="goTab('errors',this)"><span data-i18n="tabErrors">&#128308; Errores</span> <span class="tc" id="tc-errors">0</span></button>
-            <button class="tbtn" onclick="goTab('dup',this)"><span data-i18n="tabDup">&#128257; Duplicados</span> <span class="tc" id="tc-dup">0</span></button>
-            <button class="tbtn" onclick="goTab('robots',this)">&#129302;&#65039; Robots.txt</button>
-            <button class="tbtn" onclick="goTab('googletools',this)">&#128202; Google Tools</button>
-            <button class="tbtn" onclick="goTab('sitemap',this)">&#128506;&#65039; Sitemap.xml</button>
+            <button class="tbtn on" onclick="goTab('all',this)"><span>&#128196; <span data-i18n="tabAll">Todas</span></span> <span class="tc" id="tc-all">0</span></button>
+            <button class="tbtn" onclick="goTab('seo',this)"><span>&#128269; <span data-i18n="tabSeo">SEO</span></span> <span class="tc" id="tc-seo">0</span></button>
+            <button class="tbtn" onclick="goTab('issues',this)"><span>&#9888;&#65039; <span data-i18n="tabIssues">Problemas</span></span> <span class="tc" id="tc-issues">0</span></button>
+            <button class="tbtn" onclick="goTab('titles',this)"><span>&#128204; <span data-i18n="tabTitles">Titulos</span></span> <span class="tc" id="tc-titles">0</span></button>
+            <button class="tbtn" onclick="goTab('desc',this)"><span>&#128203; <span data-i18n="tabDesc">Descripciones</span></span> <span class="tc" id="tc-desc">0</span></button>
+            <button class="tbtn" onclick="goTab('h1',this)"><span>&#127381; <span data-i18n="tabH1">H1</span></span> <span class="tc" id="tc-h1">0</span></button>
+            <button class="tbtn" onclick="goTab('images',this)"><span>&#128444;&#65039; <span data-i18n="tabImages">Imagenes</span></span> <span class="tc" id="tc-images">0</span></button>
+            <button class="tbtn" onclick="goTab('errors',this)"><span>&#128308; <span data-i18n="tabErrors">Errores</span></span> <span class="tc" id="tc-errors">0</span></button>
+            <button class="tbtn" onclick="goTab('dup',this)"><span>&#128257; <span data-i18n="tabDup">Duplicados</span></span> <span class="tc" id="tc-dup">0</span></button>
+            <button class="tbtn" onclick="goTab('robots',this)"><span>&#129302;&#65039; Robots.txt</span></button>
+            <button class="tbtn" onclick="goTab('googletools',this)"><span>&#128202; Google Tools</span></button>
+            <button class="tbtn" onclick="goTab('sitemap',this)"><span>&#128506;&#65039; Sitemap.xml</span></button>
+            <button class="tbtn" onclick="goTab('keywords',this)"><span>&#128273; <span data-i18n="tabKeywords">Keywords</span></span> <span class="tc" id="tc-keywords">0</span></button>
           </div>
 
           <!-- Redundant cards hidden but kept for DOM references -->
@@ -290,7 +320,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <div class="sidebar-head-title" data-i18n="hosting">Hosting &amp; DNS</div>
             </div>
             <div class="sidebar-body" id="hostingBody">
-              <p style="font-size:12px;color:var(--muted);" data-i18n="loadingHosting">Cargando informacion...</p>
+              <p style="font-size:13px;color:var(--muted);" data-i18n="loadingHosting">Cargando informacion...</p>
             </div>
           </div>
 
@@ -300,7 +330,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <div class="sidebar-head-title" data-i18n="httpSecurity">Seguridad HTTP</div>
             </div>
             <div class="sidebar-body" id="securityBody">
-              <p style="font-size:12px;color:var(--muted);" data-i18n="loadingSecurity">Analizando headers y SSL...</p>
+              <p style="font-size:13px;color:var(--muted);" data-i18n="loadingSecurity">Analizando headers y SSL...</p>
             </div>
           </div>
 
@@ -310,7 +340,7 @@ body.feature-locked-excel #dlb { display: none !important; }
               <div class="sidebar-head-title" data-i18n="techStack">Tipo de sitio</div>
             </div>
             <div class="sidebar-body" id="techBody">
-              <p style="font-size:12px;color:var(--muted);" data-i18n="loadingTech">Detectando...</p>
+              <p style="font-size:13px;color:var(--muted);" data-i18n="loadingTech">Detectando...</p>
             </div>
           </div>
 
@@ -605,19 +635,42 @@ body.feature-locked-excel #dlb { display: none !important; }
 
           <div class="tpane" id="tab-robots">
             <div class="rbox" id="robotsBox">
-              <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+              <p style="color:var(--muted);font-size:13px;" data-i18n="waitingCrawl">Esperando crawl...</p>
             </div>
           </div>
 
           <div class="tpane" id="tab-googletools">
             <div id="googletoolsBox" style="display:grid;gap:16px;padding:4px 0;">
-              <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+              <p style="color:var(--muted);font-size:13px;" data-i18n="waitingCrawl">Esperando crawl...</p>
             </div>
           </div>
 
           <div class="tpane" id="tab-sitemap">
             <div id="sitemapBox" style="display:grid;gap:16px;padding:4px 0;">
-              <p style="color:var(--muted);font-size:12px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+              <p style="color:var(--muted);font-size:13px;" data-i18n="waitingCrawl">Esperando crawl...</p>
+            </div>
+          </div>
+
+          <div class="tpane" id="tab-keywords">
+            <div class="sfbar">
+              <span class="sfl" data-i18n="filter">Filtro</span>
+              <button class="sfbtn on" onclick="sf('tbKeywords','all',this)" data-i18n="all">Todos</button>
+              <button class="sfbtn" onclick="sf('tbKeywords','has_keywords',this)" data-i18n="hasKeywords">Con keywords</button>
+              <button class="sfbtn" onclick="sf('tbKeywords','no_keywords',this)" data-i18n="noKeywordsFilter">Sin keywords</button>
+            </div>
+            <div id="kw-plan-notice" style="display:none;padding:10px 0;color:var(--muted);font-size:13px;" data-i18n="keywordsLocked">Disponible desde plan Starter. Actualiza tu plan para ver keywords por pagina.</div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="th-sticky" data-i18n="url" data-i18n-tooltip="thTipUrl">URL</th>
+                    <th data-i18n-tooltip="thTipHttp">HTTP</th>
+                    <th data-i18n="kwHas">¿Tiene Keywords?</th>
+                    <th data-i18n="kwSuggestions">Sugerencias</th>
+                  </tr>
+                </thead>
+                <tbody id="tbKeywords"></tbody>
+              </table>
             </div>
           </div>
         </div>

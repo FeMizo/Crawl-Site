@@ -78,7 +78,7 @@ export default function QuickStepsModule({
         }
         .quick-steps-title {
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
         }

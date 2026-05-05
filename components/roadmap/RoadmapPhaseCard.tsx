@@ -103,7 +103,7 @@ export default function RoadmapPhaseCard({
           background: var(--adim);
           border: 1px solid rgba(77, 141, 255, 0.35);
           color: #77abff;
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.1em;
           text-transform: uppercase;
         }

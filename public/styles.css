@@ -116,7 +116,6 @@
   --pinkdim: rgba(136, 0, 68, 0.15);
 }
 
-
 /* ===== Reset ===== */
 
 * {
@@ -137,7 +136,6 @@ select,
 textarea {
   max-width: 100%;
 }
-
 
 /* ===== Core Layout ===== */
 
@@ -267,7 +265,6 @@ header.is-scrolled {
   background: rgba(45, 116, 231, 0.28);
 }
 
-
 /* ===== Input Zone ===== */
 
 .page-kicker {
@@ -348,7 +345,10 @@ header.is-scrolled {
   font-size: 17px;
   padding: 16px 18px;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
 }
 
 .url-input {
@@ -359,7 +359,9 @@ header.is-scrolled {
 
 .url-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 0 0 3px var(--adim);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    0 0 0 3px var(--adim);
   transform: translateY(-1px);
 }
 
@@ -554,7 +556,7 @@ header.is-scrolled {
 }
 
 .sl-url {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted);
   opacity: 0.7;
   overflow: hidden;
@@ -569,7 +571,7 @@ header.is-scrolled {
   border: 1px solid var(--border2);
   border-radius: 7px;
   color: var(--error, #f87171);
-  font-size: 11px;
+  font-size: 13px;
   font-family: "Manrope", sans-serif;
   font-weight: 700;
   padding: 3px 10px;
@@ -578,7 +580,7 @@ header.is-scrolled {
 }
 
 .sl-cancel:hover {
-  background: var(--edim, rgba(248,113,113,0.1));
+  background: var(--edim, rgba(248, 113, 113, 0.1));
   border-color: var(--error, #f87171);
 }
 
@@ -601,7 +603,6 @@ header.is-scrolled {
   }
 }
 
-
 /* ===== Stats Grid ===== */
 
 .sg {
@@ -622,7 +623,9 @@ header.is-scrolled {
   border-radius: 14px;
   overflow: hidden;
   background: var(--bg2);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -668,10 +671,15 @@ header.is-scrolled {
   position: relative;
   overflow: hidden;
   min-height: 102px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .sc:hover {
@@ -730,7 +738,6 @@ header.is-scrolled {
   margin-top: 6px;
 }
 
-
 /* ===== Chart ===== */
 
 .cw {
@@ -788,7 +795,6 @@ header.is-scrolled {
   color: var(--text2);
 }
 
-
 /* ===== Download ===== */
 
 .dlb {
@@ -805,7 +811,7 @@ header.is-scrolled {
 
 .dlt h3 {
   font-family: "Syne", sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--accent);
 }
 
@@ -822,7 +828,7 @@ header.is-scrolled {
   color: #000;
   font-family: "Syne", sans-serif;
   font-weight: 800;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 2px;
   text-transform: uppercase;
   padding: 7px 14px;
@@ -830,7 +836,6 @@ header.is-scrolled {
   text-decoration: none;
   white-space: nowrap;
 }
-
 
 /* ===== Main Layout ===== */
 
@@ -942,7 +947,6 @@ header.is-scrolled {
   display: block;
 }
 
-
 /* ===== Sidebar Cards ===== */
 
 .sidebar-toggle {
@@ -955,7 +959,9 @@ header.is-scrolled {
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: box-shadow 0.3s ease;
@@ -1160,7 +1166,6 @@ header.is-scrolled {
   color: var(--error);
 }
 
-
 /* ===== Hosting Sidebar ===== */
 
 .host-row {
@@ -1200,7 +1205,7 @@ header.is-scrolled {
 }
 
 .host-note {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text2);
   margin-bottom: 6px;
   line-height: 1.4;
@@ -1251,11 +1256,10 @@ header.is-scrolled {
 }
 
 .security-rec-body {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text2);
   line-height: 1.4;
 }
-
 
 /* ===== Functionality Panel ===== */
 
@@ -1284,7 +1288,6 @@ header.is-scrolled {
 .func-v:last-child {
   margin-bottom: 0;
 }
-
 
 /* ===== Tab Navigation ===== */
 
@@ -1355,7 +1358,6 @@ header.is-scrolled {
   display: block;
 }
 
-
 /* ===== Sub-filters ===== */
 
 .sfbar {
@@ -1405,7 +1407,6 @@ header.is-scrolled {
   background: var(--adim);
 }
 
-
 /* ===== Column header tooltips ===== */
 
 thead th[data-tooltip] {
@@ -1424,7 +1425,7 @@ thead th[data-tooltip]::after {
   border: 1px solid var(--border2);
   border-radius: 5px;
   padding: 5px 9px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -1432,16 +1433,17 @@ thead th[data-tooltip]::after {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.15s, visibility 0.15s;
+  transition:
+    opacity 0.15s,
+    visibility 0.15s;
   z-index: 200;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 thead th[data-tooltip]:hover::after {
   opacity: 1;
   visibility: visible;
 }
-
 
 /* ===== Table ===== */
 
@@ -1617,13 +1619,13 @@ td {
 
 .issue-ok {
   color: var(--ok);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .issue-soft {
   color: var(--warn);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -1636,7 +1638,6 @@ td {
   color: var(--accent);
   text-decoration: underline;
 }
-
 
 /* ===== Row Status Styles ===== */
 
@@ -1790,8 +1791,12 @@ td {
   font-size: 13px;
   font-weight: 500;
 }
-.seotools-row.ok { color: var(--ok); }
-.seotools-row.warn { color: var(--warn); }
+.seotools-row.ok {
+  color: var(--ok);
+}
+.seotools-row.warn {
+  color: var(--warn);
+}
 
 .lok {
   color: var(--ok);
@@ -1898,7 +1903,6 @@ td {
   overflow-y: auto;
 }
 
-
 /* ===== SEO Detail Panel ===== */
 
 .seo-detail-grid {
@@ -1971,7 +1975,6 @@ td {
   color: var(--text2);
 }
 
-
 /* ===== Security Panel ===== */
 
 .security-score {
@@ -2001,7 +2004,7 @@ td {
   padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--border2);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin: 0 0 7px;
@@ -2026,14 +2029,14 @@ td {
 }
 
 .security-meta {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text2);
   margin-bottom: 8px;
 }
 
 .security-missing,
 .security-ok {
-  font-size: 11px;
+  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 7px 8px;
@@ -2053,7 +2056,6 @@ td {
   color: var(--ok);
 }
 
-
 /* ===== Footer ===== */
 
 footer {
@@ -2061,11 +2063,10 @@ footer {
   margin-top: 16px;
   padding-top: 14px;
   letter-spacing: 1px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted);
   text-transform: uppercase;
 }
-
 
 /* ===== Dashboard Shell ===== */
 
@@ -2201,7 +2202,6 @@ footer {
   background: #f7faff;
   color: #123057;
 }
-
 
 /* ===== Light Theme Overrides ===== */
 
@@ -2401,7 +2401,6 @@ footer {
   color: #2d74e7;
 }
 
-
 /* ===== HC Theme ===== */
 
 [data-theme="hc-light"] body {
@@ -2510,7 +2509,6 @@ footer {
 [data-theme="hc-light"] .pbtn.on {
   color: #0f4fb7 !important;
 }
-
 
 /* ===== Borderless Controls ===== */
 
@@ -2623,7 +2621,6 @@ footer {
   background: var(--adim) !important;
 }
 
-
 /* ===== Button System ===== */
 
 .btn {
@@ -2671,9 +2668,21 @@ footer {
 }
 
 /* Sizes */
-.btn-sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
-.btn-md { min-height: 44px; padding: 0 16px; font-size: 14px; }
-.btn-lg { min-height: 52px; padding: 0 20px; font-size: 15px; }
+.btn-sm {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.btn-md {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+.btn-lg {
+  min-height: 52px;
+  padding: 0 20px;
+  font-size: 15px;
+}
 
 /* Primary solid */
 .btn-primary {
@@ -2776,15 +2785,27 @@ footer {
 }
 
 /* Grid utilities */
-.grid { display: grid; gap: 8px; }
-.col-2 { grid-template-columns: 1fr 1fr; }
-.col-3 { grid-template-columns: 1fr 1fr 1fr; }
-.col-4 { grid-template-columns: repeat(4, 1fr); }
-
-@media (max-width: 640px) {
-  .col-2, .col-3, .col-4 { grid-template-columns: 1fr; }
+.grid {
+  display: grid;
+  gap: 8px;
+}
+.col-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.col-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.col-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
+@media (max-width: 640px) {
+  .col-2,
+  .col-3,
+  .col-4 {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* ===== SG Icons + URL Open ===== */
 
@@ -2851,7 +2872,6 @@ footer {
   display: block;
 }
 
-
 /* ===== Glassmorphism Effects ===== */
 
 .main-layout,
@@ -2860,15 +2880,25 @@ footer {
 }
 
 @keyframes fadeSlideUp {
-  0% { opacity: 0; transform: translateY(15px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-h1, h2, h3, .logo, .sidebar-head-title, .sv {
+h1,
+h2,
+h3,
+.logo,
+.sidebar-head-title,
+.sv {
   font-family: "Outfit", "Syne", sans-serif;
   letter-spacing: -0.02em;
 }
-
 
 /* ===== Responsive ===== */
 
@@ -2934,7 +2964,11 @@ h1, h2, h3, .logo, .sidebar-head-title, .sv {
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+    transition:
+      border-color 0.2s,
+      color 0.2s,
+      background 0.2s,
+      box-shadow 0.2s;
     gap: 8px;
     box-shadow: 0 0 0 1px rgba(77, 141, 255, 0.1) inset;
   }
@@ -3051,7 +3085,7 @@ h1, h2, h3, .logo, .sidebar-head-title, .sv {
   }
 
   table {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   thead th,

@@ -932,7 +932,10 @@ async function loadRunPagesForResponse(runId) {
     orderBy: { position: "asc" },
     select: { payload: true },
   });
-  return rows.map(mapStoredRunPage).filter(Boolean);
+  return rows.map(mapStoredRunPage).filter(Boolean).map((p) => {
+    if (!p.issues?.length) p.issues = getIssues(p);
+    return p;
+  });
 }
 
 async function loadRunDuplicatesForResponse(runId) {
@@ -965,7 +968,10 @@ async function loadStoredRunPageChunk(runId, page, limit) {
     select: { payload: true },
   });
   return {
-    items: rows.map(mapStoredRunPage).filter(Boolean),
+    items: rows.map(mapStoredRunPage).filter(Boolean).map((p) => {
+      if (!p.issues?.length) p.issues = getIssues(p);
+      return p;
+    }),
     pagination,
   };
 }
@@ -2486,6 +2492,55 @@ function scoreSEO(meta, url) {
   return result;
 }
 
+// ── Keyword extraction ──────────────────────────────────────────────────────
+
+const STOP_WORDS = new Set([
+  "el","la","los","las","un","una","unos","unas","y","o","a","de","del","en","con","por","para",
+  "que","se","es","su","sus","lo","le","les","al","me","te","nos","si","no","mas","pero","como",
+  "todo","esto","esta","estos","estas","ese","esa","esos","esas","ser","han","hay","fue","sobre",
+  "bajo","ante","sin","entre","hasta","desde","cuando","donde","quien","cual","ya","bien","muy",
+  "tan","tambien","aunque","asi","aun","puede","tiene","tienen","hacer","cada","otro","otra",
+  "nuestro","nuestra","tu","mi","aqui","alli","ahora","antes","despues","siempre","nunca",
+  "solo","ademas","hacia","durante","mediante","todos","todas","esta","son","esta","ha",
+  "the","a","an","and","or","in","on","at","to","for","of","is","it","with","by","from",
+  "that","this","was","are","be","has","have","had","not","but","as","we","you","he","she",
+  "they","do","did","will","would","can","could","should","may","might","must","then","than",
+  "more","also","if","so","just","about","get","all","been","when","where","who","which",
+  "what","how","some","any","its","our","your","their","his","her","them","into","up","out",
+  "him","there","here","now","only","new","other","use","used","each","i","am","its","was",
+]);
+
+const PLAN_KEYWORD_LIMITS = { FREE: 0, BASIC: 0, STARTER: 2, PRO: 6, AGENCY: 20 };
+
+function extractKeywords(body, meta, maxCount) {
+  if (!body || !maxCount) return [];
+
+  const visibleText = body
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+  const freq = new Map();
+  const addWords = (text, weight) => {
+    text.toLowerCase().split(/[^a-zà-ü]+/).forEach((w) => {
+      if (w.length > 2 && !STOP_WORDS.has(w) && !/^\d+$/.test(w))
+        freq.set(w, (freq.get(w) || 0) + weight);
+    });
+  };
+
+  addWords(visibleText, 1);
+  addWords(meta?.title || "", 10);
+  addWords((meta?.h1s || []).join(" "), 8);
+  addWords(meta?.description || "", 5);
+
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxCount)
+    .map(([word]) => word);
+}
+
 //  Issue builder
 function getIssues(page, crawlLang = "es") {
   const issues = [];
@@ -2528,6 +2583,12 @@ function getIssues(page, crawlLang = "es") {
       label: `Redirect  ${page.redirectTo}`,
       group: "errors",
     });
+
+  if (page.statusCode >= 200 && page.statusCode < 300 && !m) {
+    issues.push({ type: "no_title", label: T("Sin ttulo", "No title"), group: "titles" });
+    issues.push({ type: "no_desc", label: T("Sin meta description", "No meta description"), group: "desc" });
+    issues.push({ type: "no_h1", label: T("Sin H1", "No H1"), group: "h1" });
+  }
 
   if (page.statusCode >= 200 && page.statusCode < 300 && m) {
     // CSR warning — must come first so the user understands why other checks may be empty
@@ -4533,6 +4594,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
     });
   }
   const maxPages = Math.min(parseInt(req.query.max) || 50, sub.maxPagesPerCrawl);
+  const keywordLimit = PLAN_KEYWORD_LIMITS[sub.plan] || 0;
   const ok = await ensureUrlAllowed(startUrl);
   if (!ok) return res.status(400).json({ error: "URL no permitida" });
   let baseOrigin;
@@ -4743,6 +4805,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         seoQuality,
       };
       page.issues = getIssues(page, crawlLang);
+      page.keywords = keywordLimit > 0 && raw.body ? extractKeywords(raw.body, meta, keywordLimit) : [];
 
       if (meta?.title) {
         const t = meta.title.toLowerCase();
@@ -4805,6 +4868,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
           group: i.group,
         })),
         hasIssues: page.issues.length > 0,
+        keywords: page.keywords || [],
         total: results.length,
         queued: queue.length,
       });
@@ -4884,6 +4948,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
       largeHtml: results.filter((r) => r.issues.some((i) => i.type === "large_html")).length,
       orphanPages: architecture.orphanCount,
       maxDepth: architecture.maxDepth,
+      withKeywords: results.filter((r) => (r.keywords || []).length > 0).length,
       architecture,
       domainInfo: domainInfo || null,
       robots: { disallowed, hasSitemap, sitemapUrls, rawContent },

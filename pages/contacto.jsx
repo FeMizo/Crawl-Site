@@ -231,7 +231,7 @@ export default function ContactoPage() {
             border-top: 1px solid var(--border);
           }
           .email-label {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--muted);
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -254,7 +254,7 @@ export default function ContactoPage() {
             line-height: 1.5;
           }
           .char-count {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--muted);
             text-align: right;
           }

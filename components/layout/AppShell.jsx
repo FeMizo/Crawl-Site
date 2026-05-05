@@ -234,7 +234,7 @@ export default function AppShell({
           text-overflow: ellipsis;
         }
         .page-kicker {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--muted);
           letter-spacing: 0.22em;
           text-transform: uppercase;
@@ -279,7 +279,7 @@ export default function AppShell({
         .logo-sub {
           margin-top: 6px;
           letter-spacing: 0.14em;
-          font-size: 11px;
+          font-size: 13px;
           color: var(--muted);
           text-transform: uppercase;
           overflow-wrap: anywhere;
@@ -380,7 +380,7 @@ export default function AppShell({
         .sidebar-kicker {
           margin-bottom: 8px;
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
         }
@@ -416,7 +416,7 @@ export default function AppShell({
           min-height: 24px;
           padding: 0 10px;
           border-radius: 999px;
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 700;
           letter-spacing: 0.12em;
           text-transform: uppercase;
@@ -546,7 +546,7 @@ export default function AppShell({
           border: 1px solid var(--border2);
           background: var(--bg3);
           color: var(--text2);
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.14em;
           text-transform: uppercase;
           white-space: nowrap;
@@ -619,7 +619,7 @@ export default function AppShell({
         }
         .ui-stat-label {
           color: var(--muted);
-          font-size: 11px;
+          font-size: 13px;
           letter-spacing: 0.16em;
           text-transform: uppercase;
         }
@@ -710,7 +710,7 @@ export default function AppShell({
           margin-top: var(--space-4);
         }
         .app-footer-copy {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--muted);
           letter-spacing: 0.08em;
           white-space: nowrap;
@@ -723,7 +723,7 @@ export default function AppShell({
           justify-content: center;
         }
         .footer-nav-link {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--text2);
           text-decoration: none;
           transition: color 0.2s;
@@ -738,7 +738,7 @@ export default function AppShell({
           border-radius: 3px;
         }
         .footer-nav-sep {
-          font-size: 11px;
+          font-size: 13px;
           color: var(--border2);
         }
         .app-footer-social {
