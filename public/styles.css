@@ -842,9 +842,10 @@ header.is-scrolled {
 }
 
 .scope-tabs {
-  display: inline-flex;
+  display: flex;
   gap: 6px;
-  align-self: flex-start;
+  width: 100%;
+  margin-bottom: 16px;
   background: rgba(12, 24, 48, 0.8);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -852,6 +853,8 @@ header.is-scrolled {
 }
 
 .scope-btn {
+  flex: 1;
+  text-align: center;
   border: 1px solid var(--border2);
   background: var(--bg3);
   color: var(--text2);
@@ -899,6 +902,7 @@ header.is-scrolled {
 
 .main-layout.mode-domain #seoCard,
 .main-layout.mode-domain #functionalityCard,
+.main-layout.mode-domain .tnav,
 .main-layout.mode-domain .content-area {
   display: none;
 }
@@ -1286,13 +1290,12 @@ header.is-scrolled {
 
 .tnav {
   display: flex;
-  gap: 2px;
-  flex-wrap: wrap;
-  border: 1px solid var(--border);
-  background: rgba(12, 24, 48, 0.82);
-  border-radius: 12px;
-  padding: 6px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 16px;
 }
 
 .tbtn {
@@ -1309,9 +1312,12 @@ header.is-scrolled {
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: space-between;
+  gap: 8px;
   font-weight: 700;
   border-radius: 8px;
+  width: 100%;
+  text-align: left;
 }
 
 .tbtn:hover {

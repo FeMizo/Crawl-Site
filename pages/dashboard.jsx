@@ -186,7 +186,10 @@ export default function DashboardPage() {
         if (!response.ok) throw new Error(data.error || "No se pudo cargar el historial");
         return data;
       })
-      .then((data) => Promise.resolve(window.loadSeoCrawlerRun(data.run)))
+      .then((data) => {
+        if (!active) return null;
+        return Promise.resolve(window.loadSeoCrawlerRun(data.run));
+      })
       .then((hydratedRun) => {
         if (!active || !hydratedRun) return;
         runCacheRef.current.set(activeRunId, hydratedRun);

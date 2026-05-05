@@ -830,28 +830,36 @@ function resetState() {
     "tbErrors",
     "tbFunc",
   ].forEach((id) => {
-    document.getElementById(id).innerHTML = "";
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = "";
   });
-  document.getElementById("dupList").innerHTML =
+  const dupList = document.getElementById("dupList");
+  if (dupList) dupList.innerHTML =
     `<div class="empty"><div class="ico">✨</div><p>${T("noDups")}</p></div>`;
-  document.getElementById("robotsBox").innerHTML =
+  const robotsBox = document.getElementById("robotsBox");
+  if (robotsBox) robotsBox.innerHTML =
     `<p style="color:var(--muted);font-size:12px;">${T("waitingCrawl")}</p>`;
-  document.getElementById("dlb").style.display = "none";
-  document.getElementById("seoCard").querySelector(".sidebar-body").innerHTML =
-    `
-        <div class="seo-preview">
-          <img src="/assets/seo-illustration.svg" alt="SEO illustration">
-        </div>
-        <p style="font-size:12px;color:var(--muted);">${T("clickPageSeo")}</p>`;
-  document.getElementById("hostingBody").innerHTML =
+  const dlb = document.getElementById("dlb");
+  if (dlb) dlb.style.display = "none";
+  const seoCardEl = document.getElementById("seoCard");
+  const seoCardBody = seoCardEl?.querySelector(".sidebar-body");
+  if (seoCardBody) {
+    seoCardBody.style.display = "";
+    seoCardBody.innerHTML = `<div class="seo-preview"><img src="/assets/seo-illustration.svg" alt="SEO illustration"></div><p style="font-size:12px;color:var(--muted);">${T("seoClickRow") || "Haz clic en una fila para ver el análisis SEO"}</p>`;
+  }
+  const funcCardEl = document.getElementById("functionalityCard");
+  if (funcCardEl) funcCardEl.style.display = "none";
+  const funcBodyEl = document.getElementById("functionalityBody");
+  if (funcBodyEl) { funcBodyEl.style.display = "none"; funcBodyEl.innerHTML = ""; }
+  const hostingBody = document.getElementById("hostingBody");
+  if (hostingBody) hostingBody.innerHTML =
     `<p style="font-size:12px;color:var(--muted);">${T("loadingHosting")}</p>`;
-  document.getElementById("techBody").innerHTML =
+  const techBody = document.getElementById("techBody");
+  if (techBody) techBody.innerHTML =
     `<p style="font-size:12px;color:var(--muted);">${T("loadingTech")}</p>`;
-  document.getElementById("securityBody").innerHTML =
+  const securityBody = document.getElementById("securityBody");
+  if (securityBody) securityBody.innerHTML =
     `<p style="font-size:12px;color:var(--muted);">${T("loadingSecurity")}</p>`;
-  const fBody = document.getElementById("functionalityBody");
-  if (fBody)
-    fBody.innerHTML = `<p style="font-size:12px;color:var(--muted);">${T("functionalityIntro")}</p>`;
   crawlState.pages = [];
   crawlState.duplicates = [];
   crawlState.robots = null;
@@ -1665,7 +1673,10 @@ function showPageSEO(p) {
         <div class="seo-sug-item opt"><strong>${T("option2")}:</strong> ${esc(items[1] || "")}</div>
       </div>`;
 
-  document.getElementById("seoCard").querySelector(".sidebar-body").innerHTML =
+  const seoCard = document.getElementById("seoCard");
+  const seoCardBody = seoCard?.querySelector(".sidebar-body");
+  if (!seoCardBody) return;
+  seoCardBody.innerHTML =
     `
     <div style="font-size:10px;color:var(--muted);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.url)}">${esc(trunc(p.url, 36))}</div>
     <div class="score-row">
@@ -1692,8 +1703,11 @@ function showPageSEO(p) {
 }
 
 function showFunctionalityInfo(p) {
+  const funcCard = document.getElementById("functionalityCard");
   const body = document.getElementById("functionalityBody");
   if (!body || !p) return;
+  if (funcCard) funcCard.style.display = "";
+  body.style.display = "";
   const noLink = p.buttonsNoLinkDetails || [];
   const broken = p.brokenButtonDetails || [];
   const placeholder = p.placeholderLinkDetails || [];

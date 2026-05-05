@@ -1,4 +1,4 @@
-﻿<style>
+<style>
 body.feature-locked-excel #dlb { display: none !important; }
 </style>
 <div class="app-shell">
@@ -240,13 +240,16 @@ body.feature-locked-excel #dlb { display: none !important; }
     </div>
 
     <div class="main-layout mode-seo" id="mainLayout" style="display:none;">
-      <div class="scope-tabs">
-        <button class="scope-btn on" id="scopeSeoBtn" onclick="setWorkspace('seo', this)">SEO</button>
-        <button class="scope-btn" id="scopeDomainBtn" onclick="setWorkspace('domain', this)"
-          data-i18n="scopeDomain">Dominio</button>
-        <button class="scope-btn" id="scopeFuncBtn" onclick="setWorkspace('functionality', this)"
-          data-i18n="tabFunctionality">Funcionalidad</button>
+      
+      <!-- Primary Tabs moved OUT of sidebar to be global -->
+      <div class="scope-tabs-container" style="margin-bottom: 24px;">
+        <div class="scope-tabs">
+          <button class="scope-btn on" id="scopeSeoBtn" onclick="setWorkspace('seo', this)">SEO</button>
+          <button class="scope-btn" id="scopeDomainBtn" onclick="setWorkspace('domain', this)" data-i18n="scopeDomain">Dominio</button>
+          <button class="scope-btn" id="scopeFuncBtn" onclick="setWorkspace('functionality', this)" data-i18n="tabFunctionality">Funcionalidad</button>
+        </div>
       </div>
+
       <div class="workspace-row">
         <aside class="sidebar">
           <button class="sidebar-toggle" type="button" onclick="toggleSidebar(this)" aria-expanded="false">
@@ -255,18 +258,30 @@ body.feature-locked-excel #dlb { display: none !important; }
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
+          
+          <!-- TNAV moved to Sidebar for vertical navigation -->
+          <div class="tnav">
+            <button class="tbtn on" onclick="goTab('all',this)">&#128196; <span data-i18n="tabAll">Todas</span> <span class="tc" id="tc-all">0</span></button>
+            <button class="tbtn" onclick="goTab('seo',this)"><span data-i18n="tabSeo">&#128269; SEO</span> <span class="tc" id="tc-seo">0</span></button>
+            <button class="tbtn" onclick="goTab('issues',this)"><span data-i18n="tabIssues">&#9888;&#65039; Problemas</span> <span class="tc" id="tc-issues">0</span></button>
+            <button class="tbtn" onclick="goTab('titles',this)"><span data-i18n="tabTitles">&#128204; Titulos</span> <span class="tc" id="tc-titles">0</span></button>
+            <button class="tbtn" onclick="goTab('desc',this)"><span data-i18n="tabDesc">&#128203; Descripciones</span> <span class="tc" id="tc-desc">0</span></button>
+            <button class="tbtn" onclick="goTab('h1',this)"><span data-i18n="tabH1"># H1</span> <span class="tc" id="tc-h1">0</span></button>
+            <button class="tbtn" onclick="goTab('images',this)"><span data-i18n="tabImages">&#128444;&#65039; Imagenes</span> <span class="tc" id="tc-images">0</span></button>
+            <button class="tbtn" onclick="goTab('errors',this)"><span data-i18n="tabErrors">&#128308; Errores</span> <span class="tc" id="tc-errors">0</span></button>
+            <button class="tbtn" onclick="goTab('dup',this)"><span data-i18n="tabDup">&#128257; Duplicados</span> <span class="tc" id="tc-dup">0</span></button>
+            <button class="tbtn" onclick="goTab('robots',this)">&#129302;&#65039; Robots.txt</button>
+            <button class="tbtn" onclick="goTab('googletools',this)">&#128202; Google Tools</button>
+            <button class="tbtn" onclick="goTab('sitemap',this)">&#128506;&#65039; Sitemap.xml</button>
+          </div>
+
+          <!-- Redundant cards hidden but kept for DOM references -->
           <div class="sidebar-card" id="seoCard">
             <div class="sidebar-head">
               <div class="sidebar-head-icon">&#128269;</div>
               <div class="sidebar-head-title">SEO</div>
             </div>
-            <div class="sidebar-body">
-              <div class="seo-preview">
-                <img src="/assets/seo-illustration.svg" alt="SEO illustration">
-              </div>
-              <p style="font-size:12px;color:var(--muted);" data-i18n="clickPageSeo">Haz clic en una fila para ver el
-                analisis SEO</p>
-            </div>
+            <div class="sidebar-body"></div>
           </div>
 
           <div class="sidebar-card" id="hostingCard">
@@ -299,37 +314,25 @@ body.feature-locked-excel #dlb { display: none !important; }
             </div>
           </div>
 
-          <div class="sidebar-card" id="functionalityCard">
+          <div class="sidebar-card" id="functionalityCard" style="display: none;">
             <div class="sidebar-head">
               <div class="sidebar-head-icon">&#129514;</div>
               <div class="sidebar-head-title" data-i18n="inlinksDetails">Inlinks y detalles</div>
             </div>
-            <div class="sidebar-body" id="functionalityBody">
-              <p style="font-size:12px;color:var(--muted);" data-i18n="functionalityIntro">Detalla botones sin link,
-                botones rotos, formularios incompletos, navegacion debil y tiempos de carga.</p>
-            </div>
+            <div class="sidebar-body" id="functionalityBody" style="display:none;"></div>
           </div>
         </aside>
 
         <div class="content-area">
+          <!-- Text moved from redundant cards -->
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="helperText" data-i18n="clickPageSeo">Haz clic en una fila para ver los detalles.</p>
+          
           <div class="crawl-search-wrap">
             <input type="search" id="crawlSearch" class="crawl-search-input" placeholder="Buscar por URL..."
               aria-label="Buscar por URL">
           </div>
-          <div class="tnav">
-            <button class="tbtn on" onclick="goTab('all',this)">&#128196; <span data-i18n="tabAll">Todas</span> <span class="tc" id="tc-all">0</span></button>
-            <button class="tbtn" onclick="goTab('seo',this)">&#128269; SEO <span class="tc" id="tc-seo">0</span></button>
-            <button class="tbtn" onclick="goTab('issues',this)">&#9888;&#65039; <span data-i18n="tabIssues">Problemas</span> <span class="tc" id="tc-issues">0</span></button>
-            <button class="tbtn" onclick="goTab('titles',this)">&#128214; <span data-i18n="tabTitles">Titulos</span> <span class="tc" id="tc-titles">0</span></button>
-            <button class="tbtn" onclick="goTab('desc',this)">&#128221; <span data-i18n="tabDesc">Descripciones</span> <span class="tc" id="tc-desc">0</span></button>
-            <button class="tbtn" onclick="goTab('h1',this)">&#127381; H1 <span class="tc" id="tc-h1">0</span></button>
-            <button class="tbtn" onclick="goTab('images',this)">&#128247; <span data-i18n="tabImages">Imagenes</span> <span class="tc" id="tc-images">0</span></button>
-            <button class="tbtn" onclick="goTab('errors',this)">&#128308; <span data-i18n="tabErrors">Errores</span> <span class="tc" id="tc-errors">0</span></button>
-            <button class="tbtn" onclick="goTab('dup',this)">&#128260; <span data-i18n="tabDup">Duplicados</span> <span class="tc" id="tc-dup">0</span></button>
-            <button class="tbtn" onclick="goTab('robots',this)">&#129302; Robots.txt</button>
-            <button class="tbtn" onclick="goTab('googletools',this)">&#128200; Google Tools</button>
-            <button class="tbtn" onclick="goTab('sitemap',this)">&#128506; Sitemap.xml</button>
-          </div>
+          
+          <!-- tnav moved to sidebar -->
 
           <div class="tpane on" id="tab-all">
             <div class="table-pagination" id="allPagination">
