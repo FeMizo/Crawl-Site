@@ -49,6 +49,7 @@ const {
   PLAN_CURRENCY,
 } = require("../lib/plan-data");
 const crawlAnalysis = require("../lib/crawl-analysis");
+const { fetchPageSpeed, PSI_PAGE_LIMITS } = require("../lib/pagespeed");
 
 function createMailTransporter() {
   const host = process.env.SMTP_HOST;
@@ -4483,7 +4484,35 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
       downloadUrl: `/api/projects/${project.id}/runs/${createdRun.id}/report?lang=${crawlLang}`,
       fileName: downloadName,
       runId: createdRun.id,
+      psiRunning: hasFeature(sub, "page_speed") && !!process.env.PAGESPEED_API_KEY,
     });
+
+    // Background PageSpeed Insights analysis — runs after response closes
+    if (hasFeature(sub, "page_speed") && process.env.PAGESPEED_API_KEY) {
+      const psiLimit = PSI_PAGE_LIMITS[sub.plan] || 200;
+      const runIdCopy = createdRun.id;
+      setImmediate(async () => {
+        try {
+          const pages = await prisma.crawlRunPage.findMany({
+            where: { runId: runIdCopy },
+            select: { id: true, url: true },
+            orderBy: { position: "asc" },
+            take: psiLimit,
+          });
+          for (const page of pages) {
+            await new Promise((r) => setTimeout(r, 380)); // ~2.5 req/sec
+            const result = await fetchPageSpeed(page.url, process.env.PAGESPEED_API_KEY);
+            await prisma.$executeRaw`
+              UPDATE "CrawlRunPage"
+              SET payload = payload || ${JSON.stringify({ speedTest: result })}::jsonb
+              WHERE id = ${page.id}
+            `;
+          }
+        } catch (err) {
+          console.error("[pagespeed-bg]", err?.message || err);
+        }
+      });
+    }
   }
 
   res.end();

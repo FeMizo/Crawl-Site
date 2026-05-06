@@ -1,10 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import Card from "../ui/Card";
 import Eyebrow from "../ui/Eyebrow";
 import Icon from "../ui/Icon";
 
+const PAGE_SIZE = 5;
+
 export default function HistoryPanel({ project, activeRunId, openRun, formatDate, lang, t }) {
-  const runs = Array.isArray(project.crawlRuns) ? project.crawlRuns.slice(0, 5) : [];
+  const [showAll, setShowAll] = useState(false);
+  const allRuns = Array.isArray(project.crawlRuns) ? project.crawlRuns : [];
+  const runs = showAll ? allRuns : allRuns.slice(0, PAGE_SIZE);
+  const hasMore = allRuns.length > PAGE_SIZE;
 
   return (
     <Card className="history-panel">
@@ -24,8 +29,13 @@ export default function HistoryPanel({ project, activeRunId, openRun, formatDate
             <small>{run.sourceUrl}</small>
           </button>
         ))}
-        {!runs.length ? <div className="history-empty">{t("noSavedHistory")}</div> : null}
+        {!allRuns.length ? <div className="history-empty">{t("noSavedHistory")}</div> : null}
       </div>
+      {hasMore && (
+        <button type="button" className="history-toggle" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? t("showLess") || "Ver menos" : `${t("showAll") || "Ver todos"} (${allRuns.length})`}
+        </button>
+      )}
       <style jsx>{`
         :global(.history-panel) {
           display: grid;
@@ -90,6 +100,21 @@ export default function HistoryPanel({ project, activeRunId, openRun, formatDate
         }
         .history-empty {
           color: var(--muted);
+        }
+        .history-toggle {
+          background: none;
+          border: none;
+          padding: 0;
+          font-family: "Manrope", sans-serif;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--muted);
+          cursor: pointer;
+          text-align: left;
+          transition: color 0.15s;
+        }
+        .history-toggle:hover {
+          color: var(--text2);
         }
       `}</style>
     </Card>

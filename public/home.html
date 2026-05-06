@@ -23,9 +23,9 @@
     }
 
     .home-card {
-      width: min(880px, calc(100% - 36px));
-      border: 1px solid var(--line);
-      background: var(--panel);
+      width: min(920px, calc(100% - 36px));
+      border: 1px solid var(--border);
+      background: var(--bg2);
       border-radius: 18px;
       box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
       padding: 28px 26px;
@@ -50,18 +50,85 @@
       gap: 10px;
     }
 
-    .home-input {
+    .home-settings {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .01)),
+        var(--bg3);
+      display: grid;
+      gap: 14px;
+    }
+
+    .home-settings-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .home-settings-kicker {
+      font-size: .74rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .home-settings-title {
+      margin-top: 4px;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .home-settings-note {
+      color: var(--text2);
+      font-size: .92rem;
+      max-width: 42ch;
+      line-height: 1.45;
+    }
+
+    .home-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .home-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .home-field.span-2 {
+      grid-column: 1 / -1;
+    }
+
+    .home-label {
+      font-size: .75rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .home-input,
+    .home-select {
       min-height: 48px;
       border-radius: 12px;
-      border: 1px solid var(--line);
-      background: var(--surface);
+      border: 1px solid var(--border2);
+      background: var(--bg3);
       color: var(--text);
       padding: 0 14px;
       font-size: 15px;
       outline: none;
+      width: 100%;
     }
 
-    .home-input:focus {
+    .home-input:focus,
+    .home-select:focus,
+    .home-checkbox:focus-visible {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px rgba(79, 151, 255, .2);
     }
@@ -81,6 +148,22 @@
       filter: brightness(1.03);
     }
 
+    .home-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 0 2px;
+      color: var(--text2);
+      font-size: 15px;
+    }
+
+    .home-checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blue);
+    }
+
     .home-link {
       margin-top: 12px;
       display: inline-block;
@@ -97,13 +180,17 @@
       .home-row {
         grid-template-columns: 1fr;
       }
+
+      .home-settings-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <main class="home-card" aria-label="Inicio SEO Crawler">
     <h1 class="home-title">SEO Crawler</h1>
-    <p class="home-sub">Ingresa una URL para iniciar el análisis y abrir el dashboard.</p>
+    <p class="home-sub">Ingresa una URL, ajusta el crawl y abre el dashboard con esos valores ya listos.</p>
     <div class="home-row">
       <input
         id="homeUrlInput"
@@ -116,6 +203,54 @@
         aria-label="URL a analizar">
       <button id="homeCrawlBtn" class="home-btn" type="button">Iniciar Crawl</button>
     </div>
+    <section class="home-settings" aria-label="Configuracion de arranque">
+      <div class="home-settings-head">
+        <div>
+          <div class="home-settings-kicker">Arranque</div>
+          <div class="home-settings-title">Decide antes de entrar</div>
+        </div>
+        <div class="home-settings-note">Estos valores se aplican al abrir el dashboard y quedan listos para arrancar el crawl.</div>
+      </div>
+      <div class="home-settings-grid">
+        <label class="home-field">
+          <span class="home-label">Fuente</span>
+          <select id="homeSource" class="home-select">
+            <option value="crawl">Crawl</option>
+            <option value="sitemap">Sitemap</option>
+          </select>
+        </label>
+        <label class="home-field">
+          <span class="home-label">Rate limit</span>
+          <select id="homeRateDelay" class="home-select">
+            <option value="0">Sin delay</option>
+            <option value="200">200ms</option>
+            <option value="500">500ms</option>
+            <option value="1000">1s</option>
+            <option value="2000">2s</option>
+          </select>
+        </label>
+        <label class="home-field">
+          <span class="home-label">Delay post-load</span>
+          <select id="homeRenderDelay" class="home-select">
+            <option value="5000">5s</option>
+            <option value="7000" selected>7s</option>
+            <option value="10000">10s</option>
+          </select>
+        </label>
+        <label class="home-field">
+          <span class="home-label">Modo de render</span>
+          <select id="homeRenderMode" class="home-select">
+            <option value="auto">Auto</option>
+            <option value="rendered">Renderizado</option>
+            <option value="http">HTTP</option>
+          </select>
+        </label>
+        <label class="home-field span-2 home-check">
+          <input id="homeExternal" class="home-checkbox" type="checkbox">
+          <span>Verificar links externos</span>
+        </label>
+      </div>
+    </section>
     <a class="home-link" href="/dashboard">Ir al dashboard</a>
   </main>
 
@@ -123,6 +258,12 @@
     (function () {
       const input = document.getElementById("homeUrlInput");
       const btn = document.getElementById("homeCrawlBtn");
+      const source = document.getElementById("homeSource");
+      const rateDelay = document.getElementById("homeRateDelay");
+      const renderDelay = document.getElementById("homeRenderDelay");
+      const renderMode = document.getElementById("homeRenderMode");
+      const external = document.getElementById("homeExternal");
+      const params = new URLSearchParams(window.location.search || "");
 
       function normalizeUrl(value) {
         const v = (value || "").trim();
@@ -135,13 +276,39 @@
         }
       }
 
+      function pickValue(select, value, fallback) {
+        if (!select) return;
+        const next = String(value || "").trim();
+        if (!next) return;
+        const option = Array.from(select.options).find((opt) => opt.value === next);
+        if (option) {
+          select.value = next;
+        } else if (fallback !== undefined) {
+          select.value = fallback;
+        }
+      }
+
+      pickValue(source, params.get("source"), "crawl");
+      pickValue(rateDelay, params.get("rateDelay"));
+      pickValue(renderDelay, params.get("renderDelayMs"));
+      pickValue(renderMode, params.get("renderMode"), "auto");
+      external.checked = params.get("external") === "1";
+
       function goDashboard() {
         const normalized = normalizeUrl(input.value);
         if (!normalized) {
           input.focus();
           return;
         }
-        const q = new URLSearchParams({ url: normalized, autostart: "1" });
+        const q = new URLSearchParams({
+          url: normalized,
+          autostart: "1",
+          source: source.value || "crawl",
+          rateDelay: rateDelay.value || "0",
+          renderDelayMs: renderDelay.value || "7000",
+          renderMode: renderMode.value || "auto",
+          external: external.checked ? "1" : "0",
+        });
         window.location.href = `/dashboard?${q.toString()}`;
       }
 

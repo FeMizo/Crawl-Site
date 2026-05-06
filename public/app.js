@@ -6,7 +6,7 @@ const L = {
     heroTitle: "Nuevo rastreo",
     inputLabel: "URL del sitio a analizar",
     startBtn: "Iniciar Crawl",
-    advOpts: "Opciones avanzadas",
+    advOpts: "Ajustes de crawl",
     source: "Fuente",
     rateLimit: "Rate limit",
     renderDelay: "Delay post-load",
@@ -15,13 +15,8 @@ const L = {
     renderModeAuto: "Auto",
     renderModeRendered: "Renderizado",
     renderModeHttp: "HTTP",
-    advHelpTitle: "Guia rapida",
-    renderModeHelp:
-      "Auto decide segun el sitio. Renderizado ejecuta JavaScript. HTTP lee el HTML sin render.",
-    rateDelayHelp:
-      "rateDelay: pausa entre solicitudes para no saturar el sitio.",
-    renderDelayHelp:
-      "renderDelay: espera antes de leer el DOM despues de cargar.",
+    launchEditTitle: "Ajustes de crawl",
+    launchEditHint: "Edita estos valores sin salir del dashboard.",
     checkExt: "Verificar links externos",
     analyzed: "Analizadas",
     withIssues: "Con problemas",
@@ -247,12 +242,25 @@ const L = {
     hasKeywords: "Con keywords",
     noKeywordsFilter: "Sin keywords",
     keywordsLocked: "Disponible desde plan Starter. Actualiza tu plan para ver keywords por pagina.",
+    tabSpeed: "Speed Test",
+    speedScore: "Score",
+    speedStatus: "Estado",
+    speedPlanNotice: "Disponible desde plan Starter. Actualiza tu plan para ver el Speed Test por página.",
+    speedPendingNotice: "El análisis de velocidad está en proceso. Los datos aparecerán al recargar el historial en unos minutos.",
+    speedDone: "Analizado",
+    speedBlocked: "Bloqueada",
+    speedError: "Error",
+    speedPending: "Pendiente",
+    speedAnalyzing: "Analizando...",
+    speedPendingRunning: "Analizando velocidad en segundo plano. Esta tabla se actualizará automáticamente.",
+    speedBlockedTitle: "La URL no es accesible por PageSpeed Insights",
+    speedErrorTitle: "No se pudo obtener el análisis",
   },
   en: {
     heroTitle: "New crawl",
     inputLabel: "Site URL to analyze",
     startBtn: "Start Crawl",
-    advOpts: "Advanced options",
+    advOpts: "Crawl settings",
     source: "Source",
     rateLimit: "Rate limit",
     renderDelay: "Post-load delay",
@@ -261,13 +269,8 @@ const L = {
     renderModeAuto: "Auto",
     renderModeRendered: "Rendered",
     renderModeHttp: "HTTP",
-    advHelpTitle: "Quick guide",
-    renderModeHelp:
-      "Auto chooses based on the site. Rendered runs JavaScript. HTTP reads raw HTML without rendering.",
-    rateDelayHelp:
-      "rateDelay: pause between requests so the site is not overloaded.",
-    renderDelayHelp:
-      "renderDelay: wait before reading the DOM after load.",
+    launchEditTitle: "Crawl settings",
+    launchEditHint: "Edit these values without leaving the dashboard.",
     checkExt: "Check external links",
     analyzed: "Analyzed",
     withIssues: "With issues",
@@ -493,6 +496,19 @@ const L = {
     hasKeywords: "With keywords",
     noKeywordsFilter: "No keywords",
     keywordsLocked: "Available from Starter plan. Upgrade to see keywords per page.",
+    tabSpeed: "Speed Test",
+    speedScore: "Score",
+    speedStatus: "Status",
+    speedPlanNotice: "Available from Starter plan. Upgrade to see Speed Test per page.",
+    speedPendingNotice: "Speed analysis is in progress. Data will appear when you reload the history in a few minutes.",
+    speedDone: "Analyzed",
+    speedBlocked: "Blocked",
+    speedError: "Error",
+    speedPending: "Pending",
+    speedAnalyzing: "Analyzing...",
+    speedPendingRunning: "Speed analysis running in background. This table will update automatically.",
+    speedBlockedTitle: "URL is not accessible by PageSpeed Insights",
+    speedErrorTitle: "Could not retrieve analysis",
   },
 };
 let lang =
@@ -504,7 +520,7 @@ let currentTheme =
     window.localStorage.getItem("seoCrawlerTheme")) ||
   document.documentElement.getAttribute("data-theme") ||
   "dark";
-const crawlState = { pages: [], duplicates: [], robots: null, sitemap: null, hosting: null };
+const crawlState = { pages: [], duplicates: [], robots: null, sitemap: null, hosting: null, psiRunning: false };
 let crawlSearchTerm = "";
 let crawlRenderMode =
   (typeof window !== "undefined" &&
@@ -527,6 +543,7 @@ const TABLE_BODIES = [
   "tbImages",
   "tbErrors",
   "tbFunc",
+  "tbSpeed",
 ];
 const SELECT_SIZE_CLASSES = [
   "select-size-sm",
@@ -571,6 +588,10 @@ function normalizeInputUrl(u) {
 function normalizeRenderMode(value) {
   const mode = String(value || "").toLowerCase();
   return ["auto", "rendered", "http"].includes(mode) ? mode : "auto";
+}
+
+function normalizeCrawlSource(value) {
+  return String(value || "").toLowerCase() === "sitemap" ? "sitemap" : "crawl";
 }
 
 function setRenderMode(mode, persist = true) {
@@ -788,6 +809,7 @@ function setTheme(t) {
 let crawlSrc = "crawl";
 function toggleAdv() {
   document.getElementById("advPanel").classList.toggle("open");
+  document.getElementById("advTgl")?.classList.toggle("open");
 }
 function toggleSidebar(btn) {
   const sidebar = btn.closest(".sidebar");
@@ -796,9 +818,11 @@ function toggleSidebar(btn) {
   btn.setAttribute("aria-expanded", open);
 }
 function setSrc(s) {
-  crawlSrc = s;
-  document.getElementById("srcCrawl").classList.toggle("on", s === "crawl");
-  document.getElementById("srcSitemap").classList.toggle("on", s === "sitemap");
+  crawlSrc = normalizeCrawlSource(s);
+  const sourceSelect = document.getElementById("srcSelect");
+  if (sourceSelect && sourceSelect.value !== crawlSrc) {
+    sourceSelect.value = crawlSrc;
+  }
 }
 
 //
@@ -893,6 +917,7 @@ function resetState() {
     "tbImages",
     "tbErrors",
     "tbFunc",
+    "tbSpeed",
   ].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = "";
@@ -929,6 +954,8 @@ function resetState() {
   crawlState.robots = null;
   crawlState.sitemap = null;
   crawlState.hosting = null;
+  crawlState.psiRunning = false;
+  stopPsiPolling();
   window.__selectedSeoPage = null;
   document.querySelectorAll(".sv").forEach((el) => (el.textContent = "0"));
   sv("v4", "0/100");
@@ -958,11 +985,13 @@ function rerenderTablesFromState() {
     "tbImages",
     "tbErrors",
     "tbFunc",
+    "tbSpeed",
   ].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = "";
   });
   crawlState.pages.forEach((p) => addPage(p));
+  updateSpeedTabNotices();
   applyUrlSearchFilter();
 }
 
@@ -1055,11 +1084,20 @@ function normalizeSavedPage(page) {
       ? page.brokenButtonDetails
       : [],
     brokenImageLinks: normalizeStringList(page.brokenImageLinks || []),
-    keywords: normalizeStringList(page.keywords || meta.keywords || []),
+    metaKeywords: normalizeStringList(
+      Array.isArray(page.metaKeywords) ? page.metaKeywords :
+      Array.isArray(meta.metaKeywords) ? meta.metaKeywords : []
+    ),
+    keywords: normalizeStringList(page.keywords || []),
     keywordSuggestions: normalizeStringList(
       page.keywordSuggestions || meta.keywordSuggestions || [],
     ),
     keywordLocked: Boolean(page.keywordLocked ?? meta.keywordLocked ?? false),
+    speedTest: page.speedTest && typeof page.speedTest === "object"
+      ? page.speedTest
+      : meta.speedTest && typeof meta.speedTest === "object"
+        ? meta.speedTest
+        : null,
     seoQuality: page.seoQuality && typeof page.seoQuality === "object"
       ? page.seoQuality
       : meta.seoQuality && typeof meta.seoQuality === "object"
@@ -1346,12 +1384,13 @@ async function applySavedRun(run) {
 function startCrawl() {
   const url = document.getElementById("urlInput").value.trim();
   const max = document.getElementById("maxPg").value;
-  const rate = document.getElementById("rateDelay").value;
+  const source = document.getElementById("srcSelect")?.value || crawlSrc;
+  const rate = document.getElementById("rateDelay")?.value || "0";
   const renderDelay = document.getElementById("renderDelay")?.value || "";
   const renderMode = normalizeRenderMode(
     document.getElementById("renderMode")?.value || crawlRenderMode,
   );
-  const ext = document.getElementById("checkExt").checked ? "1" : "0";
+  const ext = document.getElementById("checkExt")?.checked ? "1" : "0";
   const projectId = currentProject?.id || "";
   if (!url) {
     document.getElementById("urlInput").focus();
@@ -1398,7 +1437,7 @@ function startCrawl() {
   const qs = new URLSearchParams({
     url,
     max,
-    source: crawlSrc,
+    source,
     rate,
     external: ext,
     lang,
@@ -1512,6 +1551,11 @@ function startCrawl() {
     sv("tc-keywords", s.withKeywords || 0);
     const kwNotice = document.getElementById("kw-plan-notice");
     if (kwNotice) kwNotice.style.display = (s.withKeywords || 0) === 0 && d.total > 0 ? "" : "none";
+    if (d.psiRunning && d.runId) {
+      crawlState.psiRunning = true;
+      startPsiPolling(d.runId);
+    }
+    updateSpeedTabNotices();
     renderChart(s);
     crawlState.duplicates = d.duplicates || [];
     if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
@@ -2032,7 +2076,7 @@ function showPageSEO(p) {
     : `<div class="si-preview empty">${keywordGuidance.locked ? T("keywordsLocked") : T("noKeywords")}</div>`;
   const keywordIssues = kwSuggestions.map((s, i) => iRow(keywordGuidance.locked && i === 0 ? "warn" : "ok", esc(s), i === 0 ? 2 : 1)).join("");
 
-  const tLenIssue = lenIssue(tl, 30, 60,
+  const tLenIssue = lenIssue(tl, 50, 60,
     lang === "en" ? "Title missing" : "Título ausente",
     lang === "en" ? "Title too short" : "Título demasiado corto",
     lang === "en" ? "Title too long" : "Título demasiado largo",
@@ -2046,10 +2090,14 @@ function showPageSEO(p) {
   const deficit = (score) => 100 - score;
   const sugGain = (score, idx) => idx === 0 && deficit(score) > 50 ? 3 : idx === 0 && deficit(score) > 20 ? 2 : 1;
 
-  const tIssues = iRow(tLenIssue.sev, tLenIssue.text, tLenIssue.gain)
-    + tSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(tScore, i))).join("");
-  const dIssues = iRow(dLenIssue.sev, dLenIssue.text, dLenIssue.gain)
-    + dSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(dScore, i))).join("");
+  const tSugRows = tSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(tScore, i))).join("");
+  const dSugRows = dSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(dScore, i))).join("");
+  const tIssues = tLenIssue.sev === "ok"
+    ? iRow(tLenIssue.sev, tLenIssue.text, tLenIssue.gain) + tSugRows
+    : tSugRows || iRow(tLenIssue.sev, tLenIssue.text, tLenIssue.gain);
+  const dIssues = dLenIssue.sev === "ok"
+    ? iRow(dLenIssue.sev, dLenIssue.text, dLenIssue.gain) + dSugRows
+    : dSugRows || iRow(dLenIssue.sev, dLenIssue.text, dLenIssue.gain);
 
   const h1Count = Array.isArray(p.h1s) ? p.h1s.length : (p.headings || []).filter((h) => Number(h.level) === 1).length;
   const hIssues = [
@@ -2504,14 +2552,14 @@ function addPage(p) {
 
   //  KEYWORDS tab
   if (p.statusCode >= 200 && p.statusCode < 300) {
-    const kws = p.keywords || [];
-    const hasKw = kws.length > 0;
+    const metaKws = p.metaKeywords || [];
+    const hasKw = metaKws.length > 0;
     const kwTypes = hasKw ? ["has_keywords"] : ["no_keywords"];
     const kwHasBadge = hasKw
       ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(0,255,136,0.10);color:#00ff88;border:1px solid rgba(0,255,136,0.3);font-size:13px;font-weight:600;">✓ Sí</span>`
       : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:var(--bg3);color:var(--muted);border:1px solid var(--border2);font-size:13px;font-weight:600;">— No</span>`;
     const kwSuggestionsCell = hasKw
-      ? `<div class="kw-tags">${kws.map((w) => `<span class="kw-tag">${esc(w)}</span>`).join("")}</div>`
+      ? `<div class="kw-tags">${metaKws.map((w) => `<span class="kw-tag">${esc(w)}</span>`).join("")}</div>`
       : `<span style="color:var(--muted);font-size:13px;font-style:italic;">${T("noKeywords")}</span>`;
     const trKw = mkTr(
       [
@@ -2642,8 +2690,143 @@ function addPage(p) {
       .getElementById("tbFunc")
       .appendChild(attachSeoRowBehavior(trFunc, p));
   }
+
+  // SPEED TEST tab
+  renderSpeedRow(p);
+
   applyUrlSearchFilter();
   updateCrawlButtonLabel();
+}
+
+function renderSpeedRow(p) {
+  if (!(p.statusCode >= 200 && p.statusCode < 300)) return;
+  const st = p.speedTest;
+  let scoreCell = `<span style="color:var(--muted);">—</span>`;
+  let lcpCell = `<span style="color:var(--muted);">—</span>`;
+  let fcpCell = `<span style="color:var(--muted);">—</span>`;
+  let ttfbCell = `<span style="color:var(--muted);">—</span>`;
+  let clsCell = `<span style="color:var(--muted);">—</span>`;
+  let statusCell;
+
+  if (!st) {
+    if (crawlState.psiRunning) {
+      statusCell = `<span style="color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:5px;"><span style="display:inline-block;width:10px;height:10px;border:2px solid var(--muted);border-top-color:#4d8dff;border-radius:50%;animation:psi-spin 0.8s linear infinite;"></span>${T("speedAnalyzing")}</span>`;
+    } else {
+      statusCell = `<span style="color:var(--muted);font-size:13px;">${T("speedPending")}</span>`;
+    }
+  } else if (st.status === "done") {
+    const sc = st.score ?? 0;
+    const scColor = sc >= 90 ? "var(--ok)" : sc >= 50 ? "var(--warn)" : "var(--error)";
+    scoreCell = `<span style="font-weight:700;color:${scColor};">${sc}</span>`;
+    const ms = (v) => v > 0 ? `${v}ms` : `<span style="color:var(--muted);">—</span>`;
+    lcpCell = ms(st.lcp);
+    fcpCell = ms(st.fcp);
+    ttfbCell = ms(st.ttfb);
+    clsCell = st.cls != null ? `${st.cls}` : `<span style="color:var(--muted);">—</span>`;
+    statusCell = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(0,255,136,0.10);color:#00ff88;border:1px solid rgba(0,255,136,0.3);font-size:13px;font-weight:600;">✓ ${T("speedDone")}</span>`;
+  } else if (st.status === "blocked") {
+    const reason = st.reason ? esc(st.reason) : esc(T("speedBlockedTitle"));
+    statusCell = `<span title="${reason}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,0.10);color:#f59e0b;border:1px solid rgba(245,158,11,0.35);font-size:13px;font-weight:600;cursor:help;">⚠ ${T("speedBlocked")}</span><span style="color:var(--muted);font-size:12px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;" title="${reason}">${esc(st.reason || "")}</span>`;
+  } else {
+    const reason = st.reason ? esc(st.reason) : esc(T("speedErrorTitle"));
+    statusCell = `<span title="${reason}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.10);color:var(--error);border:1px solid rgba(239,68,68,0.3);font-size:13px;font-weight:600;cursor:help;">✕ ${T("speedError")}</span><span style="color:var(--muted);font-size:12px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;" title="${reason}">${esc(st.reason || "")}</span>`;
+  }
+
+  const trSpeed = mkTr(
+    [urlA(p), sbadge(p.statusCode), scoreCell, lcpCell, fcpCell, ttfbCell, clsCell, statusCell],
+    [],
+  );
+  document.getElementById("tbSpeed").appendChild(attachSeoRowBehavior(trSpeed, p));
+}
+
+// PSI background polling
+let _psiPollTimer = null;
+let _psiPollRunId = null;
+let _psiPollAttempts = 0;
+const PSI_POLL_MAX = 75; // ~10 min max (75 × 8s)
+
+function stopPsiPolling() {
+  if (_psiPollTimer) { clearTimeout(_psiPollTimer); _psiPollTimer = null; }
+  _psiPollRunId = null;
+  _psiPollAttempts = 0;
+}
+
+async function pollPsiData(runId) {
+  if (_psiPollRunId !== runId) return;
+  _psiPollAttempts++;
+  try {
+    const items = await fetchRunCollection(runId, "pages");
+    let anyUpdated = false;
+    let allDone = true;
+    for (const raw of items) {
+      const p = normalizeSavedPage(raw);
+      if (!p) continue;
+      if (p.statusCode >= 200 && p.statusCode < 300 && !p.speedTest) allDone = false;
+      if (!p.speedTest) continue;
+      const key = getSavedPageKey(p);
+      const idx = crawlState.pages.findIndex((x) => getSavedPageKey(x) === key);
+      if (idx !== -1 && !crawlState.pages[idx].speedTest) {
+        crawlState.pages[idx] = { ...crawlState.pages[idx], speedTest: p.speedTest };
+        anyUpdated = true;
+      }
+    }
+    if (anyUpdated) {
+      const tbSpeed = document.getElementById("tbSpeed");
+      if (tbSpeed) {
+        tbSpeed.innerHTML = "";
+        crawlState.pages.forEach((page) => renderSpeedRow(page));
+      }
+    }
+    if (allDone || _psiPollAttempts >= PSI_POLL_MAX) {
+      crawlState.psiRunning = false;
+      updateSpeedTabNotices();
+      stopPsiPolling();
+      return;
+    }
+  } catch (_) { /* ignore polling errors */ }
+  if (_psiPollRunId === runId) {
+    _psiPollTimer = setTimeout(() => pollPsiData(runId), 8000);
+  }
+}
+
+function startPsiPolling(runId) {
+  stopPsiPolling();
+  _psiPollRunId = runId;
+  _psiPollTimer = setTimeout(() => pollPsiData(runId), 6000);
+}
+
+function updateSpeedTabNotices() {
+  const pages = crawlState.pages || [];
+  const planNotice = document.getElementById("speed-plan-notice");
+  const pendingNotice = document.getElementById("speed-pending-notice");
+
+  const hasSomeSpeed = pages.some((p) => p.speedTest != null);
+  const hasPending = pages.some((p) => p.statusCode >= 200 && p.statusCode < 300 && p.speedTest == null);
+  const hasAny = pages.length > 0;
+
+  if (crawlState.psiRunning && hasAny) {
+    if (planNotice) planNotice.style.display = "none";
+    if (pendingNotice) {
+      pendingNotice.style.display = "";
+      pendingNotice.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;"><span style="display:inline-block;width:12px;height:12px;border:2px solid var(--muted);border-top-color:#4d8dff;border-radius:50%;animation:psi-spin 0.8s linear infinite;"></span>${T("speedPendingRunning")}</span>`;
+    }
+    return;
+  }
+
+  if (pendingNotice && pendingNotice.querySelector("span[style*='psi-spin']")) {
+    pendingNotice.innerHTML = pendingNotice.getAttribute("data-i18n") ? T(pendingNotice.getAttribute("data-i18n")) : "";
+  }
+
+  if (!hasSomeSpeed && hasAny && !hasPending) {
+    if (planNotice) planNotice.style.display = "";
+    if (pendingNotice) pendingNotice.style.display = "none";
+  } else if (hasPending && hasAny) {
+    if (planNotice) planNotice.style.display = "none";
+    if (pendingNotice) pendingNotice.style.display = "";
+  } else {
+    if (planNotice) planNotice.style.display = "none";
+    if (pendingNotice) pendingNotice.style.display = "none";
+  }
 }
 
 //
@@ -2766,14 +2949,48 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   // The param is deleted synchronously to prevent double-fire on re-renders.
   const params = new URLSearchParams(window.location.search || "");
   const initialUrl = (params.get("url") || "").trim();
+  const initialSource = normalizeCrawlSource(params.get("source") || crawlSrc);
+  const initialRateDelay = String(params.get("rateDelay") || "").trim();
+  const initialRenderDelay = String(params.get("renderDelayMs") || "").trim();
   const initialRenderMode = normalizeRenderMode(
     params.get("renderMode") || crawlRenderMode,
   );
+  const initialExternal = params.get("external") === "1";
   const autostart = params.get("autostart") === "1";
   const projectUrl = currentProject?.targetUrl || "";
   const resolvedInitialUrl = initialUrl || projectUrl;
   const input = document.getElementById("urlInput");
+  const sourceSelect = document.getElementById("srcSelect");
+  const rateDelaySelect = document.getElementById("rateDelay");
+  const renderDelaySelect = document.getElementById("renderDelay");
+  const renderModeSelect = document.getElementById("renderMode");
+  const externalCheck = document.getElementById("checkExt");
+  setSrc(initialSource);
   setRenderMode(initialRenderMode);
+  if (sourceSelect) {
+    sourceSelect.value = initialSource;
+  }
+  if (rateDelaySelect && initialRateDelay) {
+    rateDelaySelect.value = initialRateDelay;
+  }
+  if (renderDelaySelect && initialRenderDelay) {
+    renderDelaySelect.value = initialRenderDelay;
+  }
+  if (renderModeSelect) {
+    setSelectSize(renderModeSelect, "sm");
+    renderModeSelect.value = initialRenderMode;
+    renderModeSelect.addEventListener("change", (e) => {
+      setRenderMode(e.target.value);
+    });
+  }
+  if (externalCheck) {
+    externalCheck.checked = initialExternal;
+  }
+  if (sourceSelect) {
+    sourceSelect.addEventListener("change", (e) => {
+      setSrc(e.target.value);
+    });
+  }
   if (input && resolvedInitialUrl) {
     input.value = resolvedInitialUrl;
     updateCrawlButtonLabel();
@@ -2792,13 +3009,6 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
       if (e.key === "Enter") startCrawl();
     });
   if (input) input.addEventListener("input", updateCrawlButtonLabel);
-  const renderModeSelect = document.getElementById("renderMode");
-  if (renderModeSelect) {
-    setSelectSize(renderModeSelect, "sm");
-    renderModeSelect.addEventListener("change", (e) => {
-      setRenderMode(e.target.value);
-    });
-  }
   const searchInput = document.getElementById("crawlSearch");
   const allPageSize = document.getElementById("allPageSize");
   if (allPageSize) {

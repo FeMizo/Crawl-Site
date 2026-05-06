@@ -136,50 +136,47 @@ body.feature-locked-excel #dlb { display: none !important; }
             Crawl</span></button>
       </div>
       <div class="input-controls">
-        <span class="adv-tgl" onclick="toggleAdv()">&#9881;&#65039; <span data-i18n="advOpts">Opciones
-            avanzadas</span></span>
+        <span class="adv-tgl" id="advTgl" onclick="toggleAdv()">&#9881;&#65039; <span data-i18n="advOpts">Opciones avanzadas</span> <span class="adv-arrow">&#9660;</span></span>
         <div class="adv-p" id="advPanel">
-          <span class="al" data-i18n="source">Fuente</span>
-          <div class="pill">
-            <button class="pbtn on" id="srcCrawl" onclick="setSrc('crawl')">&#128375; Crawl</button>
-            <button class="pbtn" id="srcSitemap" onclick="setSrc('sitemap')">&#128506; Sitemap</button>
+          <div class="launch-edit-grid" aria-label="Editar ajuste de arranque">
+            <label class="launch-edit-item">
+              <span data-i18n="source">Fuente</span>
+              <select class="csel le-csel" id="srcSelect">
+                <option value="crawl" data-i18n="launchSourceCrawl">Crawl</option>
+                <option value="sitemap" data-i18n="launchSourceSitemap">Sitemap</option>
+              </select>
+            </label>
+            <label class="launch-edit-item">
+              <span data-i18n="rateLimit">Rate limit</span>
+              <select class="csel le-csel" id="rateDelay">
+                <option value="0" data-i18n="noDelay">Sin delay</option>
+                <option value="200">200ms</option>
+                <option value="500">500ms</option>
+                <option value="1000">1s</option>
+                <option value="2000">2s</option>
+              </select>
+            </label>
+            <label class="launch-edit-item">
+              <span data-i18n="renderDelay">Delay post-load</span>
+              <select class="csel le-csel" id="renderDelay">
+                <option value="5000">5s</option>
+                <option value="7000" selected>7s</option>
+                <option value="10000">10s</option>
+              </select>
+            </label>
+            <label class="launch-edit-item">
+              <span data-i18n="renderMode">Modo de render</span>
+              <select class="csel le-csel" id="renderMode">
+                <option value="auto" data-i18n="renderModeAuto">Auto</option>
+                <option value="rendered" data-i18n="renderModeRendered">Rendered</option>
+                <option value="http" data-i18n="renderModeHttp">HTTP</option>
+              </select>
+            </label>
+            <label class="chk launch-edit-item">
+              <input type="checkbox" id="checkExt">
+              <span data-i18n="checkExt">Verificar links externos</span>
+            </label>
           </div>
-          <span class="al" style="margin-left:8px;" data-i18n="rateLimit">Rate limit</span>
-          <select class="csel" id="rateDelay" style="padding:6px 8px;font-size:13px;">
-            <option value="0" data-i18n="noDelay">Sin delay</option>
-            <option value="200">200ms</option>
-            <option value="500">500ms</option>
-            <option value="1000">1s</option>
-            <option value="2000">2s</option>
-          </select>
-          <span class="al" style="margin-left:8px;" data-i18n="renderDelay">Delay post-load</span>
-          <select class="csel" id="renderDelay" style="padding:6px 8px;font-size:13px;">
-            <option value="5000">5s</option>
-            <option value="7000" selected>7s</option>
-            <option value="10000">10s</option>
-          </select>
-          <span class="al" style="margin-left:8px;" data-i18n="renderMode">Modo de render</span>
-          <select class="csel" id="renderMode" style="padding:6px 8px;font-size:13px;">
-            <option value="auto" data-i18n="renderModeAuto">Auto</option>
-            <option value="rendered" data-i18n="renderModeRendered">Rendered</option>
-            <option value="http" data-i18n="renderModeHttp">HTTP</option>
-          </select>
-          <div class="adv-help" aria-label="Ayuda sobre modos y retrasos">
-            <div class="adv-help-title" data-i18n="advHelpTitle">Guia rapida</div>
-            <div class="adv-help-body" data-i18n="renderModeHelp">
-              Auto decide segun el sitio. Renderizado ejecuta JavaScript. HTTP lee el HTML sin render.
-            </div>
-            <div class="adv-help-tags">
-              <span class="adv-help-tag" data-i18n="rateDelayHelp">
-                rateDelay: pausa entre solicitudes para no saturar el sitio.
-              </span>
-              <span class="adv-help-tag" data-i18n="renderDelayHelp">
-                renderDelay: espera antes de leer el DOM despues de cargar.
-              </span>
-            </div>
-          </div>
-          <label class="chk"><input type="checkbox" id="checkExt"> <span data-i18n="checkExt">Verificar links
-              externos</span></label>
         </div>
       </div>
       <div class="pw" id="pw">
@@ -326,6 +323,7 @@ body.feature-locked-excel #dlb { display: none !important; }
             <button class="tbtn" onclick="goTab('errors',this)"><span>&#128308; <span data-i18n="tabErrors">Errores</span></span> <span class="tc" id="tc-errors">0</span></button>
             <button class="tbtn" onclick="goTab('dup',this)"><span>&#128257; <span data-i18n="tabDup">Duplicados</span></span> <span class="tc" id="tc-dup">0</span></button>
             <button class="tbtn" onclick="goTab('keywords',this)"><span>&#128273; <span data-i18n="tabKeywords">Keywords</span></span> <span class="tc" id="tc-keywords">0</span></button>
+            <button class="tbtn" onclick="goTab('speed',this)"><span>&#9889; <span data-i18n="tabSpeed">Speed Test</span></span></button>
             <button class="tbtn" onclick="goTab('robots',this)"><span>&#129302;&#65039; Robots.txt</span></button>
             <button class="tbtn" onclick="goTab('googletools',this)"><span>&#128202; Google Tools</span></button>
             <button class="tbtn" onclick="goTab('sitemap',this)"><span>&#128506;&#65039; Sitemap.xml</span></button>
@@ -656,6 +654,28 @@ body.feature-locked-excel #dlb { display: none !important; }
                 <div class="ico">&#10024;</div>
                 <p data-i18n="noDups">Sin titulos duplicados</p>
               </div>
+            </div>
+          </div>
+
+          <div class="tpane" id="tab-speed">
+            <div id="speed-plan-notice" style="display:none;padding:10px 0;color:var(--muted);font-size:13px;" data-i18n="speedPlanNotice">Disponible desde plan Starter. Actualiza tu plan para ver el Speed Test por página.</div>
+            <div id="speed-pending-notice" style="display:none;padding:10px 0;color:var(--muted);font-size:13px;" data-i18n="speedPendingNotice">El análisis de velocidad está en proceso. Los datos aparecerán al recargar el historial en unos minutos.</div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="th-sticky" data-i18n="url">URL</th>
+                    <th>HTTP</th>
+                    <th data-i18n="speedScore">Score</th>
+                    <th>LCP</th>
+                    <th>FCP</th>
+                    <th>TTFB</th>
+                    <th>CLS</th>
+                    <th data-i18n="speedStatus">Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbSpeed"></tbody>
+              </table>
             </div>
           </div>
 
