@@ -48,6 +48,7 @@ const {
   PLAN_DISPLAY_PRICES,
   PLAN_CURRENCY,
 } = require("../lib/plan-data");
+const crawlAnalysis = require("../lib/crawl-analysis");
 
 function createMailTransporter() {
   const host = process.env.SMTP_HOST;
@@ -876,33 +877,215 @@ function setPrivateApiCache(res, maxAgeSeconds = 15, swrSeconds = 60) {
   );
 }
 
+function normalizeStringList(values) {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+  }
+  return out;
+}
+
+function mergeSuggestionList(current, incoming) {
+  return normalizeStringList([
+    ...(Array.isArray(current) ? current : []),
+    ...(Array.isArray(incoming) ? incoming : []),
+  ]);
+}
+
+function normalizeKeywordList(values) {
+  return crawlAnalysis.normalizeStringList(values);
+}
+
+function normalizeKeywordSuggestions(values) {
+  return crawlAnalysis.normalizeStringList(values);
+}
+
 function normalizeStoredRunPage(page) {
   if (!page || typeof page !== "object") return null;
+  const seoQuality = page.seoQuality && typeof page.seoQuality === "object" ? page.seoQuality : null;
   return {
     ...page,
     issues: Array.isArray(page.issues) ? page.issues : [],
+    keywords: normalizeKeywordList(page.keywords),
+    keywordSuggestions: normalizeKeywordSuggestions(page.keywordSuggestions),
+    keywordLocked: Boolean(page.keywordLocked),
+    h1s: Array.isArray(page.h1s) ? page.h1s : [],
+    headings: Array.isArray(page.headings) ? page.headings : [],
+    headingSkips: Array.isArray(page.headingSkips) ? page.headingSkips : [],
+    googleTools: (() => {
+      const source =
+        (page.googleTools && typeof page.googleTools === "object" ? page.googleTools : null) ||
+        (page.meta && typeof page.meta === "object" && page.meta.googleTools && typeof page.meta.googleTools === "object"
+          ? page.meta.googleTools
+          : null);
+      return source
+        ? {
+            ...source,
+            gtmIds: Array.isArray(source.gtmIds) ? source.gtmIds : [],
+            ga4Ids: Array.isArray(source.ga4Ids) ? source.ga4Ids : [],
+            signals:
+              source.signals && typeof source.signals === "object"
+                ? source.signals
+                : { gtmScript: false, gtagScript: false, dataLayer: false, gtagCall: false },
+          }
+        : { hasGTM: false, hasGA4: false, gtmIds: [], ga4Ids: [], signals: { gtmScript: false, gtagScript: false, dataLayer: false, gtagCall: false } };
+    })(),
+    buttonsNoLinkDetails: Array.isArray(page.buttonsNoLinkDetails) ? page.buttonsNoLinkDetails : [],
+    placeholderLinkDetails: Array.isArray(page.placeholderLinkDetails) ? page.placeholderLinkDetails : [],
+    formsNoActionDetails: Array.isArray(page.formsNoActionDetails) ? page.formsNoActionDetails : [],
+    formsNoSubmitDetails: Array.isArray(page.formsNoSubmitDetails) ? page.formsNoSubmitDetails : [],
+    brokenButtonDetails: Array.isArray(page.brokenButtonDetails) ? page.brokenButtonDetails : [],
+    brokenImageLinks: normalizeStringList(page.brokenImageLinks),
+    brokenButtonLinks: normalizeStringList(page.brokenButtonLinks),
+    seoQuality: seoQuality
+      ? {
+          ...seoQuality,
+          titleSuggestions: Array.isArray(seoQuality.titleSuggestions) ? seoQuality.titleSuggestions : [],
+          descSuggestions: Array.isArray(seoQuality.descSuggestions) ? seoQuality.descSuggestions : [],
+        }
+      : null,
   };
 }
 
+function getStoredRunPageKey(page) {
+  return normalizeForCompare(page?.finalUrl || page?.url || "");
+}
+
+function getStoredRunPageScore(page) {
+  if (!page || typeof page !== "object") return 0;
+  return [
+    normalizeKeywordList(page.keywords).length * 8,
+    normalizeKeywordSuggestions(page.keywordSuggestions).length * 2,
+    String(page.title || "").trim() ? 4 : 0,
+    String(page.description || "").trim() ? 3 : 0,
+    Array.isArray(page.issues) ? page.issues.length : 0,
+    Number(page.loadTimeMs || 0) > 0 ? 1 : 0,
+  ].reduce((sum, value) => sum + value, 0);
+}
+
+function mergeStoredRunPages(existing, incoming) {
+  const base = normalizeStoredRunPage(existing);
+  const next = normalizeStoredRunPage(incoming);
+  if (!base) return next;
+  if (!next) return base;
+
+  const preferred = getStoredRunPageScore(next) >= getStoredRunPageScore(base) ? next : base;
+  const mergedIssues = mergeSuggestionList(
+    (base.issues || []).map((issue) => JSON.stringify(issue)),
+    (next.issues || []).map((issue) => JSON.stringify(issue)),
+  )
+    .map((item) => {
+      try {
+        return JSON.parse(item);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  const seoQualitySource = preferred.seoQuality || base.seoQuality || next.seoQuality;
+  const mergedSeoQuality = seoQualitySource
+    ? {
+        ...seoQualitySource,
+        titleSuggestions: mergeSuggestionList(
+          base.seoQuality?.titleSuggestions,
+          next.seoQuality?.titleSuggestions,
+        ),
+        descSuggestions: mergeSuggestionList(
+          base.seoQuality?.descSuggestions,
+          next.seoQuality?.descSuggestions,
+        ),
+      }
+    : null;
+
+  return normalizeStoredRunPage({
+    ...base,
+    ...next,
+    ...preferred,
+    url: preferred.url || base.url || next.url || "",
+    finalUrl: preferred.finalUrl || base.finalUrl || next.finalUrl || null,
+    title: preferred.title || base.title || next.title || "",
+    description: preferred.description || base.description || next.description || "",
+    titleLen: Number.isFinite(Number(preferred.titleLen)) ? Number(preferred.titleLen) : Number(base.titleLen || next.titleLen || 0),
+    descLen: Number.isFinite(Number(preferred.descLen)) ? Number(preferred.descLen) : Number(base.descLen || next.descLen || 0),
+    totalH: Number.isFinite(Number(preferred.totalH)) ? Number(preferred.totalH) : Number(base.totalH || next.totalH || 0),
+    imgsNoAlt: Number(Math.max(Number(base.imgsNoAlt || 0), Number(next.imgsNoAlt || 0))),
+    imgsNoSize: Number(Math.max(Number(base.imgsNoSize || 0), Number(next.imgsNoSize || 0))),
+    totalImgs: Number(Math.max(Number(base.totalImgs || 0), Number(next.totalImgs || 0))),
+    buttonsNoLink: Number(Math.max(Number(base.buttonsNoLink || 0), Number(next.buttonsNoLink || 0))),
+    placeholderLinks: Number(Math.max(Number(base.placeholderLinks || 0), Number(next.placeholderLinks || 0))),
+    formsNoAction: Number(Math.max(Number(base.formsNoAction || 0), Number(next.formsNoAction || 0))),
+    formsNoSubmit: Number(Math.max(Number(base.formsNoSubmit || 0), Number(next.formsNoSubmit || 0))),
+    mainNavLinks: Number(Math.max(Number(base.mainNavLinks || 0), Number(next.mainNavLinks || 0))),
+    loadTimeMs: Number(Math.max(Number(base.loadTimeMs || 0), Number(next.loadTimeMs || 0))),
+    blocked: Boolean(base.blocked || next.blocked),
+    timeout: Boolean(base.timeout || next.timeout),
+    noindex: Boolean(base.noindex || next.noindex),
+    weakNavigation: Boolean(base.weakNavigation || next.weakNavigation),
+    keywords: mergeSuggestionList(base.keywords, next.keywords),
+    keywordSuggestions: mergeSuggestionList(
+      base.keywordSuggestions,
+      next.keywordSuggestions,
+    ),
+    keywordLocked: Boolean(base.keywordLocked || next.keywordLocked),
+    issues: mergedIssues,
+    seoQuality: mergedSeoQuality,
+    h1s: Array.isArray(preferred.h1s) && preferred.h1s.length ? preferred.h1s : (Array.isArray(base.h1s) && base.h1s.length ? base.h1s : next.h1s || []),
+    headings: Array.isArray(preferred.headings) && preferred.headings.length ? preferred.headings : (Array.isArray(base.headings) && base.headings.length ? base.headings : next.headings || []),
+    headingSkips: Array.isArray(preferred.headingSkips) && preferred.headingSkips.length ? preferred.headingSkips : (Array.isArray(base.headingSkips) && base.headingSkips.length ? base.headingSkips : next.headingSkips || []),
+    brokenExternalLinks: Array.isArray(preferred.brokenExternalLinks) && preferred.brokenExternalLinks.length ? preferred.brokenExternalLinks : (Array.isArray(base.brokenExternalLinks) && base.brokenExternalLinks.length ? base.brokenExternalLinks : next.brokenExternalLinks || []),
+    brokenButtonLinks: mergeSuggestionList(base.brokenButtonLinks, next.brokenButtonLinks),
+    brokenImageLinks: mergeSuggestionList(base.brokenImageLinks, next.brokenImageLinks),
+  });
+}
+
+function dedupeStoredRunPages(pages) {
+  const byKey = new Map();
+  for (const raw of Array.isArray(pages) ? pages : []) {
+    const page = normalizeStoredRunPage(raw);
+    if (!page) continue;
+    const key = getStoredRunPageKey(page);
+    if (!key) continue;
+    if (!byKey.has(key)) {
+      byKey.set(key, page);
+    } else {
+      byKey.set(key, mergeStoredRunPages(byKey.get(key), page));
+    }
+  }
+  return [...byKey.values()];
+}
+
+function buildKeywordGuidance(page, keywordLimit, crawlLang = "es") {
+  return crawlAnalysis.buildKeywordGuidance(page, keywordLimit, crawlLang);
+}
+
 function serializeRunPageRow(page, position) {
+  const normalized = normalizeStoredRunPage(page);
   return {
     position,
-    url: String(page?.url || ""),
-    finalUrl: page?.finalUrl ? String(page.finalUrl) : null,
-    statusCode: Number.isFinite(Number(page?.statusCode))
-      ? Number(page.statusCode)
+    url: String(normalized?.url || ""),
+    finalUrl: normalized?.finalUrl ? String(normalized.finalUrl) : null,
+    statusCode: Number.isFinite(Number(normalized?.statusCode))
+      ? Number(normalized.statusCode)
       : null,
-    hasIssues: Array.isArray(page?.issues) && page.issues.length > 0,
-    title: page?.title ? String(page.title).slice(0, 512) : null,
-    titleLen: Number(page?.titleLen || 0),
-    description: page?.description ? String(page.description).slice(0, 2048) : null,
-    descLen: Number(page?.descLen || 0),
-    payload: normalizeStoredRunPage(page),
+    hasIssues: Array.isArray(normalized?.issues) && normalized.issues.length > 0,
+    title: normalized?.title ? String(normalized.title).slice(0, 512) : null,
+    titleLen: Number(normalized?.titleLen || 0),
+    description: normalized?.description ? String(normalized.description).slice(0, 2048) : null,
+    descLen: Number(normalized?.descLen || 0),
+    payload: normalized,
   };
 }
 
 function serializeRunDuplicateRow(duplicate, position) {
-  const urls = Array.isArray(duplicate?.urls) ? duplicate.urls : [];
+  const urls = normalizeStringList(duplicate?.urls);
   return {
     position,
     title: String(duplicate?.title || "").slice(0, 512),
@@ -922,7 +1105,7 @@ function mapStoredRunDuplicate(row) {
   if (!row?.payload || typeof row.payload !== "object") return null;
   return {
     title: String(row.payload.title || row.title || ""),
-    urls: Array.isArray(row.payload.urls) ? row.payload.urls : [],
+    urls: normalizeStringList(row.payload.urls),
   };
 }
 
@@ -932,7 +1115,7 @@ async function loadRunPagesForResponse(runId) {
     orderBy: { position: "asc" },
     select: { payload: true },
   });
-  return rows.map(mapStoredRunPage).filter(Boolean).map((p) => {
+  return dedupeStoredRunPages(rows.map(mapStoredRunPage).filter(Boolean)).map((p) => {
     if (!p.issues?.length) p.issues = getIssues(p);
     return p;
   });
@@ -944,7 +1127,23 @@ async function loadRunDuplicatesForResponse(runId) {
     orderBy: { position: "asc" },
     select: { title: true, payload: true },
   });
-  return rows.map(mapStoredRunDuplicate).filter(Boolean);
+  const byTitle = new Map();
+  for (const duplicate of rows.map(mapStoredRunDuplicate).filter(Boolean)) {
+    const titleKey = String(duplicate.title || "").trim().toLowerCase();
+    if (!titleKey) continue;
+    if (!byTitle.has(titleKey)) {
+      byTitle.set(titleKey, duplicate);
+      continue;
+    }
+    byTitle.set(titleKey, {
+      title: byTitle.get(titleKey).title || duplicate.title,
+      urls: normalizeStringList([
+        ...byTitle.get(titleKey).urls,
+        ...duplicate.urls,
+      ]),
+    });
+  }
+  return [...byTitle.values()];
 }
 
 function normalizeRunSourceType(sourceType) {
@@ -968,7 +1167,7 @@ async function loadStoredRunPageChunk(runId, page, limit) {
     select: { payload: true },
   });
   return {
-    items: rows.map(mapStoredRunPage).filter(Boolean).map((p) => {
+    items: dedupeStoredRunPages(rows.map(mapStoredRunPage).filter(Boolean)).map((p) => {
       if (!p.issues?.length) p.issues = getIssues(p);
       return p;
     }),
@@ -1430,41 +1629,87 @@ function fetchSslInfo(hostname) {
   });
 }
 
-//  Browserless.io — serialized (free plan allows 1 concurrent session)
+//  Browserless.io — serialized (free/shared plans are sensitive to concurrency)
 let _browserlessQueue = Promise.resolve();
-function fetchWithBrowserless(url) {
-  const result = _browserlessQueue.then(() => _browserlessFetch(url));
+async function fetchWithBrowserless(url, options = {}) {
+  const result = _browserlessQueue.then(() => _browserlessFetch(url, options));
   _browserlessQueue = result.then(() => {}, () => {});
   return result;
 }
-function _browserlessFetch(url) {
+async function _browserlessFetch(url, options = {}) {
   const token = process.env.BROWSERLESS_TOKEN;
-  if (!token) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const body = JSON.stringify({ url });
-    const opts = {
-      hostname: "chrome.browserless.io",
-      path: `/content?token=${token}`,
+  if (!token) return null;
+
+  const postLoadDelayMs = Number.isFinite(Number(options.postLoadDelayMs))
+    ? Math.max(0, Number(options.postLoadDelayMs))
+    : Math.max(5000, Number(process.env.CRAWL_RENDER_DELAY_MS || 7000));
+  const scrollStepPx = Number.isFinite(Number(options.scrollStepPx))
+    ? Math.max(200, Number(options.scrollStepPx))
+    : 900;
+  const scrollPauseMs = Number.isFinite(Number(options.scrollPauseMs))
+    ? Math.max(50, Number(options.scrollPauseMs))
+    : 200;
+  const maxScrollSteps = Number.isFinite(Number(options.maxScrollSteps))
+    ? Math.max(1, Number(options.maxScrollSteps))
+    : 12;
+
+  const code = `export default async ({ page, context }) => {
+    const url = context?.url;
+    const postLoadDelayMs = Number(context?.postLoadDelayMs || 7000);
+    const scrollStepPx = Number(context?.scrollStepPx || 900);
+    const scrollPauseMs = Number(context?.scrollPauseMs || 200);
+    const maxScrollSteps = Number(context?.maxScrollSteps || 12);
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 45000 });
+    if (postLoadDelayMs > 0) {
+      await page.waitForTimeout(postLoadDelayMs);
+    }
+    await page.evaluate(async ({ stepPx, pauseMs, steps }) => {
+      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const doc = document.scrollingElement || document.documentElement;
+      const viewport = window.innerHeight || 800;
+      const maxScrollTop = Math.max(0, (doc?.scrollHeight || document.body.scrollHeight || 0) - viewport);
+      const positions = [0];
+      let current = 0;
+      for (let i = 0; i < steps && current < maxScrollTop; i++) {
+        current = Math.min(maxScrollTop, current + stepPx);
+        window.scrollTo(0, current);
+        positions.push(current);
+        await delay(pauseMs);
+      }
+      for (let i = positions.length - 2; i >= 0; i--) {
+        window.scrollTo(0, positions[i]);
+        await delay(Math.max(50, Math.min(250, pauseMs / 2)));
+      }
+      window.scrollTo(0, 0);
+      await delay(250);
+    }, { stepPx: scrollStepPx, pauseMs: scrollPauseMs, steps: maxScrollSteps });
+    return { data: await page.content(), type: "text/html" };
+  };`;
+
+  try {
+    const response = await fetch(`https://chrome.browserless.io/function?token=${encodeURIComponent(token)}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(body),
+        "Cache-Control": "no-cache",
       },
-      timeout: 30000,
-    };
-    const req = https.request(opts, (res) => {
-      const chunks = [];
-      res.on("data", (c) => chunks.push(c));
-      res.on("end", () => {
-        if (res.statusCode !== 200) return resolve(null);
-        resolve(Buffer.concat(chunks).toString("utf8"));
-      });
+      body: JSON.stringify({
+        code,
+        context: {
+          url,
+          postLoadDelayMs,
+          scrollStepPx,
+          scrollPauseMs,
+          maxScrollSteps,
+        },
+      }),
     });
-    req.on("error", () => resolve(null));
-    req.on("timeout", () => { req.destroy(); resolve(null); });
-    req.write(body);
-    req.end();
-  });
+
+    if (!response.ok) return null;
+    return await response.text();
+  } catch {
+    return null;
+  }
 }
 
 //  HTTP fetch
@@ -1895,6 +2140,11 @@ async function fetchRobots(siteUrl) {
       hasSitemap: sitemapUrls.length > 0,
       sitemapUrls,
       rawContent: raw.body,
+      analysis: crawlAnalysis.analyzeRobotsSnapshot({
+        disallowed,
+        sitemapUrls,
+        rawContent: raw.body,
+      }),
     };
   } catch {
     return {
@@ -1902,6 +2152,11 @@ async function fetchRobots(siteUrl) {
       hasSitemap: false,
       sitemapUrls: [],
       rawContent: "",
+      analysis: crawlAnalysis.analyzeRobotsSnapshot({
+        disallowed: [],
+        sitemapUrls: [],
+        rawContent: "",
+      }),
     };
   }
 }
@@ -1917,390 +2172,7 @@ function isDisallowed(url, disallowed) {
 
 //  Meta + content extractor
 function extractMeta(body, pageUrl) {
-  const titleMatch = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const descMatch =
-    body.match(
-      /<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i,
-    ) ||
-    body.match(
-      /<meta[^>]+content=["']([^"']*)["'][^>]*name=["']description["']/i,
-    );
-  const robotsMatch =
-    body.match(/<meta[^>]+name=["']robots["'][^>]*content=["']([^"']*)["']/i) ||
-    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']robots["']/i);
-  const canonMatch =
-    body.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']*)["']/i) ||
-    body.match(/<link[^>]+href=["']([^"']*)["'][^>]*rel=["']canonical["']/i);
-  const langMatch = body.match(/<html[^>]+lang=["']([^"']+)["']/i);
-
-  // H1-H6 heading structure for level checking
-  const headingMatches = [
-    ...body.matchAll(/<(h[1-6])[^>]*>([\s\S]*?)<\/h[1-6]>/gi),
-  ];
-  const headings = headingMatches
-    .map((m) => ({
-      level: parseInt(m[1][1]),
-      text: m[2]
-        .replace(/<[^>]+>/g, "")
-        .trim()
-        .slice(0, 120),
-    }))
-    .filter((h) => h.text);
-
-  // H1 tags
-  const h1s = headings.filter((h) => h.level === 1).map((h) => h.text);
-
-  // Detect heading skips (e.g. h1  h3 skipping h2)
-  const headingSkips = [];
-  for (let i = 1; i < headings.length; i++) {
-    const prev = headings[i - 1].level;
-    const curr = headings[i].level;
-    if (curr > prev + 1) {
-      headingSkips.push({
-        from: `H${prev}`,
-        to: `H${curr}`,
-        text: headings[i].text,
-      });
-    }
-  }
-
-  // Images without alt
-  const imgMatches = [...body.matchAll(/<img[^>]+>/gi)];
-  const imgsNoAlt = imgMatches.filter(
-    (m) => !/alt\s*=\s*["'][^"']+["']/i.test(m[0]),
-  ).length;
-  const imgsNoSize = imgMatches.filter((m) => {
-    const tag = m[0];
-    const hasWidth = /\bwidth\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(
-      tag,
-    );
-    const hasHeight = /\bheight\s*=\s*(?:"[^"]+"|'[^']+'|[^\s"'=<>`]+)/i.test(
-      tag,
-    );
-    return !hasWidth || !hasHeight;
-  }).length;
-  const totalImgs = imgMatches.length;
-  const imageUrls = imgMatches
-    .map((m) => {
-      const srcMatch = m[0].match(/\bsrc=["']([^"']+)["']/i);
-      const src = (srcMatch?.[1] || "").trim();
-      if (!src || src.startsWith("data:") || src.startsWith("blob:"))
-        return null;
-      try {
-        return normalizeUrl(new URL(src, pageUrl).href);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-
-  // All links
-  const linkMatches = [...body.matchAll(/href=["']([^"'#][^"']*?)["']/gi)];
-  const allLinks = linkMatches
-    .map((m) => {
-      try {
-        return normalizeUrl(new URL(m[1], pageUrl).href);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-
-  // Button functionality checks
-  const buttonLikeItems = [];
-  let buttonsNoLink = 0;
-  const buttonsNoLinkDetails = [];
-  const anchorTags = [...body.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)];
-  for (const m of anchorTags) {
-    const attrs = m[1] || "";
-    const inner = m[2] || "";
-    const tag = `<a ${attrs}>`;
-    const anchorText = inner
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    const isButtonLike =
-      /role=["']button["']/i.test(attrs) ||
-      /\b(class|id)=["'][^"']*(btn|button|cta)[^"']*["']/i.test(attrs);
-    if (!isButtonLike) continue;
-
-    const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
-    const href = (hrefMatch?.[1] || "").trim();
-    if (
-      !href ||
-      href === "#" ||
-      href.toLowerCase().startsWith("javascript:") ||
-      href.toLowerCase().startsWith("mailto:") ||
-      href.toLowerCase().startsWith("tel:")
-    ) {
-      buttonsNoLink++;
-      buttonsNoLinkDetails.push({
-        text: anchorText || "(sin texto)",
-        source: "a.btn-like",
-        href: href || "(vacio)",
-      });
-      continue;
-    }
-    try {
-      const abs = normalizeUrl(new URL(href, pageUrl).href);
-      if (abs)
-        buttonLikeItems.push({
-          url: abs,
-          text: anchorText || "(sin texto)",
-          source: "a.btn-like",
-        });
-    } catch {}
-  }
-
-  const buttonTags = [
-    ...body.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/gi),
-  ];
-  for (const m of buttonTags) {
-    const attrs = m[1] || "";
-    const inner = m[2] || "";
-    const hasOnClick = /\bonclick\s*=/i.test(attrs);
-    const typeMatch = attrs.match(/\btype=["']([^"']+)["']/i);
-    const btnType = (typeMatch?.[1] || "submit").toLowerCase();
-    if (!hasOnClick && btnType === "button") {
-      const buttonText = inner
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-      buttonsNoLink++;
-      buttonsNoLinkDetails.push({
-        text: buttonText || "(sin texto)",
-        source: `button[type=${btnType}]`,
-        href: "(sin link)",
-      });
-    }
-  }
-
-  // Placeholder links that look interactive but do not navigate anywhere.
-  let placeholderLinks = 0;
-  const placeholderLinkDetails = [];
-  for (const m of anchorTags) {
-    const attrs = m[1] || "";
-    const inner = m[2] || "";
-    const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
-    const href = (hrefMatch?.[1] || "").trim().toLowerCase();
-    const hasOnClick = /\bonclick\s*=/i.test(attrs);
-    const isPlaceholder =
-      href === "#" ||
-      href === "" ||
-      href.startsWith("javascript:") ||
-      href.startsWith("void(");
-    if (!isPlaceholder) continue;
-    placeholderLinks++;
-    placeholderLinkDetails.push({
-      text:
-        inner
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim() || "(sin texto)",
-      source: hasOnClick ? "a[onclick]" : "a[href=#]",
-      href: href || "#",
-    });
-  }
-
-  // Form checks (action + submit controls).
-  const forms = [...body.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)];
-  let formsNoAction = 0;
-  const formsNoActionDetails = [];
-  let formsNoSubmit = 0;
-  const formsNoSubmitDetails = [];
-
-  for (const [idx, formMatch] of forms.entries()) {
-    const attrs = formMatch[1] || "";
-    const inner = formMatch[2] || "";
-    const actionMatch = attrs.match(/\baction=["']([^"']*)["']/i);
-    const action = (actionMatch?.[1] || "").trim();
-    const hasAction =
-      action &&
-      action !== "#" &&
-      !action.toLowerCase().startsWith("javascript:");
-    if (!hasAction) {
-      formsNoAction++;
-      formsNoActionDetails.push({
-        source: `form#${idx + 1}`,
-        action: action || "(sin action)",
-      });
-    }
-
-    const hasSubmitControl =
-      /<button\b[^>]*type=["']submit["'][^>]*>/i.test(inner) ||
-      /<button\b(?![^>]*type=)[^>]*>/i.test(inner) ||
-      /<input\b[^>]*type=["']submit["'][^>]*>/i.test(inner);
-    if (!hasSubmitControl) {
-      formsNoSubmit++;
-      formsNoSubmitDetails.push({
-        source: `form#${idx + 1}`,
-      });
-    }
-  }
-
-  // Main navigation health check.
-  const navBlocks = [...body.matchAll(/<nav\b[^>]*>([\s\S]*?)<\/nav>/gi)];
-  const navLinkCounts = navBlocks.map((m) => {
-    const links = [...m[1].matchAll(/<a\b[^>]*href=["'][^"']+["'][^>]*>/gi)];
-    return links.length;
-  });
-  const mainNavLinks = navLinkCounts.length ? Math.max(...navLinkCounts) : 0;
-  const weakNavigation = mainNavLinks > 0 && mainNavLinks < 3;
-
-  const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : "";
-  const description = descMatch ? descMatch[1].trim() : "";
-  const canonical = canonMatch
-    ? normalizeUrl(new URL(canonMatch[1], pageUrl).href)
-    : "";
-  const pageLang = langMatch ? langMatch[1] : "";
-
-  // --- Enhanced SEO extraction ---
-
-  // Resource counts (CSS, JS, inline)
-  const externalCss = [...body.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi)].length;
-  const externalJs = [...body.matchAll(/<script[^>]+src=["'][^"']+["'][^>]*>/gi)].length;
-  const inlineScripts = [...body.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi)].length;
-  const inlineStyles = [...body.matchAll(/<style\b[^>]*>[\s\S]*?<\/style>/gi)].length;
-
-  // Page weight (HTML body size in bytes)
-  const htmlSizeBytes = Buffer.byteLength(body, "utf8");
-
-  // Render-blocking resources in <head>
-  const headMatch = body.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-  const headContent = headMatch ? headMatch[1] : "";
-  const renderBlockingCss = [...headContent.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi)]
-    .filter((m) => !/\bmedia=["']print["']/i.test(m[0])).length;
-  const renderBlockingJs = [...headContent.matchAll(/<script[^>]+src=["'][^"']+["'][^>]*>/gi)]
-    .filter((m) => !/\b(async|defer)\b/i.test(m[0])).length;
-
-  // Viewport meta
-  const hasViewport = /<meta[^>]+name=["']viewport["']/i.test(body);
-
-  // Charset
-  const hasCharset = /<meta[^>]+charset=/i.test(body) ||
-    /<meta[^>]+http-equiv=["']content-type["']/i.test(body);
-
-  // Open Graph tags
-  const ogTitle = (body.match(/<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']*)["']/i) ||
-    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:title["']/i) || [])[1] || "";
-  const ogDesc = (body.match(/<meta[^>]+property=["']og:description["'][^>]*content=["']([^"']*)["']/i) ||
-    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:description["']/i) || [])[1] || "";
-  const ogImage = (body.match(/<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']*)["']/i) ||
-    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:image["']/i) || [])[1] || "";
-  const ogType = (body.match(/<meta[^>]+property=["']og:type["'][^>]*content=["']([^"']*)["']/i) ||
-    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*property=["']og:type["']/i) || [])[1] || "";
-  const hasOg = !!(ogTitle || ogDesc || ogImage);
-
-  // Twitter Card
-  const twitterCard = (body.match(/<meta[^>]+name=["']twitter:card["'][^>]*content=["']([^"']*)["']/i) ||
-    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']twitter:card["']/i) || [])[1] || "";
-  const hasTwitterCard = !!twitterCard;
-
-  // Structured data (JSON-LD)
-  const jsonLdBlocks = [...body.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
-  const structuredDataTypes = [];
-  for (const m of jsonLdBlocks) {
-    try {
-      const parsed = JSON.parse(m[1]);
-      const t = parsed["@type"];
-      if (t) structuredDataTypes.push(Array.isArray(t) ? t[0] : t);
-    } catch {}
-  }
-  const hasStructuredData = jsonLdBlocks.length > 0;
-
-  // Hreflang
-  const hreflangMatches = [...body.matchAll(/<link[^>]+hreflang=["']([^"']+)["'][^>]*href=["']([^"']*)["']/gi)];
-  const hreflangs = hreflangMatches.map((m) => ({ lang: m[1], url: m[2] }));
-
-  // Resource hints (preload, prefetch, dns-prefetch, preconnect)
-  const preloadCount = [...body.matchAll(/<link[^>]+rel=["']preload["']/gi)].length;
-  const prefetchCount = [...body.matchAll(/<link[^>]+rel=["']prefetch["']/gi)].length;
-  const preconnectCount = [...body.matchAll(/<link[^>]+rel=["']preconnect["']/gi)].length;
-  const dnsPrefetchCount = [...body.matchAll(/<link[^>]+rel=["']dns-prefetch["']/gi)].length;
-
-  // Word count (approximate, from visible text)
-  const visibleText = body
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const wordCount = visibleText ? visibleText.split(/\s+/).length : 0;
-
-  // Google tag detection (GA4, GTM)
-  const hasGTM = /googletagmanager\.com\/gtm\.js/i.test(body) || /GTM-[A-Z0-9]+/i.test(body);
-  const hasGA4 = /googletagmanager\.com\/gtag\/js/i.test(body) || /gtag\(['"]config['"],\s*['"]G-/i.test(body);
-
-  // Favicon detection
-  const hasFavicon = /<link[^>]+rel=["'](?:shortcut icon|icon|apple-touch-icon)["'][^>]*>/i.test(body);
-
-  // CSR detection: JS framework shell with no rendered content
-  const hasJsSpaMarker =
-    body.includes('id="__next"') || body.includes("id='__next'") ||
-    body.includes('id="__nuxt"') || body.includes("id='__nuxt'") ||
-    /\bng-version\s*=/i.test(body) || /<app-root[\s>]/i.test(body) ||
-    (body.includes('data-reactroot') && h1s.length === 0) ||
-    ((body.includes('id="root"') || body.includes("id='root'")) && body.includes("__webpack") && h1s.length === 0);
-  const isJsRendered = hasJsSpaMarker && h1s.length === 0 && wordCount < 100;
-
-  // Internal links on this page (for architecture analysis)
-  const internalLinks = allLinks.filter((l) => {
-    try { return new URL(l).origin === new URL(pageUrl).origin; } catch { return false; }
-  });
-
-  return {
-    title,
-    description,
-    descExists: descMatch !== null,
-    noindex: robotsMatch
-      ? robotsMatch[1].toLowerCase().includes("noindex")
-      : false,
-    canonical,
-    h1s,
-    headings,
-    headingSkips,
-    imgsNoAlt,
-    imgsNoSize,
-    totalImgs,
-    imageUrls: [...new Set(imageUrls)],
-    allLinks,
-    buttonLikeItems,
-    buttonsNoLink,
-    buttonsNoLinkDetails,
-    placeholderLinks,
-    placeholderLinkDetails,
-    formsNoAction,
-    formsNoActionDetails,
-    formsNoSubmit,
-    formsNoSubmitDetails,
-    mainNavLinks,
-    weakNavigation,
-    pageLang,
-    titleLen: title.length,
-    descLen: description.length,
-    // Enhanced fields
-    resources: {
-      externalCss,
-      externalJs,
-      inlineScripts,
-      inlineStyles,
-      renderBlockingCss,
-      renderBlockingJs,
-    },
-    htmlSizeBytes,
-    hasViewport,
-    hasCharset,
-    og: { title: ogTitle, description: ogDesc, image: ogImage, type: ogType, hasOg },
-    twitter: { card: twitterCard, hasTwitterCard },
-    structuredData: { types: structuredDataTypes, hasStructuredData, count: jsonLdBlocks.length },
-    hreflangs,
-    resourceHints: { preload: preloadCount, prefetch: prefetchCount, preconnect: preconnectCount, dnsPrefetch: dnsPrefetchCount },
-    wordCount,
-    isJsRendered,
-    internalLinks,
-    googleTools: { hasGTM, hasGA4 },
-    hasFavicon,
-  };
+  return crawlAnalysis.extractMeta(body, pageUrl);
 }
 
 function extractLinks(body, baseUrl) {
@@ -2494,479 +2366,15 @@ function scoreSEO(meta, url) {
 
 // ── Keyword extraction ──────────────────────────────────────────────────────
 
-const STOP_WORDS = new Set([
-  "el","la","los","las","un","una","unos","unas","y","o","a","de","del","en","con","por","para",
-  "que","se","es","su","sus","lo","le","les","al","me","te","nos","si","no","mas","pero","como",
-  "todo","esto","esta","estos","estas","ese","esa","esos","esas","ser","han","hay","fue","sobre",
-  "bajo","ante","sin","entre","hasta","desde","cuando","donde","quien","cual","ya","bien","muy",
-  "tan","tambien","aunque","asi","aun","puede","tiene","tienen","hacer","cada","otro","otra",
-  "nuestro","nuestra","tu","mi","aqui","alli","ahora","antes","despues","siempre","nunca",
-  "solo","ademas","hacia","durante","mediante","todos","todas","esta","son","esta","ha",
-  "the","a","an","and","or","in","on","at","to","for","of","is","it","with","by","from",
-  "that","this","was","are","be","has","have","had","not","but","as","we","you","he","she",
-  "they","do","did","will","would","can","could","should","may","might","must","then","than",
-  "more","also","if","so","just","about","get","all","been","when","where","who","which",
-  "what","how","some","any","its","our","your","their","his","her","them","into","up","out",
-  "him","there","here","now","only","new","other","use","used","each","i","am","its","was",
-]);
-
 const PLAN_KEYWORD_LIMITS = { FREE: 0, BASIC: 0, STARTER: 2, PRO: 6, AGENCY: 20 };
 
 function extractKeywords(body, meta, maxCount) {
-  if (!body || !maxCount) return [];
-
-  const visibleText = body
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
-
-  const freq = new Map();
-  const addWords = (text, weight) => {
-    text.toLowerCase().split(/[^a-zà-ü]+/).forEach((w) => {
-      if (w.length > 2 && !STOP_WORDS.has(w) && !/^\d+$/.test(w))
-        freq.set(w, (freq.get(w) || 0) + weight);
-    });
-  };
-
-  addWords(visibleText, 1);
-  addWords(meta?.title || "", 10);
-  addWords((meta?.h1s || []).join(" "), 8);
-  addWords(meta?.description || "", 5);
-
-  return [...freq.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, maxCount)
-    .map(([word]) => word);
+  return crawlAnalysis.extractKeywords(body, meta, maxCount);
 }
 
 //  Issue builder
 function getIssues(page, crawlLang = "es") {
-  const issues = [];
-  const m = page.meta;
-  const T = (es, en) => (crawlLang === "en" ? en : es);
-
-  if (page.timeout)
-    issues.push({
-      type: "timeout",
-      label: T("Timeout", "Timeout"),
-      group: "errors",
-    });
-  if (page.error)
-    issues.push({
-      type: "error",
-      label: T(`Error: ${page.error}`, `Error: ${page.error}`),
-      group: "errors",
-    });
-  if (page.blocked)
-    issues.push({
-      type: "blocked",
-      label: T("Bloqueada por robots.txt", "Blocked by robots.txt"),
-      group: "errors",
-    });
-  if (page.statusCode === 404)
-    issues.push({ type: "404", label: "404 Not Found", group: "errors" });
-  if (
-    page.statusCode >= 400 &&
-    page.statusCode !== 404 &&
-    page.statusCode !== 0
-  )
-    issues.push({
-      type: "http_error",
-      label: `HTTP ${page.statusCode}`,
-      group: "errors",
-    });
-  if (page.redirectTo && !sameUrlLoose(page.redirectTo, page.url))
-    issues.push({
-      type: "redirect",
-      label: `Redirect  ${page.redirectTo}`,
-      group: "errors",
-    });
-
-  if (page.statusCode >= 200 && page.statusCode < 300 && !m) {
-    issues.push({ type: "no_title", label: T("Sin ttulo", "No title"), group: "titles" });
-    issues.push({ type: "no_desc", label: T("Sin meta description", "No meta description"), group: "desc" });
-    issues.push({ type: "no_h1", label: T("Sin H1", "No H1"), group: "h1" });
-  }
-
-  if (page.statusCode >= 200 && page.statusCode < 300 && m) {
-    // CSR warning — must come first so the user understands why other checks may be empty
-    if (m.isJsRendered)
-      issues.push({
-        type: "js_rendered",
-        label: T(
-          "Página renderizada en cliente (CSR) — el rastreador HTTP no puede ver el contenido real. Los resultados pueden estar incompletos.",
-          "Client-side rendered page (CSR) — HTTP crawl cannot see the real content. Results may be incomplete.",
-        ),
-        group: "warnings",
-      });
-
-    // Title
-    if (!m.title)
-      issues.push({
-        type: "no_title",
-        label: T("Sin ttulo", "No title"),
-        group: "titles",
-      });
-    else if (m.titleLen < 30)
-      issues.push({
-        type: "title_short",
-        label: T(
-          `Ttulo corto (${m.titleLen} chars)`,
-          `Short title (${m.titleLen} chars)`,
-        ),
-        group: "titles",
-      });
-    else if (m.titleLen > 60)
-      issues.push({
-        type: "title_long",
-        label: T(
-          `Ttulo largo (${m.titleLen} chars)`,
-          `Long title (${m.titleLen} chars)`,
-        ),
-        group: "titles",
-      });
-
-    // Desc
-    if (!m.descExists)
-      issues.push({
-        type: "no_desc",
-        label: T("Sin meta description", "No meta description"),
-        group: "desc",
-      });
-    else if (!m.description)
-      issues.push({
-        type: "no_desc",
-        label: T("Meta description vaca", "Empty meta description"),
-        group: "desc",
-      });
-    else if (m.descLen < 70)
-      issues.push({
-        type: "desc_short",
-        label: T(
-          `Description corta (${m.descLen} chars)`,
-          `Short description (${m.descLen} chars)`,
-        ),
-        group: "desc",
-      });
-    else if (m.descLen > 160)
-      issues.push({
-        type: "desc_long",
-        label: T(
-          `Description larga (${m.descLen} chars)`,
-          `Long description (${m.descLen} chars)`,
-        ),
-        group: "desc",
-      });
-
-    // H1
-    if (!m.h1s || m.h1s.length === 0) {
-      if (!m.isJsRendered)
-        issues.push({ type: "no_h1", label: T("Sin H1", "No H1"), group: "h1" });
-    } else if (m.h1s.length > 1)
-      issues.push({
-        type: "multi_h1",
-        label: T(
-          `Mltiples H1 (${m.h1s.length})`,
-          `Multiple H1 (${m.h1s.length})`,
-        ),
-        group: "h1",
-      });
-
-    // Heading skips
-    if (m.headingSkips && m.headingSkips.length > 0) {
-      for (const skip of m.headingSkips) {
-        issues.push({
-          type: "heading_skip",
-          label: T(
-            `Salto de heading ${skip.from}${skip.to}`,
-            `Heading skip ${skip.from}${skip.to}`,
-          ),
-          group: "h1",
-        });
-      }
-    }
-
-    // Images
-    if (m.imgsNoAlt > 0)
-      issues.push({
-        type: "imgs_no_alt",
-        label: T(
-          `${m.imgsNoAlt} imagen(es) sin alt`,
-          `${m.imgsNoAlt} image(s) without alt`,
-        ),
-        group: "images",
-      });
-    if (m.imgsNoSize > 0)
-      issues.push({
-        type: "imgs_no_size",
-        label: T(
-          `${m.imgsNoSize} imagen(es) sin width/height`,
-          `${m.imgsNoSize} image(s) without width/height`,
-        ),
-        group: "images",
-      });
-    if ((page.brokenImageLinks || []).length > 0)
-      issues.push({
-        type: "broken_image",
-        label: T(
-          `${page.brokenImageLinks.length} imagen(es) rotas`,
-          `${page.brokenImageLinks.length} broken image(s)`,
-        ),
-        group: "images",
-      });
-
-    if (m.buttonsNoLink > 0)
-      issues.push({
-        type: "button_no_link",
-        label: T(
-          `${m.buttonsNoLink} botón(es) sin link`,
-          `${m.buttonsNoLink} button(s) without link`,
-        ),
-        group: "functionality",
-      });
-
-    if ((page.brokenButtonLinks || []).length > 0)
-      issues.push({
-        type: "broken_button",
-        label: T(
-          `${page.brokenButtonLinks.length} botón(es) rotos`,
-          `${page.brokenButtonLinks.length} broken button(s)`,
-        ),
-        group: "functionality",
-      });
-    if ((m.placeholderLinks || 0) > 0)
-      issues.push({
-        type: "placeholder_link",
-        label: T(
-          `${m.placeholderLinks} enlace(s) placeholder`,
-          `${m.placeholderLinks} placeholder link(s)`,
-        ),
-        group: "functionality",
-      });
-    if ((m.formsNoAction || 0) > 0)
-      issues.push({
-        type: "form_no_action",
-        label: T(
-          `${m.formsNoAction} formulario(s) sin action`,
-          `${m.formsNoAction} form(s) missing action`,
-        ),
-        group: "functionality",
-      });
-    if ((m.formsNoSubmit || 0) > 0)
-      issues.push({
-        type: "form_no_submit",
-        label: T(
-          `${m.formsNoSubmit} formulario(s) sin submit`,
-          `${m.formsNoSubmit} form(s) missing submit`,
-        ),
-        group: "functionality",
-      });
-    if (m.weakNavigation)
-      issues.push({
-        type: "weak_navigation",
-        label: T(
-          `Navegacion principal limitada (${m.mainNavLinks || 0} links)`,
-          `Weak primary navigation (${m.mainNavLinks || 0} links)`,
-        ),
-        group: "functionality",
-      });
-    if ((page.loadTimeMs || 0) >= 3000)
-      issues.push({
-        type: "slow_load",
-        label: T(
-          `Carga lenta (${page.loadTimeMs} ms)`,
-          `Slow load (${page.loadTimeMs} ms)`,
-        ),
-        group: "functionality",
-      });
-
-    // Noindex
-    if (m.noindex)
-      issues.push({
-        type: "noindex",
-        label: T("Noindex activo", "Noindex active"),
-        group: "errors",
-      });
-
-    // Canonical mismatch
-    if (m.canonical && !sameUrlLoose(m.canonical, page.finalUrl || page.url))
-      issues.push({
-        type: "canonical",
-        label: T(
-          "Canonical apunta a otra URL",
-          "Canonical points to different URL",
-        ),
-        group: "errors",
-      });
-
-    // --- Enhanced issue types ---
-
-    // Missing viewport (mobile-friendliness)
-    if (!m.hasViewport)
-      issues.push({
-        type: "no_viewport",
-        label: T("Sin meta viewport", "No viewport meta tag"),
-        group: "technical",
-      });
-
-    // Missing charset
-    if (!m.hasCharset)
-      issues.push({
-        type: "no_charset",
-        label: T("Sin charset definido", "No charset defined"),
-        group: "technical",
-      });
-
-    // Missing Open Graph
-    if (!m.og?.hasOg)
-      issues.push({
-        type: "no_og",
-        label: T("Sin Open Graph tags", "No Open Graph tags"),
-        group: "social",
-      });
-
-    // Missing Twitter Card
-    if (!m.twitter?.hasTwitterCard)
-      issues.push({
-        type: "no_twitter_card",
-        label: T("Sin Twitter Card", "No Twitter Card"),
-        group: "social",
-      });
-
-    // No structured data
-    if (!m.structuredData?.hasStructuredData)
-      issues.push({
-        type: "no_structured_data",
-        label: T("Sin datos estructurados (JSON-LD)", "No structured data (JSON-LD)"),
-        group: "technical",
-      });
-
-    // Render-blocking resources
-    if ((m.resources?.renderBlockingJs || 0) > 0)
-      issues.push({
-        type: "render_blocking_js",
-        label: T(
-          `${m.resources.renderBlockingJs} script(s) bloquean renderizado`,
-          `${m.resources.renderBlockingJs} render-blocking script(s)`,
-        ),
-        group: "performance",
-      });
-    if ((m.resources?.renderBlockingCss || 0) > 2)
-      issues.push({
-        type: "render_blocking_css",
-        label: T(
-          `${m.resources.renderBlockingCss} CSS bloquean renderizado`,
-          `${m.resources.renderBlockingCss} render-blocking CSS`,
-        ),
-        group: "performance",
-      });
-
-    // Low word count (thin content)
-    if (!m.isJsRendered && (m.wordCount || 0) > 0 && m.wordCount < 300)
-      issues.push({
-        type: "thin_content",
-        label: T(
-          `Contenido escaso (${m.wordCount} palabras)`,
-          `Thin content (${m.wordCount} words)`,
-        ),
-        group: "content",
-      });
-
-    // Large HTML size
-    if ((m.htmlSizeBytes || 0) > 200000)
-      issues.push({
-        type: "large_html",
-        label: T(
-          `HTML pesado (${Math.round(m.htmlSizeBytes / 1024)} KB)`,
-          `Large HTML (${Math.round(m.htmlSizeBytes / 1024)} KB)`,
-        ),
-        group: "performance",
-      });
-
-    // Google Tools
-    if (!m.googleTools?.hasGTM)
-      issues.push({
-        type: "no_gtm",
-        label: T("Sin Google Tag Manager", "No Google Tag Manager"),
-        group: "google_tools",
-      });
-    if (!m.googleTools?.hasGA4)
-      issues.push({
-        type: "no_ga4",
-        label: T("Sin GA4", "No GA4"),
-        group: "google_tools",
-      });
-
-    // HTML lang attribute
-    if (!m.pageLang)
-      issues.push({
-        type: "html_no_lang",
-        label: T("HTML sin atributo lang", "HTML missing lang attribute"),
-        group: "technical",
-      });
-
-    // Favicon
-    if (!m.hasFavicon)
-      issues.push({
-        type: "no_favicon",
-        label: T("Sin favicon", "No favicon"),
-        group: "technical",
-      });
-
-    // Title equals description
-    if (
-      m.title &&
-      m.description &&
-      m.title.toLowerCase().trim() === m.description.toLowerCase().trim()
-    )
-      issues.push({
-        type: "title_equals_desc",
-        label: T("Title igual a meta description", "Title equals meta description"),
-        group: "content",
-      });
-
-    // URL too long
-    if ((page.url || "").length > 115)
-      issues.push({
-        type: "url_too_long",
-        label: T(
-          `URL muy larga (${page.url.length} chars)`,
-          `URL too long (${page.url.length} chars)`,
-        ),
-        group: "technical",
-      });
-
-    // URL depth > 5 path segments
-    (() => {
-      try {
-        const segments = new URL(page.url).pathname.split("/").filter(Boolean);
-        if (segments.length > 5)
-          issues.push({
-            type: "url_deep",
-            label: T(
-              `URL muy profunda (${segments.length} niveles)`,
-              `URL too deep (${segments.length} levels)`,
-            ),
-            group: "technical",
-          });
-      } catch {}
-    })();
-
-    // Broken external links
-    if ((page.brokenExternalLinks || []).length > 0)
-      issues.push({
-        type: "broken_external_link",
-        label: T(
-          `${page.brokenExternalLinks.length} enlace(s) externo(s) roto(s)`,
-          `${page.brokenExternalLinks.length} broken external link(s)`,
-        ),
-        group: "functionality",
-      });
-  }
-
-  return issues;
+  return crawlAnalysis.buildPageIssues(page, crawlLang);
 }
 
 // --- Site Architecture Analysis ---
@@ -3830,6 +3238,10 @@ app.post("/api/projects", requireAuth, async (req, res) => {
 });
 
 app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
+  const { page, limit, skip } = parsePaginationParams(req.query, {
+    defaultLimit: 5,
+    maxLimit: 5,
+  });
   const project = await prisma.project.findFirst({
     where: {
       id: req.params.projectId,
@@ -3841,9 +3253,11 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
       targetUrl: true,
       createdAt: true,
       updatedAt: true,
+      _count: { select: { crawlRuns: true } },
       crawlRuns: {
         orderBy: { createdAt: "desc" },
-        take: 12,
+        skip,
+        take: limit,
         select: {
           id: true,
           status: true,
@@ -3865,8 +3279,10 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
   setPrivateApiCache(res, 20, 90);
   res.json({
     viewer: sanitizeUser(req.user),
+    pagination: buildPaginationMeta(project._count.crawlRuns, page, limit),
     project: {
       ...project,
+      runCount: project._count.crawlRuns,
       crawlRuns: project.crawlRuns.map((run) => {
         const sourceType = normalizeRunSourceType(run.sourceType);
         return {
@@ -4057,6 +3473,7 @@ app.get(
         sourceUrl: true,
         downloadName: true,
         createdAt: true,
+        stats: true,
       },
     });
 
@@ -4072,6 +3489,7 @@ app.get(
       run.sourceUrl,
       duplicates,
       crawlLang,
+      run.stats || null,
     );
     const downloadName =
       run.downloadName || buildReportFileName(run.sourceUrl, run.createdAt);
@@ -4572,6 +3990,11 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const checkExt = req.query.external === "1";
   const crawlLang = req.query.lang || "es";
   const projectId = String(req.query.projectId || "");
+  const renderMode = String(req.query.renderMode || "auto").toLowerCase();
+  const renderDelayMs = Math.max(0, parseInt(req.query.renderDelayMs) || Number(process.env.CRAWL_RENDER_DELAY_MS || 7000));
+  const renderScrollSteps = Math.max(1, parseInt(req.query.renderScrollSteps) || 12);
+  const renderScrollPauseMs = Math.max(50, parseInt(req.query.renderScrollPauseMs) || 200);
+  const renderScrollStepPx = Math.max(200, parseInt(req.query.renderScrollStepPx) || 900);
 
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
   if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
@@ -4633,14 +4056,12 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   const queue = [];
   let active = 0;
   let cancelled = false;
-  const JS_RENDER_CAP = 20;
-  let jsRenderCount = 0;
   const canJsCrawl = hasFeature(sub, "js_crawl") && !!process.env.BROWSERLESS_TOKEN;
 
   // Robots
-  const { disallowed, hasSitemap, sitemapUrls, rawContent } =
+  const { disallowed, hasSitemap, sitemapUrls, rawContent, analysis: robotsAnalysis } =
     await fetchRobots(startUrl);
-  send("robots", { disallowed, hasSitemap, sitemapUrls, rawContent });
+  send("robots", { disallowed, hasSitemap, sitemapUrls, rawContent, analysis: robotsAnalysis });
 
   // Domain info snapshot for persistence and replay on historical runs
   const domainInfo = await fetchSiteInfo(startUrl).catch(() => null);
@@ -4699,17 +4120,42 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
 
       const statusCode = raw.statusCode;
       const finalUrl = currentUrl !== url ? currentUrl : "";
-      let meta = raw.body ? extractMeta(raw.body, currentUrl || url) : null;
-      let links = raw.body ? extractLinks(raw.body, currentUrl || url) : [];
+      const analysisUrl = currentUrl || url;
+      let analysisSource = "http";
+      let analysisBody = raw.body || "";
+      let meta = analysisBody ? extractMeta(analysisBody, analysisUrl) : null;
+      let links = analysisBody ? extractLinks(analysisBody, analysisUrl) : [];
 
-      if (meta?.isJsRendered && canJsCrawl && jsRenderCount < JS_RENDER_CAP) {
-        jsRenderCount++;
-        const renderedHtml = await fetchWithBrowserless(currentUrl || url);
+      const shouldRender =
+        canJsCrawl &&
+        renderMode !== "http" &&
+        (
+          renderMode === "rendered" ||
+          !meta ||
+          meta.isJsRendered ||
+          !meta.h1s?.length ||
+          !meta.title ||
+          !meta.description ||
+          (meta.wordCount || 0) < 150
+        );
+
+      if (shouldRender) {
+        const renderStartedAt = Date.now();
+        const renderedHtml = await fetchWithBrowserless(analysisUrl, {
+          postLoadDelayMs: renderDelayMs,
+          scrollStepPx: renderScrollStepPx,
+          scrollPauseMs: renderScrollPauseMs,
+          maxScrollSteps: renderScrollSteps,
+        });
+        totalLoadTimeMs += Date.now() - renderStartedAt;
         if (renderedHtml) {
-          meta = extractMeta(renderedHtml, currentUrl || url);
-          links = extractLinks(renderedHtml, currentUrl || url);
+          analysisSource = "rendered";
+          analysisBody = renderedHtml;
+          meta = extractMeta(renderedHtml, analysisUrl);
+          links = extractLinks(renderedHtml, analysisUrl);
         }
       }
+      meta = meta ? { ...meta, pageUrl: analysisUrl, url: analysisUrl, analysisSource } : null;
 
       for (const link of links) {
         const key = normalizeForCompare(link);
@@ -4794,6 +4240,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         weakNavigation: meta?.weakNavigation || false,
         pageLang: meta?.pageLang || "",
         meta,
+        analysisSource,
         timeout: raw.timeout || false,
         error: raw.error || "",
         blocked,
@@ -4805,7 +4252,10 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         seoQuality,
       };
       page.issues = getIssues(page, crawlLang);
-      page.keywords = keywordLimit > 0 && raw.body ? extractKeywords(raw.body, meta, keywordLimit) : [];
+      page.keywords = keywordLimit > 0 && analysisBody ? extractKeywords(analysisBody, meta, keywordLimit) : [];
+      const keywordGuidance = buildKeywordGuidance(page, keywordLimit, crawlLang);
+      page.keywordSuggestions = keywordGuidance.keywordSuggestions;
+      page.keywordLocked = keywordGuidance.keywordLocked;
 
       if (meta?.title) {
         const t = meta.title.toLowerCase();
@@ -4851,6 +4301,11 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         pageLang: meta?.pageLang || "",
         brokenExternalLinks,
         seoQuality,
+        googleTools: meta?.googleTools || null,
+        keywords: page.keywords || [],
+        keywordSuggestions: page.keywordSuggestions || [],
+        keywordLocked: page.keywordLocked || false,
+        analysisSource,
         // Enhanced fields
         resources: meta?.resources || null,
         htmlSizeBytes: meta?.htmlSizeBytes || 0,
@@ -4868,7 +4323,6 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
           group: i.group,
         })),
         hasIssues: page.issues.length > 0,
-        keywords: page.keywords || [],
         total: results.length,
         queued: queue.length,
       });
@@ -4885,75 +4339,92 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
     await new Promise((r) => setTimeout(r, 80));
   }
 
+  const normalizedResults = dedupeStoredRunPages(results);
+  const titleMapByNormalizedResults = new Map();
+  for (const page of normalizedResults) {
+    const title = String(page?.title || "").trim().toLowerCase();
+    if (!title) continue;
+    if (!titleMapByNormalizedResults.has(title)) titleMapByNormalizedResults.set(title, []);
+    titleMapByNormalizedResults.get(title).push(page.finalUrl || page.url);
+  }
+
   const duplicates = [];
-  for (const [title, urls] of titleMap.entries()) {
-    if (urls.length > 1) duplicates.push({ title, urls });
+  for (const [title, urls] of titleMapByNormalizedResults.entries()) {
+    const uniqueUrls = normalizeStringList(urls);
+    if (uniqueUrls.length > 1) duplicates.push({ title, urls: uniqueUrls });
   }
 
   // --- Site Architecture Analysis ---
-  const architecture = buildSiteArchitecture(results, startUrl);
+  const architecture = buildSiteArchitecture(normalizedResults, startUrl);
   if (!cancelled) {
     send("architecture", architecture);
   }
 
   if (!cancelled) {
+    const sitemapAnalysis = crawlAnalysis.analyzeSitemapSnapshot({
+      sitemapUrls,
+      disallowed,
+      pages: normalizedResults,
+      siteUrl: startUrl,
+    });
     const stats = {
-      404: results.filter((r) => r.statusCode === 404).length,
-      redirects: results.filter(
+      404: normalizedResults.filter((r) => r.statusCode === 404).length,
+      redirects: normalizedResults.filter(
         (r) => r.redirectTo && !sameUrlLoose(r.redirectTo, r.url),
       ).length,
-      titleIssues: results.filter((r) =>
+      titleIssues: normalizedResults.filter((r) =>
         r.issues.some((i) => i.group === "titles"),
       ).length,
-      descIssues: results.filter((r) =>
+      descIssues: normalizedResults.filter((r) =>
         r.issues.some((i) => i.group === "desc"),
       ).length,
-      h1Issues: results.filter((r) => r.issues.some((i) => i.group === "h1"))
+      h1Issues: normalizedResults.filter((r) => r.issues.some((i) => i.group === "h1"))
         .length,
-      imgIssues: results.filter((r) =>
+      imgIssues: normalizedResults.filter((r) =>
         r.issues.some((i) => i.group === "images"),
       ).length,
-      brokenImages: results.filter((r) => (r.brokenImageLinks || []).length)
+      brokenImages: normalizedResults.filter((r) => (r.brokenImageLinks || []).length)
         .length,
-      functionalityIssues: results.filter((r) =>
+      functionalityIssues: normalizedResults.filter((r) =>
         r.issues.some((i) => i.group === "functionality"),
       ).length,
-      buttonsNoLink: results.filter((r) => (r.meta?.buttonsNoLink || 0) > 0)
+      buttonsNoLink: normalizedResults.filter((r) => (r.meta?.buttonsNoLink || 0) > 0)
         .length,
-      brokenButtons: results.filter((r) => (r.brokenButtonLinks || []).length)
+      brokenButtons: normalizedResults.filter((r) => (r.brokenButtonLinks || []).length)
         .length,
-      placeholderLinks: results.filter(
+      placeholderLinks: normalizedResults.filter(
         (r) => (r.meta?.placeholderLinks || 0) > 0,
       ).length,
-      formsNoAction: results.filter((r) => (r.meta?.formsNoAction || 0) > 0)
+      formsNoAction: normalizedResults.filter((r) => (r.meta?.formsNoAction || 0) > 0)
         .length,
-      formsNoSubmit: results.filter((r) => (r.meta?.formsNoSubmit || 0) > 0)
+      formsNoSubmit: normalizedResults.filter((r) => (r.meta?.formsNoSubmit || 0) > 0)
         .length,
-      weakNavigation: results.filter((r) => r.meta?.weakNavigation).length,
-      slowLoad: results.filter((r) => (r.loadTimeMs || 0) >= 3000).length,
-      noindex: results.filter((r) => r.meta && r.meta.noindex).length,
-      blocked: results.filter((r) => r.blocked).length,
+      weakNavigation: normalizedResults.filter((r) => r.meta?.weakNavigation).length,
+      slowLoad: normalizedResults.filter((r) => (r.loadTimeMs || 0) >= 3000).length,
+      noindex: normalizedResults.filter((r) => r.meta && r.meta.noindex).length,
+      blocked: normalizedResults.filter((r) => r.blocked).length,
       duplicates: duplicates.length,
-      headingSkips: results.filter((r) => r.meta?.headingSkips?.length > 0)
+      headingSkips: normalizedResults.filter((r) => r.meta?.headingSkips?.length > 0)
         .length,
       // Enhanced stats
-      noViewport: results.filter((r) => r.issues.some((i) => i.type === "no_viewport")).length,
-      noCharset: results.filter((r) => r.issues.some((i) => i.type === "no_charset")).length,
-      noOg: results.filter((r) => r.issues.some((i) => i.type === "no_og")).length,
-      noTwitterCard: results.filter((r) => r.issues.some((i) => i.type === "no_twitter_card")).length,
-      noStructuredData: results.filter((r) => r.issues.some((i) => i.type === "no_structured_data")).length,
-      renderBlockingJs: results.filter((r) => r.issues.some((i) => i.type === "render_blocking_js")).length,
-      renderBlockingCss: results.filter((r) => r.issues.some((i) => i.type === "render_blocking_css")).length,
-      thinContent: results.filter((r) => r.issues.some((i) => i.type === "thin_content")).length,
-      largeHtml: results.filter((r) => r.issues.some((i) => i.type === "large_html")).length,
+      noViewport: normalizedResults.filter((r) => r.issues.some((i) => i.type === "no_viewport")).length,
+      noCharset: normalizedResults.filter((r) => r.issues.some((i) => i.type === "no_charset")).length,
+      noOg: normalizedResults.filter((r) => r.issues.some((i) => i.type === "no_og")).length,
+      noTwitterCard: normalizedResults.filter((r) => r.issues.some((i) => i.type === "no_twitter_card")).length,
+      noStructuredData: normalizedResults.filter((r) => r.issues.some((i) => i.type === "no_structured_data")).length,
+      renderBlockingJs: normalizedResults.filter((r) => r.issues.some((i) => i.type === "render_blocking_js")).length,
+      renderBlockingCss: normalizedResults.filter((r) => r.issues.some((i) => i.type === "render_blocking_css")).length,
+      thinContent: normalizedResults.filter((r) => r.issues.some((i) => i.type === "thin_content")).length,
+      largeHtml: normalizedResults.filter((r) => r.issues.some((i) => i.type === "large_html")).length,
       orphanPages: architecture.orphanCount,
       maxDepth: architecture.maxDepth,
-      withKeywords: results.filter((r) => (r.keywords || []).length > 0).length,
+      withKeywords: normalizedResults.filter((r) => (r.keywords || []).length > 0).length,
       architecture,
       domainInfo: domainInfo || null,
-      robots: { disallowed, hasSitemap, sitemapUrls, rawContent },
+      robots: { disallowed, hasSitemap, sitemapUrls, rawContent, analysis: robotsAnalysis },
+      sitemap: sitemapAnalysis,
     };
-    const withIssues = results.filter((r) => r.issues.length > 0).length;
+    const withIssues = normalizedResults.filter((r) => r.issues.length > 0).length;
     const downloadName = buildReportFileName(startUrl);
     const createdRun = await prisma.$transaction(async (tx) => {
       const _monthStart = new Date();
@@ -4984,9 +4455,9 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
         select: { id: true },
       });
 
-      if (results.length) {
+      if (normalizedResults.length) {
         await tx.crawlRunPage.createMany({
-          data: results.map((page, index) => ({
+          data: normalizedResults.map((page, index) => ({
             runId: run.id,
             ...serializeRunPageRow(page, index),
           })),
@@ -5005,7 +4476,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
       return run;
     });
     send("done", {
-      total: results.length,
+      total: normalizedResults.length,
       withIssues,
       stats,
       duplicates,
@@ -5039,6 +4510,7 @@ async function generateExcelBuffer(
   siteUrl,
   duplicates,
   crawlLang = "es",
+  reportStats = null,
 ) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "SEO Crawler";
@@ -5292,6 +4764,34 @@ async function generateExcelBuffer(
       C.warnBg,
       null,
     ],
+    [null],
+    [T(" Google Tools ", " Google Tools "), "", null, null],
+    [
+      T("Con GTM", "With GTM"),
+      results.filter((r) => r.meta?.googleTools?.hasGTM).length,
+      C.okBg,
+      null,
+    ],
+    [
+      T("Con GA4", "With GA4"),
+      results.filter((r) => r.meta?.googleTools?.hasGA4).length,
+      C.okBg,
+      null,
+    ],
+    [null],
+    [T(" Sitemap & Robots ", " Sitemap & Robots "), "", null, null],
+    [
+      T("URLs bloqueadas en sitemap", "Blocked sitemap URLs"),
+      reportStats?.sitemap?.blockedCount || 0,
+      (reportStats?.sitemap?.blockedCount || 0) > 0 ? C.errorBg : C.okBg,
+      null,
+    ],
+    [
+      T("URLs noindex en sitemap", "Noindex sitemap URLs"),
+      reportStats?.sitemap?.noindexCount || 0,
+      (reportStats?.sitemap?.noindexCount || 0) > 0 ? C.warnBg : C.okBg,
+      null,
+    ],
   ];
 
   let row = 5;
@@ -5355,6 +4855,10 @@ async function generateExcelBuffer(
     { header: T("Tiempo ms", "Load ms"), key: "loadms", width: 10 },
     { header: "OG", key: "og", width: 6 },
     { header: "JSON-LD", key: "jsonld", width: 8 },
+    { header: "GTM", key: "gtm", width: 7 },
+    { header: "GA4", key: "ga4", width: 7 },
+    { header: "GTM IDs", key: "gtmids", width: 18 },
+    { header: "GA4 IDs", key: "ga4ids", width: 18 },
     { header: "Viewport", key: "viewport", width: 9 },
     { header: T("JS bloq.", "Block JS"), key: "blockjs", width: 9 },
   ];
@@ -5383,6 +4887,10 @@ async function generateExcelBuffer(
       loadms: p.loadTimeMs || 0,
       og: p.meta?.og?.hasOg ? "✓" : "✗",
       jsonld: p.meta?.structuredData?.hasStructuredData ? "✓" : "✗",
+      gtm: p.meta?.googleTools?.hasGTM ? "✓" : "✗",
+      ga4: p.meta?.googleTools?.hasGA4 ? "✓" : "✗",
+      gtmids: (p.meta?.googleTools?.gtmIds || []).join(", "),
+      ga4ids: (p.meta?.googleTools?.ga4Ids || []).join(", "),
       viewport: p.meta?.hasViewport ? "✓" : "✗",
       blockjs: p.meta?.resources?.renderBlockingJs || 0,
     });

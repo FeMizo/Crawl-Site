@@ -152,6 +152,32 @@ body.feature-locked-excel #dlb { display: none !important; }
             <option value="1000">1s</option>
             <option value="2000">2s</option>
           </select>
+          <span class="al" style="margin-left:8px;" data-i18n="renderDelay">Delay post-load</span>
+          <select class="csel" id="renderDelay" style="padding:6px 8px;font-size:13px;">
+            <option value="5000">5s</option>
+            <option value="7000" selected>7s</option>
+            <option value="10000">10s</option>
+          </select>
+          <span class="al" style="margin-left:8px;" data-i18n="renderMode">Modo de render</span>
+          <select class="csel" id="renderMode" style="padding:6px 8px;font-size:13px;">
+            <option value="auto" data-i18n="renderModeAuto">Auto</option>
+            <option value="rendered" data-i18n="renderModeRendered">Rendered</option>
+            <option value="http" data-i18n="renderModeHttp">HTTP</option>
+          </select>
+          <div class="adv-help" aria-label="Ayuda sobre modos y retrasos">
+            <div class="adv-help-title" data-i18n="advHelpTitle">Guia rapida</div>
+            <div class="adv-help-body" data-i18n="renderModeHelp">
+              Auto decide segun el sitio. Renderizado ejecuta JavaScript. HTTP lee el HTML sin render.
+            </div>
+            <div class="adv-help-tags">
+              <span class="adv-help-tag" data-i18n="rateDelayHelp">
+                rateDelay: pausa entre solicitudes para no saturar el sitio.
+              </span>
+              <span class="adv-help-tag" data-i18n="renderDelayHelp">
+                renderDelay: espera antes de leer el DOM despues de cargar.
+              </span>
+            </div>
+          </div>
           <label class="chk"><input type="checkbox" id="checkExt"> <span data-i18n="checkExt">Verificar links
               externos</span></label>
         </div>
@@ -299,10 +325,10 @@ body.feature-locked-excel #dlb { display: none !important; }
             <button class="tbtn" onclick="goTab('images',this)"><span>&#128444;&#65039; <span data-i18n="tabImages">Imagenes</span></span> <span class="tc" id="tc-images">0</span></button>
             <button class="tbtn" onclick="goTab('errors',this)"><span>&#128308; <span data-i18n="tabErrors">Errores</span></span> <span class="tc" id="tc-errors">0</span></button>
             <button class="tbtn" onclick="goTab('dup',this)"><span>&#128257; <span data-i18n="tabDup">Duplicados</span></span> <span class="tc" id="tc-dup">0</span></button>
+            <button class="tbtn" onclick="goTab('keywords',this)"><span>&#128273; <span data-i18n="tabKeywords">Keywords</span></span> <span class="tc" id="tc-keywords">0</span></button>
             <button class="tbtn" onclick="goTab('robots',this)"><span>&#129302;&#65039; Robots.txt</span></button>
             <button class="tbtn" onclick="goTab('googletools',this)"><span>&#128202; Google Tools</span></button>
             <button class="tbtn" onclick="goTab('sitemap',this)"><span>&#128506;&#65039; Sitemap.xml</span></button>
-            <button class="tbtn" onclick="goTab('keywords',this)"><span>&#128273; <span data-i18n="tabKeywords">Keywords</span></span> <span class="tc" id="tc-keywords">0</span></button>
           </div>
 
           <!-- Redundant cards hidden but kept for DOM references -->

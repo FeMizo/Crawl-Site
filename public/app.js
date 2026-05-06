@@ -9,7 +9,19 @@ const L = {
     advOpts: "Opciones avanzadas",
     source: "Fuente",
     rateLimit: "Rate limit",
+    renderDelay: "Delay post-load",
     noDelay: "Sin delay",
+    renderMode: "Modo de render",
+    renderModeAuto: "Auto",
+    renderModeRendered: "Renderizado",
+    renderModeHttp: "HTTP",
+    advHelpTitle: "Guia rapida",
+    renderModeHelp:
+      "Auto decide segun el sitio. Renderizado ejecuta JavaScript. HTTP lee el HTML sin render.",
+    rateDelayHelp:
+      "rateDelay: pausa entre solicitudes para no saturar el sitio.",
+    renderDelayHelp:
+      "renderDelay: espera antes de leer el DOM despues de cargar.",
     checkExt: "Verificar links externos",
     analyzed: "Analizadas",
     withIssues: "Con problemas",
@@ -243,7 +255,19 @@ const L = {
     advOpts: "Advanced options",
     source: "Source",
     rateLimit: "Rate limit",
+    renderDelay: "Post-load delay",
     noDelay: "No delay",
+    renderMode: "Render mode",
+    renderModeAuto: "Auto",
+    renderModeRendered: "Rendered",
+    renderModeHttp: "HTTP",
+    advHelpTitle: "Quick guide",
+    renderModeHelp:
+      "Auto chooses based on the site. Rendered runs JavaScript. HTTP reads raw HTML without rendering.",
+    rateDelayHelp:
+      "rateDelay: pause between requests so the site is not overloaded.",
+    renderDelayHelp:
+      "renderDelay: wait before reading the DOM after load.",
     checkExt: "Check external links",
     analyzed: "Analyzed",
     withIssues: "With issues",
@@ -480,8 +504,12 @@ let currentTheme =
     window.localStorage.getItem("seoCrawlerTheme")) ||
   document.documentElement.getAttribute("data-theme") ||
   "dark";
-const crawlState = { pages: [], duplicates: [], robots: null, hosting: null };
+const crawlState = { pages: [], duplicates: [], robots: null, sitemap: null, hosting: null };
 let crawlSearchTerm = "";
+let crawlRenderMode =
+  (typeof window !== "undefined" &&
+    window.localStorage.getItem("seoCrawlerRenderMode")) ||
+  "auto";
 let allTablePageSize = 20;
 let allTablePage = 1;
 let currentProject = null;
@@ -525,7 +553,7 @@ function updateDownloadUi(downloadUrl, fileName, total, withIssues) {
   link.href = downloadUrl;
   sv(
     "dldesc",
-    `${total || 0}  ${withIssues || 0} ${T("withIssues")}  ${fileName || "seo-report.xlsx"}`,
+    `${total || 0} / ${withIssues || 0} ${T("withIssues")}  ${fileName || "seo-report.xlsx"}`,
   );
   dl.style.display = "flex";
 }
@@ -537,6 +565,24 @@ function normalizeInputUrl(u) {
     return x.toString();
   } catch {
     return "";
+  }
+}
+
+function normalizeRenderMode(value) {
+  const mode = String(value || "").toLowerCase();
+  return ["auto", "rendered", "http"].includes(mode) ? mode : "auto";
+}
+
+function setRenderMode(mode, persist = true) {
+  crawlRenderMode = normalizeRenderMode(mode);
+  const select = document.getElementById("renderMode");
+  if (select && select.value !== crawlRenderMode) {
+    select.value = crawlRenderMode;
+  }
+  if (persist) {
+    try {
+      window.localStorage.setItem("seoCrawlerRenderMode", crawlRenderMode);
+    } catch {}
   }
 }
 
@@ -881,6 +927,7 @@ function resetState() {
   crawlState.pages = [];
   crawlState.duplicates = [];
   crawlState.robots = null;
+  crawlState.sitemap = null;
   crawlState.hosting = null;
   window.__selectedSeoPage = null;
   document.querySelectorAll(".sv").forEach((el) => (el.textContent = "0"));
@@ -919,6 +966,21 @@ function rerenderTablesFromState() {
   applyUrlSearchFilter();
 }
 
+function normalizeStringList(values) {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+  }
+  return out;
+}
+
 function normalizeSavedPage(page) {
   if (!page || typeof page !== "object") return page;
 
@@ -939,9 +1001,15 @@ function normalizeSavedPage(page) {
     : Array.isArray(meta.headingSkips)
       ? meta.headingSkips
       : [];
+  const googleTools = page.googleTools && typeof page.googleTools === "object"
+    ? page.googleTools
+    : meta.googleTools && typeof meta.googleTools === "object"
+      ? meta.googleTools
+      : null;
 
   return {
     ...page,
+    issues: Array.isArray(page.issues) ? page.issues : [],
     title,
     titleLen: Number(page.titleLen ?? meta.titleLen ?? title.length ?? 0),
     description,
@@ -982,17 +1050,156 @@ function normalizeSavedPage(page) {
         : [],
     mainNavLinks: Number(page.mainNavLinks ?? meta.mainNavLinks ?? 0),
     weakNavigation: Boolean(page.weakNavigation ?? meta.weakNavigation ?? false),
-    brokenButtonLinks: Array.isArray(page.brokenButtonLinks)
-      ? page.brokenButtonLinks
-      : [],
+    brokenButtonLinks: normalizeStringList(page.brokenButtonLinks || []),
     brokenButtonDetails: Array.isArray(page.brokenButtonDetails)
       ? page.brokenButtonDetails
       : [],
-    brokenImageLinks: Array.isArray(page.brokenImageLinks)
-      ? page.brokenImageLinks
-      : [],
+    brokenImageLinks: normalizeStringList(page.brokenImageLinks || []),
+    keywords: normalizeStringList(page.keywords || meta.keywords || []),
+    keywordSuggestions: normalizeStringList(
+      page.keywordSuggestions || meta.keywordSuggestions || [],
+    ),
+    keywordLocked: Boolean(page.keywordLocked ?? meta.keywordLocked ?? false),
+    seoQuality: page.seoQuality && typeof page.seoQuality === "object"
+      ? page.seoQuality
+      : meta.seoQuality && typeof meta.seoQuality === "object"
+        ? meta.seoQuality
+        : null,
+    googleTools: googleTools
+      ? {
+          ...googleTools,
+          gtmIds: normalizeStringList(googleTools.gtmIds || []),
+          ga4Ids: normalizeStringList(googleTools.ga4Ids || []),
+        }
+      : null,
+    analysisSource: page.analysisSource || meta.analysisSource || null,
     loadTimeMs: Number(page.loadTimeMs ?? 0),
   };
+}
+
+function getSavedPageKey(page) {
+  const value = String(page?.finalUrl || page?.url || "").trim();
+  if (!value) return "";
+  try {
+    const normalized = new URL(value);
+    normalized.hash = "";
+    if (normalized.pathname.length > 1 && normalized.pathname.endsWith("/")) {
+      normalized.pathname = normalized.pathname.slice(0, -1);
+    }
+    return normalized.toString().toLowerCase();
+  } catch {
+    return value.toLowerCase().replace(/\/$/, "");
+  }
+}
+
+function getSavedPageScore(page) {
+  if (!page || typeof page !== "object") return 0;
+  return [
+    normalizeStringList(page.keywords || []).length * 8,
+    normalizeStringList(page.keywordSuggestions || []).length * 2,
+    String(page.title || "").trim() ? 4 : 0,
+    String(page.description || "").trim() ? 3 : 0,
+    Array.isArray(page.issues) ? page.issues.length : 0,
+    Number(page.loadTimeMs || 0) > 0 ? 1 : 0,
+  ].reduce((sum, value) => sum + value, 0);
+}
+
+function mergeSavedPageRecords(existing, incoming) {
+  const base = normalizeSavedPage(existing);
+  const next = normalizeSavedPage(incoming);
+  if (!base) return next;
+  if (!next) return base;
+
+  const preferred = getSavedPageScore(next) >= getSavedPageScore(base) ? next : base;
+  const mergedIssues = normalizeStringList([
+    ...(Array.isArray(base.issues) ? base.issues : []).map((issue) => JSON.stringify(issue)),
+    ...(Array.isArray(next.issues) ? next.issues : []).map((issue) => JSON.stringify(issue)),
+  ])
+    .map((item) => {
+      try {
+        return JSON.parse(item);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return {
+    ...base,
+    ...next,
+    ...preferred,
+    seoQuality: preferred.seoQuality || base.seoQuality || next.seoQuality || null,
+    googleTools: preferred.googleTools || base.googleTools || next.googleTools || null,
+    keywords: normalizeStringList([...(base.keywords || []), ...(next.keywords || [])]),
+    keywordSuggestions: normalizeStringList([
+      ...(base.keywordSuggestions || []),
+      ...(next.keywordSuggestions || []),
+    ]),
+    brokenButtonLinks: normalizeStringList([
+      ...(base.brokenButtonLinks || []),
+      ...(next.brokenButtonLinks || []),
+    ]),
+    brokenImageLinks: normalizeStringList([
+      ...(base.brokenImageLinks || []),
+      ...(next.brokenImageLinks || []),
+    ]),
+    issues: mergedIssues,
+    analysisSource: preferred.analysisSource || base.analysisSource || next.analysisSource || null,
+  };
+}
+
+function dedupeSavedPages(pages) {
+  const byKey = new Map();
+  for (const raw of Array.isArray(pages) ? pages : []) {
+    const page = normalizeSavedPage(raw);
+    if (!page) continue;
+    const key = getSavedPageKey(page);
+    if (!key) continue;
+    if (!byKey.has(key)) {
+      byKey.set(key, page);
+    } else {
+      byKey.set(key, mergeSavedPageRecords(byKey.get(key), page));
+    }
+  }
+  return [...byKey.values()];
+}
+
+function dedupeSavedDuplicates(duplicates) {
+  const byTitle = new Map();
+  for (const raw of Array.isArray(duplicates) ? duplicates : []) {
+    if (!raw || typeof raw !== "object") continue;
+    const title = String(raw.title || "").trim();
+    if (!title) continue;
+    const key = title.toLowerCase();
+    const urls = normalizeStringList(raw.urls || []);
+    if (!byTitle.has(key)) {
+      byTitle.set(key, { title, urls });
+      continue;
+    }
+    byTitle.set(key, {
+      title: byTitle.get(key).title || title,
+      urls: normalizeStringList([...(byTitle.get(key).urls || []), ...urls]),
+    });
+  }
+  return [...byTitle.values()];
+}
+
+function upsertLiveCrawlPage(page) {
+  const normalized = normalizeSavedPage(page);
+  const key = getSavedPageKey(normalized);
+  if (!key) {
+    crawlState.pages.push(normalized);
+    return false;
+  }
+
+  const index = crawlState.pages.findIndex((item) => getSavedPageKey(item) === key);
+  if (index === -1) {
+    crawlState.pages.push(normalized);
+    return false;
+  }
+
+  crawlState.pages[index] = mergeSavedPageRecords(crawlState.pages[index], normalized);
+  return true;
 }
 
 async function fetchRunCollection(runId, resource) {
@@ -1117,16 +1324,19 @@ async function applySavedRun(run) {
     return run;
   }
 
-  crawlState.pages = loadedPages;
-  crawlState.duplicates = loadedDuplicates;
+  const mergedPages = dedupeSavedPages(loadedPages);
+  const mergedDuplicates = dedupeSavedDuplicates(loadedDuplicates);
+
+  crawlState.pages = mergedPages;
+  crawlState.duplicates = mergedDuplicates;
   rerenderTablesFromState();
   if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
   updateAggregateSgStats();
   updateCrawlButtonLabel();
   return {
     ...run,
-    pages: loadedPages,
-    duplicates: loadedDuplicates,
+    pages: mergedPages,
+    duplicates: mergedDuplicates,
   };
 }
 
@@ -1137,6 +1347,10 @@ function startCrawl() {
   const url = document.getElementById("urlInput").value.trim();
   const max = document.getElementById("maxPg").value;
   const rate = document.getElementById("rateDelay").value;
+  const renderDelay = document.getElementById("renderDelay")?.value || "";
+  const renderMode = normalizeRenderMode(
+    document.getElementById("renderMode")?.value || crawlRenderMode,
+  );
   const ext = document.getElementById("checkExt").checked ? "1" : "0";
   const projectId = currentProject?.id || "";
   if (!url) {
@@ -1190,6 +1404,8 @@ function startCrawl() {
     lang,
     projectId,
   });
+  if (renderDelay) qs.set("renderDelayMs", renderDelay);
+  qs.set("renderMode", renderMode);
 
   const maxPages = parseInt(max) || 50;
 
@@ -1243,8 +1459,21 @@ function startCrawl() {
   });
   es.addEventListener("page", (e) => {
     const p = JSON.parse(e.data);
-    crawlState.pages.push(p);
-    addPage(p);
+    const merged = upsertLiveCrawlPage(p);
+    if (merged) {
+      rerenderTablesFromState();
+      if (window.__selectedSeoPage) {
+        const selectedKey = getSavedPageKey(window.__selectedSeoPage);
+        const nextSelected = crawlState.pages.find((page) => getSavedPageKey(page) === selectedKey);
+        if (nextSelected) {
+          window.__selectedSeoPage = nextSelected;
+          showPageSEO(nextSelected);
+          showFunctionalityInfo(nextSelected);
+        }
+      }
+    } else {
+      addPage(normalizeSavedPage(p));
+    }
     sv("stxt", `${T("analyzing")}... ${p.total} / ${maxPages}  |  ${p.queued} ${T("queueLabel")}`);
     sv("sl-url", p.url || "");
     setProgress(p.total);
@@ -1256,6 +1485,14 @@ function startCrawl() {
     const d = JSON.parse(e.data);
     es.close();
     const s = d.stats;
+    if (s?.robots) {
+      crawlState.robots = s.robots;
+      renderRobots(s.robots);
+    }
+    if (s?.sitemap) {
+      crawlState.sitemap = s.sitemap;
+      renderSitemapTab();
+    }
     sv("vT", d.total);
     sv("vI", d.withIssues);
     updateAggregateSgStats();
@@ -1283,6 +1520,11 @@ function startCrawl() {
     hideProgress(true);
     btn.disabled = false;
     updateCrawlButtonLabel();
+    if (typeof window.__SEO_CRAWLER_AFTER_CRAWL__ === "function" && d.runId) {
+      try {
+        window.__SEO_CRAWLER_AFTER_CRAWL__(d.runId, d);
+      } catch {}
+    }
   });
   es.addEventListener("error", () => {
     es.close();
@@ -1667,6 +1909,57 @@ function buildSeoOptions(page) {
   return { title: [t1, t2], desc: [d1, d2] };
 }
 
+function buildKeywordGuidance(page) {
+  const keywords = normalizeStringList(page?.keywords || []);
+  const suggestions = normalizeStringList(page?.keywordSuggestions || []);
+  const locked = Boolean(page?.keywordLocked);
+
+  if (suggestions.length) {
+    return { keywords, suggestions, locked };
+  }
+
+  if (locked) {
+    return {
+      keywords,
+      locked,
+      suggestions: [
+        T("Tu plan no incluye sugerencias por keyword. Actualiza el plan para desbloquear este bloque y ver recomendaciones por página.", "Your plan does not include keyword suggestions. Upgrade to unlock this block and see per-page recommendations."),
+        T("Mientras tanto, prioriza title, H1, description y enlaces internos para reforzar la intención de búsqueda.", "Meanwhile, focus on title, H1, description, and internal links to strengthen search intent."),
+      ],
+    };
+  }
+
+  if (keywords.length) {
+    return {
+      keywords,
+      locked,
+      suggestions: keywords.slice(0, 3).flatMap((keyword, index) => {
+        const out = [
+          T(`Integra "${keyword}" en el title, el H1 y el primer párrafo.`, `Include "${keyword}" in the title, H1, and first paragraph.`),
+        ];
+        if (index === 0) {
+          out.push(
+            T(
+              `Refuerza "${keyword}" con enlaces internos y un subtítulo H2 relacionado.`,
+              `Reinforce "${keyword}" with internal links and a related H2 subtitle.`,
+            ),
+          );
+        }
+        return out;
+      }),
+    };
+  }
+
+  return {
+    keywords,
+    locked,
+    suggestions: [
+      T("No se detectaron keywords claras. Ajusta el contenido para una intención principal por URL.", "No clear keywords were detected. Adjust the content around one main intent per URL."),
+      T("Alinea title, H1 y meta description con el tema principal de la página.", "Align the title, H1, and meta description with the page's main topic."),
+    ],
+  };
+}
+
 function showPageSEO(p) {
   window.__selectedSeoPage = p;
   const q = p.seoQuality || {};
@@ -1677,6 +1970,9 @@ function showPageSEO(p) {
   const tl = p.titleLen || 0;
   const dl = p.descLen || 0;
   const opts = buildSeoOptions(p);
+  const keywordGuidance = buildKeywordGuidance(p);
+  const kwSuggestions = keywordGuidance.suggestions || [];
+  const kwKeywords = keywordGuidance.keywords || [];
 
   const scoreColor = (s) => s >= 70 ? "#00ff88" : s >= 40 ? "#f59e0b" : "#ff4d6a";
 
@@ -1731,6 +2027,11 @@ function showPageSEO(p) {
       ${options}
     </div>`;
 
+  const keywordPreview = kwKeywords.length
+    ? `<div class="kw-tags">${kwKeywords.map((w) => `<span class="kw-tag">${esc(w)}</span>`).join("")}</div>`
+    : `<div class="si-preview empty">${keywordGuidance.locked ? T("keywordsLocked") : T("noKeywords")}</div>`;
+  const keywordIssues = kwSuggestions.map((s, i) => iRow(keywordGuidance.locked && i === 0 ? "warn" : "ok", esc(s), i === 0 ? 2 : 1)).join("");
+
   const tLenIssue = lenIssue(tl, 30, 60,
     lang === "en" ? "Title missing" : "Título ausente",
     lang === "en" ? "Title too short" : "Título demasiado corto",
@@ -1750,8 +2051,7 @@ function showPageSEO(p) {
   const dIssues = iRow(dLenIssue.sev, dLenIssue.text, dLenIssue.gain)
     + dSugs.map((s, i) => iRow("warn", esc(lang === "en" ? s.en : s.es), sugGain(dScore, i))).join("");
 
-  const hTags = (p.headings || []).map(h => h.tag);
-  const h1Count = hTags.filter(t => t === "H1").length;
+  const h1Count = Array.isArray(p.h1s) ? p.h1s.length : (p.headings || []).filter((h) => Number(h.level) === 1).length;
   const hIssues = [
     h1Count === 0
       ? iRow("error", lang === "en" ? "H1 tag missing" : "Falta etiqueta H1", 3)
@@ -1784,6 +2084,14 @@ function showPageSEO(p) {
         : `<div class="si-preview empty">${T("noDesc")}</div>`,
       lenBar(dl, 120, 160), dIssues, optBlock(opts.desc)
     )}
+    <div class="si-section">
+      <div class="si-head">
+        <div class="si-icon" style="background:rgba(192,132,252,0.15);color:#c084fc">K</div>
+        <div class="si-title">${T("keywords")}</div>
+      </div>
+      ${keywordPreview}
+      <div class="si-issues">${keywordIssues}</div>
+    </div>
     <div class="si-section">
       <div class="si-head">
         <div class="si-icon" style="background:rgba(77,141,255,0.15);color:#4d8dff">#</div>
@@ -2365,11 +2673,15 @@ function renderRobots(d) {
         .map((r) => `<div class="ri ri-dis">Disallow: ${esc(r)}</div>`)
         .join("")
     : `<p style="color:var(--ok);font-size:13px;margin-bottom:10px;">${T("noPaths")}</p>`;
+  const suggestions = Array.isArray(d.analysis?.suggestions) && d.analysis.suggestions.length
+    ? `<p style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:14px 0 8px;">Sugerencias</p>${d.analysis.suggestions.map((s) => `<div class="ri ri-sm">${esc(s)}</div>`).join("")}`
+    : "";
   document.getElementById("robotsBox").innerHTML = `
     <p style="font-size:13px;color:var(--text2);margin-bottom:13px;font-weight:700;">${d.hasSitemap ? T("hasSitemap") : T("noSitemap")}</p>
     ${smH}
     <p style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin:${smH ? "14px" : 0} 0 8px;">${T("disallowedTitle")}</p>
     ${disH}
+    ${suggestions}
     ${d.rawContent ? `<details style="margin-top:12px;"><summary style="font-size:13px;color:var(--muted);cursor:pointer;letter-spacing:2px;text-transform:uppercase;">${T("rawTitle")}</summary><div class="ri-raw">${esc(d.rawContent)}</div></details>` : ""}`;
 }
 
@@ -2378,8 +2690,11 @@ function renderGoogleTools() {
   if (!box) return;
 
   const pages = crawlState.pages || [];
-  const hasGTM = pages.some((p) => p.meta?.googleTools?.hasGTM);
-  const hasGA4 = pages.some((p) => p.meta?.googleTools?.hasGA4);
+  const tools = pages.map((p) => p.googleTools || p.meta?.googleTools || null).filter(Boolean);
+  const hasGTM = tools.some((tool) => tool.hasGTM);
+  const hasGA4 = tools.some((tool) => tool.hasGA4);
+  const gtmIds = normalizeStringList(tools.flatMap((tool) => tool.gtmIds || []));
+  const ga4Ids = normalizeStringList(tools.flatMap((tool) => tool.ga4Ids || []));
 
   if (!pages.length) {
     box.innerHTML = `<p style="color:var(--muted);font-size:12px;">Esperando crawl...</p>`;
@@ -2394,6 +2709,8 @@ function renderGoogleTools() {
       <div class="seotools-group-label">Google Tools</div>
       ${hasGTM ? ok("Google Tag Manager (GTM) detectado") : warn("Sin Google Tag Manager — sin GTM no puedes disparar otros tags fácilmente")}
       ${hasGA4 ? ok("Google Analytics 4 (GA4) detectado") : warn("Sin GA4 — no hay medición de tráfico ni conversiones")}
+      ${gtmIds.length ? `<div class="seotools-row ok">ID(s) GTM: <span>${esc(gtmIds.join(", "))}</span></div>` : ""}
+      ${ga4Ids.length ? `<div class="seotools-row ok">ID(s) GA4: <span>${esc(ga4Ids.join(", "))}</span></div>` : ""}
     </div>`;
 }
 
@@ -2402,6 +2719,7 @@ function renderSitemapTab() {
   if (!box) return;
 
   const robots = crawlState.robots || {};
+  const sitemapAnalysis = crawlState.sitemap || robots.sitemapAnalysis || robots.analysis?.sitemap || null;
   const hasSitemap = !!robots.hasSitemap;
   const sitemapUrls = robots.sitemapUrls || [];
 
@@ -2416,6 +2734,16 @@ function renderSitemapTab() {
   const linksHtml = sitemapUrls.length
     ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">${sitemapUrls.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--blue);word-break:break-all;">${esc(u)}</a>`).join("")}</div>`
     : "";
+  const suggestions = Array.isArray(sitemapAnalysis?.suggestions) && sitemapAnalysis.suggestions.length
+    ? `<div style="margin-top:10px;"><p style="font-size:13px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Sugerencias</p>${sitemapAnalysis.suggestions.map((s) => `<div class="seotools-row warn">${esc(s)}</div>`).join("")}</div>`
+    : "";
+  const issues = sitemapAnalysis
+    ? `<div style="margin-top:10px;display:grid;gap:6px;font-size:13px;color:var(--muted);">
+        <div class="seotools-row ${sitemapAnalysis.blockedCount ? "warn" : "ok"}">URLs bloqueadas: ${sitemapAnalysis.blockedCount || 0}</div>
+        <div class="seotools-row ${sitemapAnalysis.noindexCount ? "warn" : "ok"}">URLs noindex: ${sitemapAnalysis.noindexCount || 0}</div>
+        <div class="seotools-row ${sitemapAnalysis.externalCount ? "warn" : "ok"}">URLs externas: ${sitemapAnalysis.externalCount || 0}</div>
+      </div>`
+    : "";
 
   box.innerHTML = `
     <div class="seotools-group">
@@ -2424,6 +2752,8 @@ function renderSitemapTab() {
         ? ok(`Sitemap detectado${sitemapUrls.length ? ` — ${sitemapUrls.length} archivo(s)` : ""}`)
         : warn("No se detectó sitemap.xml — necesario para indexación en buscadores")}
       ${linksHtml}
+      ${issues}
+      ${suggestions}
     </div>`;
 }
 
@@ -2436,10 +2766,14 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   // The param is deleted synchronously to prevent double-fire on re-renders.
   const params = new URLSearchParams(window.location.search || "");
   const initialUrl = (params.get("url") || "").trim();
+  const initialRenderMode = normalizeRenderMode(
+    params.get("renderMode") || crawlRenderMode,
+  );
   const autostart = params.get("autostart") === "1";
   const projectUrl = currentProject?.targetUrl || "";
   const resolvedInitialUrl = initialUrl || projectUrl;
   const input = document.getElementById("urlInput");
+  setRenderMode(initialRenderMode);
   if (input && resolvedInitialUrl) {
     input.value = resolvedInitialUrl;
     updateCrawlButtonLabel();
@@ -2458,6 +2792,13 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
       if (e.key === "Enter") startCrawl();
     });
   if (input) input.addEventListener("input", updateCrawlButtonLabel);
+  const renderModeSelect = document.getElementById("renderMode");
+  if (renderModeSelect) {
+    setSelectSize(renderModeSelect, "sm");
+    renderModeSelect.addEventListener("change", (e) => {
+      setRenderMode(e.target.value);
+    });
+  }
   const searchInput = document.getElementById("crawlSearch");
   const allPageSize = document.getElementById("allPageSize");
   if (allPageSize) {

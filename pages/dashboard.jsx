@@ -111,13 +111,12 @@ export default function DashboardPage() {
         const projectRuns = Array.isArray(projectPayload?.crawlRuns)
           ? projectPayload.crawlRuns
           : [];
-        const hasRequestedRun = !!runId && projectRuns.some((run) => run.id === runId);
-        const initialRunId = hasRequestedRun ? runId : (projectRuns[0]?.id || "");
+        const initialRunId = runId || (projectRuns[0]?.id || "");
 
         setProject(projectPayload);
         setActiveRunId(initialRunId);
 
-        if (initialRunId && initialRunId !== runId) {
+        if (!runId && initialRunId) {
           const nextUrl = new URL(window.location.href);
           nextUrl.searchParams.set("runId", initialRunId);
           window.history.replaceState({}, "", nextUrl.pathname + nextUrl.search);
@@ -206,6 +205,25 @@ export default function DashboardPage() {
   useEffect(() => {
     runCacheRef.current.clear();
   }, [project?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    window.__SEO_CRAWLER_AFTER_CRAWL__ = (nextRunId) => {
+      if (!nextRunId) return;
+      runCacheRef.current.clear();
+      setLoadError("");
+      setActiveRunId(nextRunId);
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("runId", nextRunId);
+      window.history.replaceState({}, "", nextUrl.pathname + nextUrl.search);
+      setRetryKey((current) => current + 1);
+    };
+
+    return () => {
+      delete window.__SEO_CRAWLER_AFTER_CRAWL__;
+    };
+  }, []);
 
   const renameProject = () => {
     if (!project) return;
@@ -304,8 +322,8 @@ export default function DashboardPage() {
           </>
         }
         aside={
-          <div className="dashboard-aside">
-            <StatCard label={t("statRuns")} value={project?.crawlRuns?.length || 0} hint={t("hintRecent")} tone="primary" icon={<Icon name="run" size={14} />} />
+        <div className="dashboard-aside">
+            <StatCard label={t("statRuns")} value={project?.runCount ?? project?.crawlRuns?.length ?? 0} hint={t("hintRecent")} tone="primary" icon={<Icon name="run" size={14} />} />
             <StatCard label={t("statProject")} value={project?.name || "--"} hint={t("hintActive")} tone="secondary" icon={<Icon name="projects" size={14} />} />
           </div>
         }

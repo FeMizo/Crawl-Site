@@ -4,11 +4,13 @@ import Eyebrow from "../ui/Eyebrow";
 import Icon from "../ui/Icon";
 
 export default function HistoryPanel({ project, activeRunId, openRun, formatDate, lang, t }) {
+  const runs = Array.isArray(project.crawlRuns) ? project.crawlRuns.slice(0, 5) : [];
+
   return (
     <Card className="history-panel">
       <Eyebrow icon={<Icon name="history" size={12} />}>{t("historyTitle")}</Eyebrow>
       <div className="history-list">
-        {project.crawlRuns?.map((run) => (
+        {runs.map((run) => (
           <button
             type="button"
             key={run.id}
@@ -22,7 +24,7 @@ export default function HistoryPanel({ project, activeRunId, openRun, formatDate
             <small>{run.sourceUrl}</small>
           </button>
         ))}
-        {!project.crawlRuns?.length ? <div className="history-empty">{t("noSavedHistory")}</div> : null}
+        {!runs.length ? <div className="history-empty">{t("noSavedHistory")}</div> : null}
       </div>
       <style jsx>{`
         :global(.history-panel) {
