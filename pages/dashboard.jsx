@@ -270,6 +270,22 @@ export default function DashboardPage() {
     }
   };
 
+  const deleteRun = async (runId) => {
+    if (!project) return;
+    try {
+      const response = await fetch(`/api/projects/${project.id}/runs/${runId}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo eliminar");
+      setProject((current) => ({
+        ...current,
+        crawlRuns: (current.crawlRuns || []).filter((r) => r.id !== runId),
+      }));
+      if (activeRunId === runId) setActiveRunId(null);
+    } catch (err) {
+      setLoadError(err.message || "No se pudo eliminar el historial");
+    }
+  };
+
   const openRun = (runId) => {
     setActiveRunId(runId);
     const nextUrl = new URL(window.location.href);
@@ -380,6 +396,7 @@ export default function DashboardPage() {
               project={project}
               activeRunId={activeRunId}
               openRun={openRun}
+              onDeleteRun={deleteRun}
               formatDate={formatDate}
               lang={lang}
               t={t}

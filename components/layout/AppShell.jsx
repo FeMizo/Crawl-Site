@@ -20,6 +20,7 @@ export default function AppShell({
 }) {
   const [theme, setTheme] = useState("dark");
   const [lang, setLang] = useState("es");
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("seoCrawlerTheme") || "dark";
@@ -84,7 +85,22 @@ export default function AppShell({
             user={user}
           />
           {actions ? (
-            <div className="shell-content-bar">{actions}</div>
+            <div className={`shell-content-bar${actionsOpen ? " is-open" : ""}`}>
+              <button
+                type="button"
+                className="shell-content-bar-toggle"
+                onClick={() => setActionsOpen((v) => !v)}
+                aria-expanded={actionsOpen}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+                </svg>
+                <svg className={`shell-toggle-chevron${actionsOpen ? " open" : ""}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <div className="shell-content-bar-actions">{actions}</div>
+            </div>
           ) : null}
           <PageContainer className={contentClassName}>{children}</PageContainer>
           <footer className="app-footer">
@@ -460,6 +476,63 @@ export default function AppShell({
           gap: var(--space-2);
           padding: 0 var(--space-6) var(--space-3);
           flex-wrap: wrap;
+        }
+        .shell-content-bar-toggle {
+          display: none;
+          align-items: center;
+          gap: 6px;
+          background: var(--bg3);
+          border: 1px solid var(--border2);
+          border-radius: 10px;
+          padding: 7px 12px;
+          color: var(--text2);
+          cursor: pointer;
+          font-family: "Manrope", sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          transition: border-color 0.2s, color 0.2s;
+        }
+        .shell-content-bar-toggle:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+        }
+        .shell-toggle-chevron {
+          transition: transform 0.2s;
+        }
+        .shell-toggle-chevron.open {
+          transform: rotate(180deg);
+        }
+        .shell-content-bar-actions {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          flex-wrap: wrap;
+        }
+        @media (max-width: 768px) {
+          .shell-content-bar {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0;
+            padding: 0 var(--space-4) var(--space-2);
+          }
+          .shell-content-bar-toggle {
+            display: flex;
+          }
+          .shell-content-bar-actions {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            padding-top: var(--space-2);
+            gap: 8px;
+          }
+          .shell-content-bar-actions :global(a),
+          .shell-content-bar-actions :global(button) {
+            width: 100%;
+            justify-content: center;
+          }
+          .shell-content-bar.is-open .shell-content-bar-actions {
+            display: flex;
+          }
         }
         .hdr-r {
           display: flex;

@@ -734,6 +734,25 @@ function updateAggregateSgStats() {
   const avgLoad = Math.round(loadSum / total);
   sv("v4", `${avgScore}/100`);
   sv("vR", `${avgLoad}ms`);
+
+  const psiGroup = document.getElementById("sg-pagespeed");
+  const psiPages = crawlState.pages.filter((p) => {
+    const st = p.speedTest;
+    if (!st) return false;
+    return st.mobile?.status === "done" || st.desktop?.status === "done" || st.status === "done";
+  });
+  if (psiPages.length && psiGroup) {
+    psiGroup.style.display = "";
+    const psiSum = psiPages.reduce((acc, p) => {
+      const st = p.speedTest;
+      const scores = [];
+      if (st.mobile?.status === "done") scores.push(st.mobile.score ?? 0);
+      if (st.desktop?.status === "done") scores.push(st.desktop.score ?? 0);
+      if (!scores.length && st.status === "done") scores.push(st.score ?? 0);
+      return acc + (scores.reduce((a, b) => a + b, 0) / (scores.length || 1));
+    }, 0);
+    sv("vPsi", `${Math.round(psiSum / psiPages.length)}/100`);
+  }
 }
 
 function setLang(l) {
@@ -816,6 +835,9 @@ function toggleSidebar(btn) {
   if (!sidebar) return;
   const open = sidebar.classList.toggle("is-open");
   btn.setAttribute("aria-expanded", open);
+  if (open) {
+    sidebar.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 function setSrc(s) {
   crawlSrc = normalizeCrawlSource(s);
@@ -931,11 +953,7 @@ function resetState() {
   const dlb = document.getElementById("dlb");
   if (dlb) dlb.style.display = "none";
   const seoCardEl = document.getElementById("seoCard");
-  const seoCardBody = seoCardEl?.querySelector(".sidebar-body");
-  if (seoCardBody) {
-    seoCardBody.style.display = "";
-    seoCardBody.innerHTML = `<div class="seo-preview"><img src="/assets/seo-illustration.svg" alt="SEO illustration"></div><p style="font-size:12px;color:var(--muted);">${T("seoClickRow") || "Haz clic en una fila para ver el análisis SEO"}</p>`;
-  }
+  if (seoCardEl) seoCardEl.classList.remove("seo-panel-open");
   const funcCardEl = document.getElementById("functionalityCard");
   if (funcCardEl) funcCardEl.style.display = "none";
   const funcBodyEl = document.getElementById("functionalityBody");
@@ -1371,6 +1389,8 @@ async function applySavedRun(run) {
   if (crawlState.duplicates.length) renderDups(crawlState.duplicates);
   updateAggregateSgStats();
   updateCrawlButtonLabel();
+  renderGoogleTools();
+  renderSitemapTab();
   return {
     ...run,
     pages: mergedPages,
@@ -1630,9 +1650,15 @@ const sameU = (a, b) => {
     a.replace(/\/$/, "").toLowerCase() === b.replace(/\/$/, "").toLowerCase()
   );
 };
+function clearSeoActiveRow() {
+  document.querySelectorAll("tbody tr.seo-row-active").forEach((r) => r.classList.remove("seo-row-active"));
+}
+
 function attachSeoRowBehavior(tr, p) {
   tr.style.cursor = "pointer";
   tr.addEventListener("click", () => {
+    clearSeoActiveRow();
+    tr.classList.add("seo-row-active");
     showPageSEO(p);
     showFunctionalityInfo(p);
   });
@@ -1705,10 +1731,11 @@ function urlA(p) {
     ? `<div class="url-cell"><span class="url-text">${esc(trunc(d, 48))}</span>${openIcon}</div><br><small style="color:var(--orange);font-size:13px;">↳${esc(trunc(p.url, 44))}</small>`
     : `<div class="url-cell"><span class="url-text">${esc(trunc(d, 56))}</span>${openIcon}</div>`;
 }
-function mkTr(cells, types) {
+function mkTr(cells, types, firstCellTitle) {
   const tr = document.createElement("tr");
   tr.dataset.types = JSON.stringify(types || []);
   tr.innerHTML = cells.map((c) => `<td>${c}</td>`).join("");
+  if (firstCellTitle) tr.firstElementChild.title = firstCellTitle;
   return tr;
 }
 const gmap = {
@@ -2149,6 +2176,18 @@ function showPageSEO(p) {
       <div class="si-htree">${renderHeadingTree(p.headings, p.headingSkips, p.url)}</div>
     </div>
   `;
+  if (seoCard) seoCard.classList.add("seo-panel-open");
+}
+
+function closeSeoCard() {
+  const el = document.getElementById("seoCard");
+  if (!el || !el.classList.contains("seo-panel-open")) return;
+  clearSeoActiveRow();
+  el.classList.remove("seo-panel-open");
+  el.classList.add("seo-panel-closing");
+  el.addEventListener("animationend", () => {
+    el.classList.remove("seo-panel-closing");
+  }, { once: true });
 }
 
 function showFunctionalityInfo(p) {
@@ -2418,7 +2457,7 @@ function addPage(p) {
   //  ALL tab  clickable rows show SEO sidebar
   const trA = document.createElement("tr");
   trA.innerHTML = `
-    <td class="uc">${urlA(p)}</td>
+    <td class="uc" title="${esc(p.url)}">${urlA(p)}</td>
     <td>${sbadge(p.statusCode)}</td>
     <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.title)}">${p.title ? esc(trunc(p.title.charAt(0).toUpperCase() + p.title.slice(1), 30)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noTitle")}</span>`}</td>
     <td><span class="${lcls(tLen, 30, 60)}">${tLen || "—"}</span></td>
@@ -2426,7 +2465,8 @@ function addPage(p) {
     <td><span class="${lcls(dLen, 70, 160)}">${dLen || "—"}</span></td>
     <td style="max-width:95px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(p.h1s || []).length ? esc(trunc(p.h1s[0], 20)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noH1")}</span>`}</td>
     <td>${p.imgsNoAlt > 0 ? `<span style="color:var(--warn);">${p.imgsNoAlt}</span>` : `<span style="color:var(--muted);">—</span>`}</td>
-    <td>${issH}</td>`;
+    <td>${issH}</td>
+    <td class="td-detail"><button class="row-detail-btn" type="button" title="${lang === "en" ? "View details" : "Ver detalles"}">›</button></td>`;
   attachSeoRowBehavior(trA, p);
   const tbAll = document.getElementById("tbAll");
   if (tbAll.children.length > 700) tbAll.removeChild(tbAll.firstChild);
@@ -2468,6 +2508,7 @@ function addPage(p) {
       skipHtml,
     ],
     seoTypes,
+    p.url,
   );
   document.getElementById("tbSEO").appendChild(attachSeoRowBehavior(trSeo, p));
 
@@ -2483,6 +2524,7 @@ function addPage(p) {
         p.title ? esc(trunc(p.title, 34)) : `<span style="color:var(--error);font-size:13px;font-style:italic;">${T("noTitle")}</span>`,
       ],
       gs,
+      p.url,
     );
     document
       .getElementById("tbIssues")
@@ -2501,6 +2543,7 @@ function addPage(p) {
         `<div class="itags">${tIss.map((i) => `<span class="itag gt">${issueLabel(i)}</span>`).join("")}</div>`,
       ],
       tIss.map((i) => i.type),
+      p.url,
     );
     document
       .getElementById("tbTitles")
@@ -2519,6 +2562,7 @@ function addPage(p) {
         `<div class="itags">${dIss.map((i) => `<span class="itag gd">${issueLabel(i)}</span>`).join("")}</div>`,
       ],
       dIss.map((i) => i.type),
+      p.url,
     );
     document
       .getElementById("tbDesc")
@@ -2546,6 +2590,7 @@ function addPage(p) {
         `<div class="itags">${hIss.map((i) => `<span class="itag gh">${issueLabel(i)}</span>`).join("")}${skipTags}</div>`,
       ],
       [...new Set(allH1Types)],
+      p.url,
     );
     document.getElementById("tbH1").appendChild(attachSeoRowBehavior(trH1, p));
   }
@@ -2569,6 +2614,7 @@ function addPage(p) {
         kwSuggestionsCell,
       ],
       kwTypes,
+      p.url,
     );
     document.getElementById("tbKeywords").appendChild(attachSeoRowBehavior(trKw, p));
   }
@@ -2596,6 +2642,7 @@ function addPage(p) {
         `<span style="color:var(--warn);font-weight:700;">${pct}%</span>`,
       ],
       imgTypes,
+      p.url,
     );
     document
       .getElementById("tbImages")
@@ -2625,6 +2672,7 @@ function addPage(p) {
           "",
       ],
       eTypes,
+      p.url,
     );
     document
       .getElementById("tbErrors")
@@ -2685,6 +2733,7 @@ function addPage(p) {
         `${brokenPreview}${moreBroken}${detailSignals}`,
       ],
       funcTypes,
+      p.url,
     );
     document
       .getElementById("tbFunc")
@@ -2701,11 +2750,16 @@ function addPage(p) {
 function renderSpeedRow(p) {
   if (!(p.statusCode >= 200 && p.statusCode < 300)) return;
   const st = p.speedTest;
-  let scoreCell = `<span style="color:var(--muted);">—</span>`;
-  let lcpCell = `<span style="color:var(--muted);">—</span>`;
-  let fcpCell = `<span style="color:var(--muted);">—</span>`;
-  let ttfbCell = `<span style="color:var(--muted);">—</span>`;
-  let clsCell = `<span style="color:var(--muted);">—</span>`;
+  const dash = `<span style="color:var(--muted);">—</span>`;
+  const scColor = (sc) => sc >= 90 ? "var(--ok)" : sc >= 50 ? "var(--warn)" : "var(--error)";
+  const ms = (v) => v > 0 ? (v >= 1000 ? `${(v / 1000).toFixed(2).replace(/\.?0+$/, "")}s` : `${v}ms`) : dash;
+
+  let mobileScoreCell = dash;
+  let desktopScoreCell = dash;
+  let lcpCell = dash;
+  let fcpCell = dash;
+  let ttfbCell = dash;
+  let clsCell = dash;
   let statusCell;
 
   if (!st) {
@@ -2714,27 +2768,38 @@ function renderSpeedRow(p) {
     } else {
       statusCell = `<span style="color:var(--muted);font-size:13px;">${T("speedPending")}</span>`;
     }
-  } else if (st.status === "done") {
-    const sc = st.score ?? 0;
-    const scColor = sc >= 90 ? "var(--ok)" : sc >= 50 ? "var(--warn)" : "var(--error)";
-    scoreCell = `<span style="font-weight:700;color:${scColor};">${sc}</span>`;
-    const ms = (v) => v > 0 ? `${v}ms` : `<span style="color:var(--muted);">—</span>`;
-    lcpCell = ms(st.lcp);
-    fcpCell = ms(st.fcp);
-    ttfbCell = ms(st.ttfb);
-    clsCell = st.cls != null ? `${st.cls}` : `<span style="color:var(--muted);">—</span>`;
-    statusCell = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(0,255,136,0.10);color:#00ff88;border:1px solid rgba(0,255,136,0.3);font-size:13px;font-weight:600;">✓ ${T("speedDone")}</span>`;
-  } else if (st.status === "blocked") {
-    const reason = st.reason ? esc(st.reason) : esc(T("speedBlockedTitle"));
-    statusCell = `<span title="${reason}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,0.10);color:#f59e0b;border:1px solid rgba(245,158,11,0.35);font-size:13px;font-weight:600;cursor:help;">⚠ ${T("speedBlocked")}</span><span style="color:var(--muted);font-size:12px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;" title="${reason}">${esc(st.reason || "")}</span>`;
   } else {
-    const reason = st.reason ? esc(st.reason) : esc(T("speedErrorTitle"));
-    statusCell = `<span title="${reason}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.10);color:var(--error);border:1px solid rgba(239,68,68,0.3);font-size:13px;font-weight:600;cursor:help;">✕ ${T("speedError")}</span><span style="color:var(--muted);font-size:12px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;" title="${reason}">${esc(st.reason || "")}</span>`;
+    const isNewFormat = st.mobile !== undefined || st.desktop !== undefined;
+    const mob = isNewFormat ? (st.mobile || {}) : st;
+    const desk = isNewFormat ? (st.desktop || null) : null;
+    const primaryStatus = mob.status || desk?.status || "error";
+
+    if (mob.status === "done") {
+      mobileScoreCell = `<span style="font-weight:700;color:${scColor(mob.score ?? 0)};">${mob.score ?? 0}</span>`;
+      lcpCell = ms(mob.lcp);
+      fcpCell = ms(mob.fcp);
+      ttfbCell = ms(mob.ttfb);
+      clsCell = mob.cls != null ? `${mob.cls}` : dash;
+    }
+    if (desk?.status === "done") {
+      desktopScoreCell = `<span style="font-weight:700;color:${scColor(desk.score ?? 0)};">${desk.score ?? 0}</span>`;
+    }
+
+    if (primaryStatus === "done") {
+      statusCell = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(0,255,136,0.10);color:#00ff88;border:1px solid rgba(0,255,136,0.3);font-size:13px;font-weight:600;">✓ ${T("speedDone")}</span>`;
+    } else if (primaryStatus === "blocked") {
+      const reason = esc(mob.reason || desk?.reason || T("speedBlockedTitle"));
+      statusCell = `<span title="${reason}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,0.10);color:#f59e0b;border:1px solid rgba(245,158,11,0.35);font-size:13px;font-weight:600;cursor:help;">⚠ ${T("speedBlocked")}</span>`;
+    } else {
+      const reason = esc(mob.reason || desk?.reason || T("speedErrorTitle"));
+      statusCell = `<span title="${reason}" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.10);color:var(--error);border:1px solid rgba(239,68,68,0.3);font-size:13px;font-weight:600;cursor:help;">✕ ${T("speedError")}</span>`;
+    }
   }
 
   const trSpeed = mkTr(
-    [urlA(p), sbadge(p.statusCode), scoreCell, lcpCell, fcpCell, ttfbCell, clsCell, statusCell],
+    [urlA(p), sbadge(p.statusCode), mobileScoreCell, desktopScoreCell, lcpCell, fcpCell, ttfbCell, clsCell, statusCell],
     [],
+    p.url,
   );
   document.getElementById("tbSpeed").appendChild(attachSeoRowBehavior(trSpeed, p));
 }
@@ -3016,10 +3081,14 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
     setSelectSize(allPageSize, "sm");
   }
   if (searchInput) {
+    let _searchDebounce = null;
     searchInput.addEventListener("input", (e) => {
       crawlSearchTerm = e.target.value || "";
-      allTablePage = 1;
-      applyUrlSearchFilter();
+      clearTimeout(_searchDebounce);
+      _searchDebounce = setTimeout(() => {
+        allTablePage = 1;
+        applyUrlSearchFilter();
+      }, 150);
     });
   }
   const mainHeader = document.querySelector("header");
@@ -3029,6 +3098,15 @@ window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   };
   window.addEventListener("scroll", syncHeaderScroll, { passive: true });
   syncHeaderScroll();
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSeoCard();
+  });
+  document.addEventListener("mousedown", (e) => {
+    const panel = document.getElementById("seoCard");
+    if (panel && panel.classList.contains("seo-panel-open") && !panel.contains(e.target)) {
+      closeSeoCard();
+    }
+  });
   setLang(lang);
   setTheme(currentTheme);
   applyUrlSearchFilter();

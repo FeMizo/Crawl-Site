@@ -15,7 +15,7 @@ body.feature-locked-excel #dlb { display: none !important; }
 .si-lenfill { position:absolute; top:0; left:0; height:100%; border-radius:2px; transition:width 0.3s; }
 .si-lenmeta { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); }
 .si-issues { display:grid; gap:3px; }
-.si-row { display:flex; align-items:flex-start; gap:6px; font-size:13px; }
+.si-row { display:flex; align-items:flex-start; gap:8px; font-size:13px; }
 .si-ic { width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; margin-top:1px; }
 .si-ic.ok    { background:rgba(0,255,136,0.12); color:#00ff88; }
 .si-ic.warn  { background:rgba(245,158,11,0.12); color:#f59e0b; }
@@ -257,6 +257,26 @@ body.feature-locked-excel #dlb { display: none !important; }
         </div>
       </div>
 
+      <!-- Group: PageSpeed -->
+      <div class="sg-group" id="sg-pagespeed" style="display:none;">
+        <div class="sg-group-label">PageSpeed</div>
+        <div class="sg-cards">
+          <div class="sc g">
+            <div class="sc-head">
+              <div class="sm">Score avg.</div>
+              <span class="sc-icon" aria-hidden="true" title="Promedio de score PageSpeed (mobile + desktop)">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3.5 14.5a7 7 0 1 1 13 0" stroke-linecap="round"/>
+                  <path d="M6.5 11.5l3.5-4" stroke-linecap="round" stroke-width="2"/>
+                  <circle cx="10" cy="14.5" r="1" fill="currentColor" stroke="none"/>
+                </svg>
+              </span>
+            </div>
+            <div class="sv" id="vPsi">—</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Group: Seguridad -->
       <div class="sg-group">
         <div class="sg-group-label" data-i18n="sgGrpSecurity">Seguridad</div>
@@ -327,15 +347,6 @@ body.feature-locked-excel #dlb { display: none !important; }
             <button class="tbtn" onclick="goTab('robots',this)"><span>&#129302;&#65039; Robots.txt</span></button>
             <button class="tbtn" onclick="goTab('googletools',this)"><span>&#128202; Google Tools</span></button>
             <button class="tbtn" onclick="goTab('sitemap',this)"><span>&#128506;&#65039; Sitemap.xml</span></button>
-          </div>
-
-          <!-- Redundant cards hidden but kept for DOM references -->
-          <div class="sidebar-card" id="seoCard">
-            <div class="sidebar-head">
-              <div class="sidebar-head-icon">&#128269;</div>
-              <div class="sidebar-head-title">SEO</div>
-            </div>
-            <div class="sidebar-body"></div>
           </div>
 
           <div class="sidebar-card" id="hostingCard">
@@ -421,6 +432,7 @@ body.feature-locked-excel #dlb { display: none !important; }
                     <th data-i18n-tooltip="thTipH1Text">H1</th>
                     <th data-i18n="imgsNoAlt" data-i18n-tooltip="thTipImgsNoAlt">Imgs s/alt</th>
                     <th data-i18n="issues" data-i18n-tooltip="thTipIssues" style="width:200px;min-width:200px;">Problemas</th>
+                    <th class="th-detail"></th>
                   </tr>
                 </thead>
                 <tbody id="tbAll"></tbody>
@@ -666,12 +678,13 @@ body.feature-locked-excel #dlb { display: none !important; }
                   <tr>
                     <th class="th-sticky" data-i18n="url">URL</th>
                     <th>HTTP</th>
-                    <th data-i18n="speedScore">Score</th>
+                    <th>📱 Mobile</th>
+                    <th>🖥 Desktop</th>
                     <th>LCP</th>
                     <th>FCP</th>
                     <th>TTFB</th>
                     <th>CLS</th>
-                    <th data-i18n="speedStatus">Estado</th>
+                    <th data-i18n="speedStatus" style="min-width: 120px; width: 120px;">Estado</th>
                   </tr>
                 </thead>
                 <tbody id="tbSpeed"></tbody>
@@ -720,6 +733,16 @@ body.feature-locked-excel #dlb { display: none !important; }
             </div>
           </div>
         </div>
+
+        <div class="sidebar-card seo-overlay" id="seoCard">
+          <div class="sidebar-head">
+            <div class="sidebar-head-icon">&#128269;</div>
+            <div class="sidebar-head-title">SEO</div>
+            <button class="seo-close-btn" type="button" onclick="closeSeoCard()" title="Cerrar">&#x2715;</button>
+          </div>
+          <div class="sidebar-body"></div>
+        </div>
+
       </div>
     </div>
 

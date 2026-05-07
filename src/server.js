@@ -3327,6 +3327,16 @@ app.put("/api/projects/:projectId", requireAuth, async (req, res) => {
   res.json({ project });
 });
 
+app.delete("/api/projects/:projectId/runs/:runId", requireAuth, async (req, res) => {
+  const run = await prisma.crawlRun.findFirst({
+    where: { id: req.params.runId, projectId: req.params.projectId, userId: req.user.id },
+    select: { id: true },
+  });
+  if (!run) return res.status(404).json({ error: "Historial no encontrado" });
+  await prisma.crawlRun.delete({ where: { id: run.id } });
+  res.json({ ok: true });
+});
+
 app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
   const existing = await prisma.project.findFirst({
     where: { id: req.params.projectId, userId: req.user.id },
@@ -4499,15 +4509,22 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
             orderBy: { position: "asc" },
             take: psiLimit,
           });
+          console.log(`[pagespeed-bg] starting — ${pages.length} pages, run ${runIdCopy}`);
           for (const page of pages) {
             await new Promise((r) => setTimeout(r, 380)); // ~2.5 req/sec
-            const result = await fetchPageSpeed(page.url, process.env.PAGESPEED_API_KEY);
+            const [mobile, desktop] = await Promise.all([
+              fetchPageSpeed(page.url, process.env.PAGESPEED_API_KEY, "mobile"),
+              fetchPageSpeed(page.url, process.env.PAGESPEED_API_KEY, "desktop"),
+            ]);
+            if (mobile.status !== "done") console.log(`[pagespeed-bg] mobile ${mobile.status} — ${page.url} — ${mobile.reason || ""}`);
+            if (desktop.status !== "done") console.log(`[pagespeed-bg] desktop ${desktop.status} — ${page.url} — ${desktop.reason || ""}`);
             await prisma.$executeRaw`
               UPDATE "CrawlRunPage"
-              SET payload = payload || ${JSON.stringify({ speedTest: result })}::jsonb
+              SET payload = payload || ${JSON.stringify({ speedTest: { mobile, desktop } })}::jsonb
               WHERE id = ${page.id}
             `;
           }
+          console.log(`[pagespeed-bg] done — run ${runIdCopy}`);
         } catch (err) {
           console.error("[pagespeed-bg]", err?.message || err);
         }
