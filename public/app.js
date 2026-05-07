@@ -1399,6 +1399,70 @@ async function applySavedRun(run) {
 }
 
 //
+// PLAN CONSTRAINT HELPERS
+//
+function applyPlanConstraints(sub) {
+  if (!sub) return;
+  const maxPgSel = document.getElementById("maxPg");
+  const renderModeSel = document.getElementById("renderMode");
+  if (maxPgSel && sub.maxPagesPerCrawl) {
+    let highestAllowed = null;
+    Array.from(maxPgSel.options).forEach((opt) => {
+      if (parseInt(opt.value) > sub.maxPagesPerCrawl) {
+        if (!opt.dataset.origText) opt.dataset.origText = opt.text;
+        opt.text = opt.dataset.origText + " 🔒";
+        opt.disabled = true;
+      } else {
+        highestAllowed = opt.value;
+      }
+    });
+    if (maxPgSel.options[maxPgSel.selectedIndex]?.disabled && highestAllowed) {
+      maxPgSel.value = highestAllowed;
+    }
+  }
+  const hasJsCrawl = Array.isArray(sub.features) && sub.features.includes("js_crawl");
+  if (renderModeSel && !hasJsCrawl) {
+    const renderedOpt = renderModeSel.querySelector('option[value="rendered"]');
+    if (renderedOpt) {
+      if (!renderedOpt.dataset.origText) renderedOpt.dataset.origText = renderedOpt.text;
+      renderedOpt.text = renderedOpt.dataset.origText + " (PRO)";
+      renderedOpt.disabled = true;
+      if (renderModeSel.value === "rendered") renderModeSel.value = "auto";
+    }
+  }
+}
+
+function validateCrawlSettings(sub, max, renderMode) {
+  if (!sub) return [];
+  const breaches = [];
+  if ((parseInt(max) || 50) > sub.maxPagesPerCrawl) {
+    breaches.push({
+      field: "maxPages",
+      message: `Tu plan ${sub.plan} permite máx ${sub.maxPagesPerCrawl} páginas. Se analizarán solo ${sub.maxPagesPerCrawl}.`,
+    });
+  }
+  const hasJsCrawl = Array.isArray(sub.features) && sub.features.includes("js_crawl");
+  if (renderMode === "rendered" && !hasJsCrawl) {
+    breaches.push({ field: "renderMode", message: "JS Rendering requiere plan PRO. Se usará HTTP mode." });
+  }
+  return breaches;
+}
+
+function showPlanSettingsNotice(breaches) {
+  const el = document.getElementById("plan-settings-notice");
+  if (!el) return;
+  if (!breaches || !breaches.length) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = breaches
+    .map((b) => `<div class="plan-breach-row">⚠ ${b.message} — <a href="/subscription">Mejorar plan</a></div>`)
+    .join("");
+  el.style.display = "";
+}
+
+//
 // CRAWL
 //
 function startCrawl() {
@@ -1420,6 +1484,9 @@ function startCrawl() {
     alert(T("projectRequired"));
     return;
   }
+
+  const _planSub = window.__SEO_CRAWLER_SUBSCRIPTION__;
+  if (_planSub) showPlanSettingsNotice(validateCrawlSettings(_planSub, max, renderMode));
 
   resetState();
   const show = (id, d) => {
@@ -3009,6 +3076,7 @@ let __seoCrawlerInited = false;
 window.loadSeoCrawlerRun = applySavedRun;
 window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
+  applyPlanConstraints(window.__SEO_CRAWLER_SUBSCRIPTION__ || null);
 
   // Autostart runs on every call so client-side navigation doesn't miss it.
   // The param is deleted synchronously to prevent double-fire on re-renders.
