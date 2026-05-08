@@ -10,6 +10,7 @@ import Icon from "../components/ui/Icon";
 import Input from "../components/ui/Input";
 import Select from "../components/ui/Select";
 import useSessionUser from "../hooks/useSessionUser";
+import TeamSkeleton from "../components/team/TeamSkeleton";
 
 const { getRoleLabel } = require("../lib/user-roles");
 
@@ -18,8 +19,6 @@ const ROLE_OPTIONS = [
   { value: "editor", label: "Editor" },
   { value: "admin", label: "Admin" },
 ];
-
-const FEATURE_MAX = { "1_extra_user": 1, "2_extra_user": 2, multi_user: 999 };
 
 function getRoleTone(role) {
   if (!role) return "secondary";
@@ -153,6 +152,8 @@ export default function TeamPage() {
         {error ? <p className="feedback error">{error}</p> : null}
         {message ? <p className="feedback ok">{message}</p> : null}
 
+        {loading ? <TeamSkeleton /> : (
+        <>
         <div className="team-meta">
           <Badge tone="secondary">{members.length} de {maxMembers === 999 ? "∞" : maxMembers} usados</Badge>
           {!canAdd && maxMembers < 999 && (
@@ -163,9 +164,7 @@ export default function TeamPage() {
         </div>
 
         <Card className="table-card" padding="sm">
-          {loading ? (
-            <div className="empty-state"><span>Cargando equipo...</span></div>
-          ) : members.length === 0 ? (
+          {members.length === 0 ? (
             <div className="empty-state">
               <strong>Sin miembros aún</strong>
               <span>Añade colaboradores con el botón de arriba.</span>
@@ -266,6 +265,8 @@ export default function TeamPage() {
               </form>
             </div>
           </div>
+        )}
+        </>
         )}
 
         <style jsx>{`

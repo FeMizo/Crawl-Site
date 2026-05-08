@@ -182,7 +182,11 @@ export default function PlanCard({
           {plan.features.map((f) => (
             <li key={f}>
               <Icon name="check" size={11} />
-              {FEATURE_LABELS[f] || f}
+              {f === "extra_user"
+                ? `${plan.maxExtraUsers} Usuario${plan.maxExtraUsers !== 1 ? "s" : ""} extra`
+                : f === "keywords"
+                ? `Hasta ${plan.keywordsRange} Keywords sugeridas por página`
+                : (FEATURE_LABELS[f] || f)}
               {FEATURE_TOOLTIPS[f] && (
                 <span className="tip" data-tip={FEATURE_TOOLTIPS[f]}>?</span>
               )}

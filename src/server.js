@@ -47,6 +47,9 @@ const {
   PLAN_DEFAULTS,
   PLAN_DISPLAY_PRICES,
   PLAN_CURRENCY,
+  PLAN_TEAM_MAX,
+  PLAN_KEYWORD_MAX,
+  TEAM_FEATURE_MAX,
 } = require("../lib/plan-data");
 const crawlAnalysis = require("../lib/crawl-analysis");
 const { fetchPageSpeed, PSI_PAGE_LIMITS } = require("../lib/pagespeed");
@@ -2386,8 +2389,7 @@ function scoreSEO(meta, url) {
 
 // ── Keyword extraction ──────────────────────────────────────────────────────
 
-// Limits match plan features: keywords_basic=1-2, keywords_starter=3-4, keywords_pro=5-10, keywords_agency=11-20
-const PLAN_KEYWORD_LIMITS = { FREE: 0, BASIC: 2, STARTER: 4, PRO: 10, AGENCY: 20 };
+const PLAN_KEYWORD_LIMITS = PLAN_KEYWORD_MAX;
 
 function extractKeywords(body, meta, maxCount) {
   return crawlAnalysis.extractKeywords(body, meta, maxCount);
@@ -3458,21 +3460,15 @@ app.delete("/api/projects/:projectId/schedule", requireAuth, requireAdmin, async
 });
 
 // Team management
-function getTeamMaxMembers(sub, user) {
-  const role = getEffectiveRole(user);
-  if (role === "owner" || role === "super_admin" || role === "admin") return 999;
-  const features = sub?.features || [];
+function getTeamMaxMembers(sub) {
   const plan = sub?.plan || "";
-  if (features.includes("multi_user") || plan === "AGENCY") return 999;
-  if (features.includes("2_extra_user") || plan === "PRO") return 2;
-  if (features.includes("1_extra_user") || plan === "STARTER") return 1;
-  return 0;
+  return PLAN_TEAM_MAX[plan] ?? 0;
 }
 
 app.get("/api/team/members", requireAuth, async (req, res) => {
   try {
     const sub = await prisma.subscription.findUnique({ where: { userId: req.user.id }, select: { features: true, plan: true } });
-    const maxMembers = getTeamMaxMembers(sub, req.user);
+    const maxMembers = getTeamMaxMembers(sub);
     if (maxMembers === 0) return res.status(403).json({ error: "Tu plan no incluye usuarios adicionales" });
 
     const members = await prisma.user.findMany({
@@ -3489,7 +3485,7 @@ app.get("/api/team/members", requireAuth, async (req, res) => {
 app.post("/api/team/members", requireAuth, async (req, res) => {
   try {
     const sub = await prisma.subscription.findUnique({ where: { userId: req.user.id }, select: { features: true, plan: true } });
-    const maxMembers = getTeamMaxMembers(sub, req.user);
+    const maxMembers = getTeamMaxMembers(sub);
     if (maxMembers === 0) return res.status(403).json({ error: "Tu plan no incluye usuarios adicionales" });
 
     const currentCount = await prisma.user.count({ where: { teamOwnerId: req.user.id } });

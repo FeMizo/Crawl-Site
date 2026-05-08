@@ -13,14 +13,12 @@ import { tUi } from "../../lib/ui-language";
 
 const { getRoleLabel } = require("../../lib/user-roles");
 
-const USER_FEATURES = ["1_extra_user", "2_extra_user", "multi_user"];
 const PLANS_WITH_TEAM = ["STARTER", "PRO", "AGENCY"];
 
 export default function Sidebar({ activeKey, user, aside, lang = "es", theme, onLangChange, onThemeChange }) {
   const router = useRouter();
   const [pendingHref, setPendingHref] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [planFeatures, setPlanFeatures] = useState(null);
   const [planKey, setPlanKey] = useState(null);
 
   useEffect(() => {
@@ -29,7 +27,6 @@ export default function Sidebar({ activeKey, user, aside, lang = "es", theme, on
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
         if (!d?.subscription) return;
-        d.subscription.features && setPlanFeatures(d.subscription.features);
         d.subscription.plan && setPlanKey(d.subscription.plan);
       })
       .catch(() => {});
@@ -45,10 +42,7 @@ export default function Sidebar({ activeKey, user, aside, lang = "es", theme, on
     };
   }, [router.events]);
 
-  const hasTeamFeature = (
-    (planFeatures && USER_FEATURES.some((f) => planFeatures.includes(f))) ||
-    (planKey && PLANS_WITH_TEAM.includes(planKey))
-  );
+  const hasTeamFeature = planKey ? PLANS_WITH_TEAM.includes(planKey) : false;
 
   const privateNav = [
     {
