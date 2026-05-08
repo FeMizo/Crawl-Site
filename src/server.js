@@ -1216,6 +1216,20 @@ async function loadStoredRunDuplicateChunk(runId, page, limit) {
 }
 
 //  URL utils
+const TRACKING_PARAMS = new Set([
+  "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+  "utm_id", "utm_source_platform", "fbclid", "gclid", "msclkid", "dclid",
+  "gbraid", "wbraid", "_ga", "_gl", "ref", "mc_cid", "mc_eid",
+  "yclid", "twclid", "igshid",
+]);
+
+function stripTrackingParams(u) {
+  const keys = [...u.searchParams.keys()];
+  for (const key of keys) {
+    if (TRACKING_PARAMS.has(key.toLowerCase())) u.searchParams.delete(key);
+  }
+}
+
 function normalizeUrl(url) {
   try {
     const u = new URL(url);
@@ -1229,6 +1243,7 @@ function normalizeForCompare(url) {
   try {
     const u = new URL(url);
     u.hash = "";
+    stripTrackingParams(u);
     if (u.pathname.length > 1 && u.pathname.endsWith("/"))
       u.pathname = u.pathname.slice(0, -1);
     return u.toString().toLowerCase();
@@ -2186,8 +2201,16 @@ async function fetchRobots(siteUrl) {
 
 function isDisallowed(url, disallowed) {
   try {
-    const pathname = new URL(url).pathname;
-    return disallowed.some((d) => pathname.startsWith(d));
+    const u = new URL(url);
+    const target = u.pathname + u.search;
+    return disallowed.some((d) => {
+      if (!d.includes("*") && !d.endsWith("$")) return target.startsWith(d);
+      // Convert robots.txt pattern wildcards to regex
+      const escaped = d.replace(/[.+?^{}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+      const endsAtStr = escaped.endsWith("\\$");
+      const pattern = endsAtStr ? escaped.slice(0, -2) + "$" : escaped;
+      return new RegExp("^" + pattern).test(target);
+    });
   } catch {
     return false;
   }
@@ -4216,7 +4239,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
   try {
     baseOrigin = new URL(startUrl).origin;
   } catch {
-    return res.status(400).json({ error: "URL invlida" });
+    return res.status(400).json({ error: "URL inválida" });
   }
 
   const project = await prisma.project.findFirst({
@@ -4240,14 +4263,17 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  const send = (event, data) =>
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  const send = (event, data) => {
+    if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
 
   const results = [];
   const visited = new Set();
   const queue = [];
   let active = 0;
   let cancelled = false;
+
+  req.on("close", () => { cancelled = true; });
   const canJsCrawl = hasFeature(sub, "js_crawl") && !!process.env.BROWSERLESS_TOKEN;
 
   // Robots
@@ -4293,6 +4319,10 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
       const blocked = isDisallowed(url, disallowed);
 
       let raw = await fetchRaw(url);
+      if (raw.statusCode === 429) {
+        await new Promise((r) => setTimeout(r, 5000));
+        raw = await fetchRaw(url);
+      }
       let totalLoadTimeMs = Number(raw.elapsedMs || 0);
       let firstRedirectTo = raw.redirectTo || "";
       let currentUrl = url;
@@ -4519,7 +4549,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
         queued: queue.length,
       });
     } catch (e) {
-      /* skip */
+      console.error("[crawl] crawlOne error:", url, e?.message || e);
     }
     active--;
   }
