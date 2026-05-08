@@ -198,8 +198,8 @@ export default function PlanCard({
       <style jsx>{`
         .plan-card {
           display: grid;
-          gap: 16px;
-          padding: 20px;
+          gap: 14px;
+          padding: 15px;
           border: 1px solid var(--border);
           border-radius: 18px;
           background: var(--bg2);
@@ -254,13 +254,13 @@ export default function PlanCard({
           line-height: 1;
         }
         .price-amount {
-          font-size: 1.8rem;
+          font-size: 1.45rem;
           font-weight: 800;
           font-family: "Syne", sans-serif;
           color: var(--text);
         }
         .price-currency {
-          font-size: 0.75rem;
+          font-size: 0.60rem;
           color: var(--muted);
           font-weight: 500;
         }
@@ -275,7 +275,7 @@ export default function PlanCard({
           display: flex;
           align-items: center;
           gap: 7px;
-          font-size: 12px;
+          font-size: 11px;
           color: var(--text2);
         }
         .plan-features {

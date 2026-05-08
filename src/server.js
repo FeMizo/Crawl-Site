@@ -534,10 +534,28 @@ async function requireAuth(req, res, next) {
 }
 
 function requireUserManagement(req, res, next) {
-  if (!canManageUsers(req.user)) {
+  if (!isSuperAdmin(req.user)) {
     return res
       .status(403)
       .json({ error: "No tienes permisos para administrar usuarios" });
+  }
+  return next();
+}
+
+function getAccountOwnerId(user) {
+  return user.teamOwnerId || user.id;
+}
+
+function requireEditor(req, res, next) {
+  if (!canEditContent(req.user)) {
+    return res.status(403).json({ error: "No tienes permisos para realizar esta acción" });
+  }
+  return next();
+}
+
+function requireAdmin(req, res, next) {
+  if (!isAdmin(req.user)) {
+    return res.status(403).json({ error: "Se requieren permisos de administrador" });
   }
   return next();
 }
@@ -621,7 +639,8 @@ function isPlanExpired(subscription) {
 async function requirePlanLimit(type) {
   return async (req, res, next) => {
     try {
-      const sub = await getUserSubscription(req.user.id);
+      const accountOwnerId = getAccountOwnerId(req.user);
+      const sub = await getUserSubscription(accountOwnerId);
       if (isPlanExpired(sub) && sub.plan !== "FREE") {
         sub.plan = "FREE";
         Object.assign(sub, PLAN_DEFAULTS.FREE);
@@ -632,7 +651,7 @@ async function requirePlanLimit(type) {
         const isFree = sub.plan === "FREE" && !sub.inTrial;
         const countToCheck = isFree
           ? sub.projectsCreated
-          : await prisma.project.count({ where: { userId: req.user.id } });
+          : await prisma.project.count({ where: { userId: accountOwnerId } });
         if (countToCheck >= sub.maxProjects) {
           return res.status(403).json({
             error: "Limite de proyectos alcanzado",
@@ -2367,7 +2386,8 @@ function scoreSEO(meta, url) {
 
 // ── Keyword extraction ──────────────────────────────────────────────────────
 
-const PLAN_KEYWORD_LIMITS = { FREE: 0, BASIC: 0, STARTER: 2, PRO: 6, AGENCY: 20 };
+// Limits match plan features: keywords_basic=1-2, keywords_starter=3-4, keywords_pro=5-10, keywords_agency=11-20
+const PLAN_KEYWORD_LIMITS = { FREE: 0, BASIC: 2, STARTER: 4, PRO: 10, AGENCY: 20 };
 
 function extractKeywords(body, meta, maxCount) {
   return crawlAnalysis.extractKeywords(body, meta, maxCount);
@@ -3095,7 +3115,7 @@ app.get("/api/projects", requireAuth, async (req, res) => {
     defaultLimit: 8,
     maxLimit: 24,
   });
-  const where = { userId: req.user.id };
+  const where = { userId: getAccountOwnerId(req.user) };
   const [total, projects] = await Promise.all([
     prisma.project.count({ where }),
     prisma.project.findMany({
@@ -3146,7 +3166,7 @@ app.get("/api/history", requireAuth, async (req, res) => {
     defaultLimit: 12,
     maxLimit: 24,
   });
-  const where = { userId: req.user.id };
+  const where = { userId: getAccountOwnerId(req.user) };
   const [total, runs] = await Promise.all([
     prisma.crawlRun.count({ where }),
     prisma.crawlRun.findMany({
@@ -3193,7 +3213,7 @@ app.get("/api/history", requireAuth, async (req, res) => {
   });
 });
 
-app.post("/api/projects", requireAuth, async (req, res) => {
+app.post("/api/projects", requireAuth, requireEditor, async (req, res) => {
   const targetUrl = normalizeUrl(req.body?.targetUrl || "");
   if (!targetUrl) {
     return res.status(400).json({ error: "URL invalida" });
@@ -3201,10 +3221,12 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   const allowed = await ensureUrlAllowed(targetUrl);
   if (!allowed) return res.status(400).json({ error: "URL no permitida" });
 
+  const accountOwnerId = getAccountOwnerId(req.user);
+
   // Plan limit check: max projects
   const [sub, projectCount] = await Promise.all([
-    getUserSubscription(req.user.id),
-    prisma.project.count({ where: { userId: req.user.id } }),
+    getUserSubscription(accountOwnerId),
+    prisma.project.count({ where: { userId: accountOwnerId } }),
   ]);
   const isFree = sub.plan === "FREE" && !sub.inTrial;
   const countToCheck = isFree ? sub.projectsCreated : projectCount;
@@ -3220,7 +3242,7 @@ app.post("/api/projects", requireAuth, async (req, res) => {
 
   const project = await prisma.project.create({
     data: {
-      userId: req.user.id,
+      userId: accountOwnerId,
       name: normalizeProjectName(req.body?.name, targetUrl),
       targetUrl,
     },
@@ -3229,8 +3251,8 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   // Track cumulative counter for FREE plan — deletion doesn't free slots
   if (isFree) {
     await prisma.subscription.upsert({
-      where: { userId: req.user.id },
-      create: { userId: req.user.id, plan: "FREE", projectsCreated: 1, ...PLAN_DEFAULTS.FREE },
+      where: { userId: accountOwnerId },
+      create: { userId: accountOwnerId, plan: "FREE", projectsCreated: 1, ...PLAN_DEFAULTS.FREE },
       update: { projectsCreated: { increment: 1 } },
     });
   }
@@ -3246,7 +3268,7 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
   const project = await prisma.project.findFirst({
     where: {
       id: req.params.projectId,
-      userId: req.user.id,
+      userId: getAccountOwnerId(req.user),
     },
     select: {
       id: true,
@@ -3297,9 +3319,9 @@ app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
   });
 });
 
-app.put("/api/projects/:projectId", requireAuth, async (req, res) => {
+app.put("/api/projects/:projectId", requireAuth, requireEditor, async (req, res) => {
   const existing = await prisma.project.findFirst({
-    where: { id: req.params.projectId, userId: req.user.id },
+    where: { id: req.params.projectId, userId: getAccountOwnerId(req.user) },
     select: { id: true, name: true, targetUrl: true },
   });
   if (!existing) {
@@ -3327,9 +3349,9 @@ app.put("/api/projects/:projectId", requireAuth, async (req, res) => {
   res.json({ project });
 });
 
-app.delete("/api/projects/:projectId/runs/:runId", requireAuth, async (req, res) => {
+app.delete("/api/projects/:projectId/runs/:runId", requireAuth, requireAdmin, async (req, res) => {
   const run = await prisma.crawlRun.findFirst({
-    where: { id: req.params.runId, projectId: req.params.projectId, userId: req.user.id },
+    where: { id: req.params.runId, projectId: req.params.projectId, userId: getAccountOwnerId(req.user) },
     select: { id: true },
   });
   if (!run) return res.status(404).json({ error: "Historial no encontrado" });
@@ -3337,9 +3359,9 @@ app.delete("/api/projects/:projectId/runs/:runId", requireAuth, async (req, res)
   res.json({ ok: true });
 });
 
-app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
+app.delete("/api/projects/:projectId", requireAuth, requireAdmin, async (req, res) => {
   const existing = await prisma.project.findFirst({
-    where: { id: req.params.projectId, userId: req.user.id },
+    where: { id: req.params.projectId, userId: getAccountOwnerId(req.user) },
     select: { id: true },
   });
   if (!existing) {
@@ -3350,6 +3372,165 @@ app.delete("/api/projects/:projectId", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Crawl schedules
+app.get("/api/projects/:projectId/schedule", requireAuth, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
+  const project = await prisma.project.findFirst({
+    where: { id: req.params.projectId, userId: accountOwnerId },
+    select: { id: true },
+  });
+  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+  const sub = await getUserSubscription(accountOwnerId);
+  if (!sub.features.includes("scheduled_crawl")) {
+    return res.status(403).json({ error: "scheduled_crawl_required", upgrade: true });
+  }
+
+  const schedule = await prisma.crawlSchedule.findUnique({
+    where: { projectId: req.params.projectId },
+  });
+  res.json({ schedule: schedule || null });
+});
+
+app.put("/api/projects/:projectId/schedule", requireAuth, requireEditor, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
+  const project = await prisma.project.findFirst({
+    where: { id: req.params.projectId, userId: accountOwnerId },
+    select: { id: true },
+  });
+  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+  const sub = await getUserSubscription(accountOwnerId);
+  if (!sub.features.includes("scheduled_crawl")) {
+    return res.status(403).json({ error: "scheduled_crawl_required", upgrade: true });
+  }
+
+  const { frequency, maxPages, renderMode, enabled } = req.body || {};
+  const allowed = ["daily", "weekly", "monthly"];
+  if (frequency && !allowed.includes(frequency)) {
+    return res.status(400).json({ error: "Frecuencia inválida" });
+  }
+
+  const cap = sub.maxPagesPerCrawl;
+  const safePg = Math.min(parseInt(maxPages) || 50, cap);
+
+  const computeNext = (freq) => {
+    const d = new Date();
+    if (freq === "daily") d.setDate(d.getDate() + 1);
+    else if (freq === "monthly") d.setMonth(d.getMonth() + 1);
+    else d.setDate(d.getDate() + 7);
+    d.setHours(3, 0, 0, 0);
+    return d;
+  };
+
+  const schedule = await prisma.crawlSchedule.upsert({
+    where: { projectId: req.params.projectId },
+    create: {
+      userId: accountOwnerId,
+      projectId: req.params.projectId,
+      frequency: frequency || "weekly",
+      maxPages: safePg,
+      renderMode: renderMode || "auto",
+      enabled: enabled !== false,
+      nextRunAt: computeNext(frequency || "weekly"),
+    },
+    update: {
+      ...(frequency && { frequency }),
+      ...(maxPages !== undefined && { maxPages: safePg }),
+      ...(renderMode && { renderMode }),
+      ...(enabled !== undefined && { enabled: Boolean(enabled) }),
+      ...(frequency && { nextRunAt: computeNext(frequency) }),
+    },
+  });
+  res.json({ schedule });
+});
+
+app.delete("/api/projects/:projectId/schedule", requireAuth, requireAdmin, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
+  const project = await prisma.project.findFirst({
+    where: { id: req.params.projectId, userId: accountOwnerId },
+    select: { id: true },
+  });
+  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+  await prisma.crawlSchedule.deleteMany({ where: { projectId: req.params.projectId, userId: accountOwnerId } });
+  res.json({ ok: true });
+});
+
+// Team management
+function getTeamMaxMembers(sub, user) {
+  const role = getEffectiveRole(user);
+  if (role === "owner" || role === "super_admin" || role === "admin") return 999;
+  const features = sub?.features || [];
+  const plan = sub?.plan || "";
+  if (features.includes("multi_user") || plan === "AGENCY") return 999;
+  if (features.includes("2_extra_user") || plan === "PRO") return 2;
+  if (features.includes("1_extra_user") || plan === "STARTER") return 1;
+  return 0;
+}
+
+app.get("/api/team/members", requireAuth, async (req, res) => {
+  try {
+    const sub = await prisma.subscription.findUnique({ where: { userId: req.user.id }, select: { features: true, plan: true } });
+    const maxMembers = getTeamMaxMembers(sub, req.user);
+    if (maxMembers === 0) return res.status(403).json({ error: "Tu plan no incluye usuarios adicionales" });
+
+    const members = await prisma.user.findMany({
+      where: { teamOwnerId: req.user.id },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    return res.json({ members, maxMembers, count: members.length });
+  } catch (error) {
+    return handleApiError(res, req, "team/members:get", error, "No se pudo obtener el equipo");
+  }
+});
+
+app.post("/api/team/members", requireAuth, async (req, res) => {
+  try {
+    const sub = await prisma.subscription.findUnique({ where: { userId: req.user.id }, select: { features: true, plan: true } });
+    const maxMembers = getTeamMaxMembers(sub, req.user);
+    if (maxMembers === 0) return res.status(403).json({ error: "Tu plan no incluye usuarios adicionales" });
+
+    const currentCount = await prisma.user.count({ where: { teamOwnerId: req.user.id } });
+    if (currentCount >= maxMembers) {
+      return res.status(403).json({ error: `Tu plan permite máximo ${maxMembers} usuario(s) adicional(es)` });
+    }
+
+    const { email, password, role } = req.body || {};
+    if (!email || !password) return res.status(400).json({ error: "Email y contraseña son requeridos" });
+    if (password.length < 8) return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+
+    const ALLOWED_ROLES = { user: "USER", editor: "EDITOR", admin: "ADMIN" };
+    const prismaRole = ALLOWED_ROLES[(role || "editor").toLowerCase()];
+    if (!prismaRole) return res.status(400).json({ error: "Rol inválido. Usa: usuario, editor o admin" });
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) return res.status(409).json({ error: "Ya existe una cuenta con ese email" });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const member = await prisma.user.create({
+      data: { email: normalizedEmail, passwordHash, role: prismaRole, teamOwnerId: req.user.id, emailVerified: true },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+    });
+    return res.status(201).json({ member });
+  } catch (error) {
+    return handleApiError(res, req, "team/members:post", error, "No se pudo crear el miembro");
+  }
+});
+
+app.delete("/api/team/members/:memberId", requireAuth, async (req, res) => {
+  try {
+    const member = await prisma.user.findFirst({ where: { id: req.params.memberId, teamOwnerId: req.user.id } });
+    if (!member) return res.status(404).json({ error: "Miembro no encontrado" });
+    await prisma.user.delete({ where: { id: req.params.memberId } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return handleApiError(res, req, "team/members:delete", error, "No se pudo eliminar el miembro");
+  }
+});
+
 app.get(
   "/api/projects/:projectId/runs/:runId",
   requireAuth,
@@ -3358,7 +3539,7 @@ app.get(
       where: {
         id: req.params.runId,
         projectId: req.params.projectId,
-        userId: req.user.id,
+        userId: getAccountOwnerId(req.user),
       },
       select: {
         id: true,
@@ -3410,7 +3591,7 @@ app.get(
       where: {
         id: req.params.runId,
         projectId: req.params.projectId,
-        userId: req.user.id,
+        userId: getAccountOwnerId(req.user),
       },
       select: { id: true },
     });
@@ -3438,7 +3619,7 @@ app.get(
       where: {
         id: req.params.runId,
         projectId: req.params.projectId,
-        userId: req.user.id,
+        userId: getAccountOwnerId(req.user),
       },
       select: { id: true },
     });
@@ -3462,8 +3643,9 @@ app.get(
   "/api/projects/:projectId/runs/:runId/report",
   requireAuth,
   async (req, res) => {
+    const accountOwnerId = getAccountOwnerId(req.user);
     // Plan feature check: excel_report
-    const sub = await getUserSubscription(req.user.id);
+    const sub = await getUserSubscription(accountOwnerId);
     if (!hasFeature(sub, "excel_report")) {
       return res.status(403).json({
         error: "Reportes Excel no disponibles en tu plan",
@@ -3477,7 +3659,7 @@ app.get(
       where: {
         id: req.params.runId,
         projectId: req.params.projectId,
-        userId: req.user.id,
+        userId: accountOwnerId,
       },
       select: {
         id: true,
@@ -3535,14 +3717,15 @@ app.get("/api/site-info", requireAuth, async (req, res) => {
 // GET /api/subscription - Get current user's plan info
 app.get("/api/subscription", requireAuth, async (req, res) => {
   try {
-    const sub = await getUserSubscription(req.user.id);
+    const accountOwnerId = getAccountOwnerId(req.user);
+    const sub = await getUserSubscription(accountOwnerId);
 
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
     const [projectCount, dbCrawlCount] = await Promise.all([
-      prisma.project.count({ where: { userId: req.user.id } }),
-      prisma.crawlRun.count({ where: { userId: req.user.id, createdAt: { gte: monthStart } } }),
+      prisma.project.count({ where: { userId: accountOwnerId } }),
+      prisma.crawlRun.count({ where: { userId: accountOwnerId, createdAt: { gte: monthStart } } }),
     ]);
     const resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
     const counterCount = (!resetAt || resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
@@ -3994,7 +4177,7 @@ app.put("/api/admin/users/:userId/plan", requireAuth, requireUserManagement, asy
 });
 
 //  SSE: Crawl
-app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
+app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res) => {
   const startUrl = req.query.url;
   const source = req.query.source || "crawl";
   const rateDelay = parseInt(req.query.rate) || 0;
@@ -4010,11 +4193,13 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   if (!startUrl) return res.status(400).json({ error: "URL requerida" });
   if (!projectId) return res.status(400).json({ error: "Proyecto requerido" });
 
+  const accountOwnerId = getAccountOwnerId(req.user);
+
   // Plan limit: monthly crawls
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
-  const sub = await getUserSubscription(req.user.id);
+  const sub = await getUserSubscription(accountOwnerId);
   const _resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
   const crawlCount = (!_resetAt || _resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
   if (crawlCount >= sub.maxCrawlsPerMonth) {
@@ -4039,7 +4224,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
   }
 
   const project = await prisma.project.findFirst({
-    where: { id: projectId, userId: req.user.id },
+    where: { id: projectId, userId: accountOwnerId },
     select: { id: true, targetUrl: true, name: true },
   });
   if (!project)
@@ -4441,16 +4626,16 @@ app.get("/api/crawl", crawlLimiter, requireAuth, async (req, res) => {
       const _monthStart = new Date();
       _monthStart.setDate(1);
       _monthStart.setHours(0, 0, 0, 0);
-      const _sub = await tx.subscription.findUnique({ where: { userId: req.user.id }, select: { crawlsThisMonth: true, crawlsResetAt: true } });
+      const _sub = await tx.subscription.findUnique({ where: { userId: accountOwnerId }, select: { crawlsThisMonth: true, crawlsResetAt: true } });
       const _isNewMonth = !_sub?.crawlsResetAt || new Date(_sub.crawlsResetAt) < _monthStart;
       await tx.subscription.upsert({
-        where: { userId: req.user.id },
+        where: { userId: accountOwnerId },
         update: { crawlsThisMonth: _isNewMonth ? 1 : { increment: 1 }, crawlsResetAt: _isNewMonth ? _monthStart : undefined },
-        create: { userId: req.user.id, crawlsThisMonth: 1, crawlsResetAt: _monthStart },
+        create: { userId: accountOwnerId, crawlsThisMonth: 1, crawlsResetAt: _monthStart },
       });
       const run = await tx.crawlRun.create({
         data: {
-          userId: req.user.id,
+          userId: accountOwnerId,
           projectId: project.id,
           sourceUrl: startUrl,
           sourceType: source,
@@ -5089,9 +5274,15 @@ app.get("*", (req, res) =>
 );
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
-  app.listen(PORT, () =>
-    console.log(`\n  SEO Crawler en http://localhost:${PORT}\n`),
-  );
+  app.listen(PORT, () => {
+    console.log(`\n  SEO Crawler en http://localhost:${PORT}\n`);
+    if (!process.env.PAGESPEED_API_KEY) {
+      console.warn("  ⚠ PAGESPEED_API_KEY no configurada — Speed Test deshabilitado");
+    }
+    if (!process.env.SMTP_HOST) {
+      console.warn("  ⚠ SMTP_HOST no configurado — emails deshabilitados");
+    }
+  });
 }
 
 module.exports = app;

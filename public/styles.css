@@ -455,9 +455,119 @@ header.is-scrolled {
   color: var(--text2);
   margin-top: 8px;
 }
-.plan-breach-row { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
-.plan-settings-notice a { color: var(--accent); text-decoration: none; }
-.plan-settings-notice a:hover { text-decoration: underline; }
+.plan-breach-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.plan-settings-notice a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.plan-settings-notice a:hover {
+  text-decoration: underline;
+}
+
+.crawl-limit-notice {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--error, #f87171);
+  margin-top: 8px;
+}
+.crawl-limit-notice a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+.crawl-limit-notice a:hover {
+  text-decoration: underline;
+}
+
+/* Plans grid (precios page) */
+.plans-carousel-wrap {
+  display: contents;
+}
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 5fr));
+  gap: 14px;
+  align-items: start;
+  justify-content: center;
+}
+.plans-carousel {
+  display: none;
+}
+.plans-carousel-dots {
+  display: none;
+}
+.plans-carousel-item {
+  flex: 0 0 80%;
+  max-width: 340px;
+  scroll-snap-align: center;
+}
+
+@media (max-width: 1440px) {
+  .plans-grid {
+    grid-template-columns: repeat(3, minmax(0, 3fr));
+  }
+}
+
+@media (max-width: 1280px) {
+  .plans-grid {
+    display: none;
+  }
+  .plans-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 14px;
+    padding-bottom: 12px;
+    scrollbar-width: none;
+  }
+  .plans-carousel::-webkit-scrollbar {
+    display: none;
+  }
+  .plans-carousel-item {
+    flex: 0 0 80%;
+    max-width: 340px;
+    scroll-snap-align: center;
+  }
+  .plans-carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .plans-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition:
+      background 0.2s,
+      transform 0.2s;
+  }
+  .plans-dot.active {
+    background: var(--accent);
+    transform: scale(1.3);
+  }
+}
+@media (max-width: 480px) {
+  .plans-carousel-item {
+    flex: 0 0 88%;
+  }
+}
 
 .launch-edit-grid {
   display: flex;
@@ -3191,8 +3301,14 @@ h3,
   }
 
   @keyframes sidebar-card-in {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0);    }
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .main-layout:not(.mode-domain) .sidebar.is-open .sidebar-card:last-child {

@@ -1430,6 +1430,14 @@ function applyPlanConstraints(sub) {
       if (renderModeSel.value === "rendered") renderModeSel.value = "auto";
     }
   }
+  // PageSpeed tab: hide if plan doesn't include page_speed
+  const hasPageSpeed = Array.isArray(sub.features) && sub.features.includes("page_speed");
+  const speedTabBtn = document.querySelector('.tbtn[onclick*="\'speed\'"]') || document.querySelector('.tbtn[onclick*="speed"]');
+  if (speedTabBtn) speedTabBtn.style.display = hasPageSpeed ? "" : "none";
+  // Keywords tab: hide if plan has no keywords feature at all
+  const hasKeywords = Array.isArray(sub.features) && sub.features.some((f) => f.startsWith("keywords_"));
+  const kwTabBtn = document.querySelector('.tbtn[onclick*="\'keywords\'"]') || document.querySelector('.tbtn[onclick*="keywords"]');
+  if (kwTabBtn) kwTabBtn.style.display = hasKeywords ? "" : "none";
 }
 
 function validateCrawlSettings(sub, max, renderMode) {
@@ -1462,6 +1470,19 @@ function showPlanSettingsNotice(breaches) {
   el.style.display = "";
 }
 
+function showCrawlLimitError(plan, used, limit) {
+  const el = document.getElementById("crawl-limit-notice");
+  if (!el) return;
+  el.innerHTML = `🔒 Límite mensual alcanzado: ${used} de ${limit} rastreos (plan ${plan}). <a href="/subscription">Actualizar plan →</a>`;
+  el.style.display = "flex";
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function hideCrawlLimitError() {
+  const el = document.getElementById("crawl-limit-notice");
+  if (el) { el.style.display = "none"; el.innerHTML = ""; }
+}
+
 //
 // CRAWL
 //
@@ -1486,7 +1507,16 @@ function startCrawl() {
   }
 
   const _planSub = window.__SEO_CRAWLER_SUBSCRIPTION__;
-  if (_planSub) showPlanSettingsNotice(validateCrawlSettings(_planSub, max, renderMode));
+  if (_planSub) {
+    const _used = _planSub.crawlsThisMonth ?? 0;
+    const _limit = _planSub.maxCrawlsPerMonth ?? 999;
+    if (_limit < 999 && _used >= _limit) {
+      showCrawlLimitError(_planSub.plan, _used, _limit);
+      return;
+    }
+    hideCrawlLimitError();
+    showPlanSettingsNotice(validateCrawlSettings(_planSub, max, renderMode));
+  }
 
   resetState();
   const show = (id, d) => {
@@ -1801,7 +1831,7 @@ function urlA(p) {
 function mkTr(cells, types, firstCellTitle) {
   const tr = document.createElement("tr");
   tr.dataset.types = JSON.stringify(types || []);
-  tr.innerHTML = cells.map((c) => `<td>${c}</td>`).join("");
+  tr.innerHTML = cells.map((c, i) => i === 0 ? `<td class="th-sticky">${c}</td>` : `<td>${c}</td>`).join("");
   if (firstCellTitle) tr.firstElementChild.title = firstCellTitle;
   return tr;
 }

@@ -310,47 +310,47 @@ export default function AdminUsersPage() {
         {error ? <p className="feedback error">{error}</p> : null}
         {message ? <p className="feedback ok">{message}</p> : null}
 
-        <Card className="toolbar-card">
-          <div className="toolbar-head">
-            <div>
-              <Eyebrow icon={<Icon name="users" size={12} />}>Usuarios</Eyebrow>
-              <h2>Panel de roles</h2>
-              <p>Busca, filtra y ajusta permisos sin perder de vista el estado actual de cada cuenta.</p>
+        {(sessionUser?.permissions?.isOwner || sessionUser?.role === "super_admin") && (
+          <Card className="toolbar-card">
+            <div className="toolbar-head">
+              <div>
+                <Eyebrow icon={<Icon name="users" size={12} />}>Usuarios</Eyebrow>
+              </div>
+              <div className="toolbar-metrics">
+                <Badge tone="secondary">{users.length} visibles</Badge>
+                <Badge tone="primary">{pagination.total} totales</Badge>
+              </div>
             </div>
-            <div className="toolbar-metrics">
-              <Badge tone="secondary">{users.length} visibles</Badge>
-              <Badge tone="primary">{pagination.total} totales</Badge>
-            </div>
-          </div>
 
-          <div className="toolbar-grid">
-            <label className="ui-field">
-              <span className="ui-field-label">Buscar</span>
-              <input
-                className="ui-input"
-                maxLength={64}
-                value={queryInput}
-                onChange={(event) => setQueryInput(event.target.value)}
-                placeholder="Nombre, email o rol"
-              />
-            </label>
-            <Select
-              label="Filtrar por rol"
-              value={roleFilter}
-              onChange={(event) => {
-                setRoleFilter(event.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="all">Todos</option>
-              {ROLE_OPTIONS.map((role) => (
-                <option key={role} value={role}>
-                  {getRoleLabel(role)}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </Card>
+            <div className="toolbar-grid">
+              <label className="ui-field">
+                <span className="ui-field-label">Buscar</span>
+                <input
+                  className="ui-input"
+                  maxLength={64}
+                  value={queryInput}
+                  onChange={(event) => setQueryInput(event.target.value)}
+                  placeholder="Nombre, email o rol"
+                />
+              </label>
+              <Select
+                label="Filtrar por rol"
+                value={roleFilter}
+                onChange={(event) => {
+                  setRoleFilter(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">Todos</option>
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role} value={role}>
+                    {getRoleLabel(role)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </Card>
+        )}
 
         <Card className="table-card" padding="sm">
           <div className="table-wrap">

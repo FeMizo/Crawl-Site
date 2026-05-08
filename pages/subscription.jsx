@@ -474,67 +474,6 @@ export default function SubscriptionPage() {
           .portal-row {
             display: flex;
           }
-          /* PlanCarousel – desktop: grid; tablet/mobile: horizontal scroll-snap */
-          .plans-carousel-wrap {
-            display: contents;
-          }
-          .plans-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            align-items: start;
-          }
-          .plans-carousel {
-            display: none; /* hidden on desktop */
-          }
-          @media (max-width: 900px) {
-            .plans-grid {
-              display: none;
-            }
-            .plans-carousel {
-              display: flex;
-              overflow-x: auto;
-              scroll-snap-type: x mandatory;
-              -webkit-overflow-scrolling: touch;
-              gap: 16px;
-              padding-bottom: 12px;
-              /* hide scrollbar */
-              scrollbar-width: none;
-            }
-            .plans-carousel::-webkit-scrollbar {
-              display: none;
-            }
-            .plans-carousel-item {
-              flex: 0 0 80%;
-              max-width: 340px;
-              scroll-snap-align: center;
-            }
-            .plans-carousel-dots {
-              display: flex;
-              justify-content: center;
-              gap: 8px;
-              margin-top: 14px;
-            }
-            .plans-dot {
-              width: 8px;
-              height: 8px;
-              border-radius: 50%;
-              background: var(--border);
-              border: none;
-              padding: 0;
-              cursor: pointer;
-              transition: background 0.2s, transform 0.2s;
-            }
-            .plans-dot.active {
-              background: var(--accent);
-              transform: scale(1.3);
-            }
-          }
-          @media (max-width: 480px) {
-            .plans-carousel-item {
-              flex: 0 0 88%;
-            }
-          }
         `}</style>
       </AppShell>
     </>

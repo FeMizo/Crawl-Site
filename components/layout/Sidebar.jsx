@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import Badge from "../ui/Badge";
 import Card from "../ui/Card";
 import FaviconMark from "../ui/FaviconMark";
@@ -12,9 +13,42 @@ import { tUi } from "../../lib/ui-language";
 
 const { getRoleLabel } = require("../../lib/user-roles");
 
+const USER_FEATURES = ["1_extra_user", "2_extra_user", "multi_user"];
+const PLANS_WITH_TEAM = ["STARTER", "PRO", "AGENCY"];
+
 export default function Sidebar({ activeKey, user, aside, lang = "es", theme, onLangChange, onThemeChange }) {
+  const router = useRouter();
   const [pendingHref, setPendingHref] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [planFeatures, setPlanFeatures] = useState(null);
+  const [planKey, setPlanKey] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/subscription")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!d?.subscription) return;
+        d.subscription.features && setPlanFeatures(d.subscription.features);
+        d.subscription.plan && setPlanKey(d.subscription.plan);
+      })
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    const clear = () => setPendingHref("");
+    router.events.on("routeChangeComplete", clear);
+    router.events.on("routeChangeError", clear);
+    return () => {
+      router.events.off("routeChangeComplete", clear);
+      router.events.off("routeChangeError", clear);
+    };
+  }, [router.events]);
+
+  const hasTeamFeature = (
+    (planFeatures && USER_FEATURES.some((f) => planFeatures.includes(f))) ||
+    (planKey && PLANS_WITH_TEAM.includes(planKey))
+  );
 
   const privateNav = [
     {
@@ -57,7 +91,17 @@ export default function Sidebar({ activeKey, user, aside, lang = "es", theme, on
       label: tUi(lang, "navSettings"),
       icon: "settings",
     },
-    ...(user?.permissions?.canManageUsers
+    ...(user?.permissions?.canManageUsers || hasTeamFeature
+      ? [
+          {
+            key: "team",
+            href: "/team",
+            label: tUi(lang, "navTeam"),
+            icon: "users",
+          },
+        ]
+      : []),
+    ...(user?.permissions?.isOwner || user?.role === "super_admin"
       ? [
           {
             key: "users",

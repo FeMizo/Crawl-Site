@@ -141,7 +141,15 @@ export default function DashboardPage() {
     let active = true;
     fetch("/api/subscription")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (active && d?.subscription) setSubscription(d.subscription); })
+      .then((d) => {
+        if (active && d?.subscription) {
+          setSubscription({
+            ...d.subscription,
+            crawlsThisMonth: d.usage?.crawlsThisMonth ?? 0,
+            crawlsRemaining: d.limits?.crawlsRemaining ?? d.subscription.maxCrawlsPerMonth,
+          });
+        }
+      })
       .catch(() => {});
     return () => { active = false; };
   }, []);
