@@ -31,10 +31,11 @@ export async function requireRoadmapAccess(): Promise<AccessResult> {
   try {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      // In production this should be required; warn in case env is missing
-      console.warn("Warning: JWT_SECRET not set for roadmap access checks");
+      if (process.env.NODE_ENV === "production") throw new Error("JWT_SECRET must be set in production");
+      console.warn("Warning: JWT_SECRET not set — roadmap access denied");
+      return { user: null, canEdit: false };
     }
-    const decoded = jwt.verify(token, secret as string) as JwtPayload;
+    const decoded = jwt.verify(token, secret) as JwtPayload;
 
     if (!decoded?.userId) return { user: null, canEdit: false };
 

@@ -32,6 +32,7 @@ const {
   canAssignRole,
   canManageTarget,
   canManageUsers,
+  canEditContent,
   getAssignedRole,
   getEffectiveRole,
   getOwnerEmails,
@@ -154,7 +155,10 @@ function preferLocalDatabaseInDevelopment() {
 preferLocalDatabaseInDevelopment();
 
 const app = express();
-const prisma = new PrismaClient();
+// Reuse the same PrismaClient instance that lib/prisma.ts creates via globalThis,
+// preventing two connection pools when Express runs inside the Next.js process.
+if (!global.__prisma) global.__prisma = new PrismaClient();
+const prisma = global.__prisma;
 const isProd = process.env.NODE_ENV === "production";
 
 function getJwtSecret() {
@@ -245,7 +249,7 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         // Detect plan change via price ID (e.g. upgrade/downgrade from portal)
         const currentPriceId = subscription.items?.data?.[0]?.price?.id;
         const newPlan = planFromPriceId(currentPriceId);
-        const planData = newPlan && PLAN_DEFAULTS[newPlan] ? { plan: newPlan, ...PLAN_DEFAULTS[newPlan] } : {};
+        const planData = newPlan && PLAN_DEFAULTS[newPlan] ? { plan: newPlan, ...planDbFields(newPlan) } : {};
 
         // Detect status
         const isActive = subscription.status === "active";
@@ -589,6 +593,17 @@ async function getOrCreateStripeCustomer(stripe, user, existingSub) {
     metadata: { userId: user.id },
   });
   return customer.id;
+}
+
+function planDbFields(planKey) {
+  const d = PLAN_DEFAULTS[planKey] || PLAN_DEFAULTS.FREE;
+  return {
+    maxProjects: d.maxProjects,
+    maxPagesPerCrawl: d.maxPagesPerCrawl,
+    maxCrawlsPerMonth: d.maxCrawlsPerMonth,
+    maxHistoryRuns: d.maxHistoryRuns,
+    features: d.features,
+  };
 }
 
 async function getUserSubscription(userId) {
@@ -2665,7 +2680,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
         userId: user.id,
         plan: "FREE",
         trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        ...PLAN_DEFAULTS.FREE,
+        ...planDbFields("FREE"),
       },
       update: {},
     }).catch(() => {});
@@ -2811,7 +2826,7 @@ app.post("/api/auth/forgot-password", authLimiter, async (req, res) => {
   }
 });
 
-app.post("/api/auth/reset-password", async (req, res) => {
+app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
   try {
     const rawToken = String(req.body?.token || "").trim();
     const newPassword = String(req.body?.password || "");
@@ -3239,50 +3254,55 @@ app.get("/api/history", requireAuth, async (req, res) => {
 });
 
 app.post("/api/projects", requireAuth, requireEditor, async (req, res) => {
-  const targetUrl = normalizeUrl(req.body?.targetUrl || "");
-  if (!targetUrl) {
-    return res.status(400).json({ error: "URL invalida" });
-  }
-  const allowed = await ensureUrlAllowed(targetUrl);
-  if (!allowed) return res.status(400).json({ error: "URL no permitida" });
+  try {
+    const targetUrl = normalizeUrl(req.body?.targetUrl || "");
+    if (!targetUrl) {
+      return res.status(400).json({ error: "URL invalida" });
+    }
+    const allowed = await ensureUrlAllowed(targetUrl);
+    if (!allowed) return res.status(400).json({ error: "URL no permitida" });
 
-  const accountOwnerId = getAccountOwnerId(req.user);
+    const accountOwnerId = getAccountOwnerId(req.user);
 
-  // Plan limit check: max projects
-  const [sub, projectCount] = await Promise.all([
-    getUserSubscription(accountOwnerId),
-    prisma.project.count({ where: { userId: accountOwnerId } }),
-  ]);
-  const isFree = sub.plan === "FREE" && !sub.inTrial;
-  const countToCheck = isFree ? sub.projectsCreated : projectCount;
-  if (countToCheck >= sub.maxProjects) {
-    return res.status(403).json({
-      error: "Limite de proyectos alcanzado",
-      errorEn: "Project limit reached",
-      limit: sub.maxProjects,
-      plan: sub.plan,
-      upgrade: true,
+    // Plan limit check: max projects
+    const [sub, projectCount] = await Promise.all([
+      getUserSubscription(accountOwnerId),
+      prisma.project.count({ where: { userId: accountOwnerId } }),
+    ]);
+    const isFree = sub.plan === "FREE" && !sub.inTrial;
+    const countToCheck = isFree ? sub.projectsCreated : projectCount;
+    if (countToCheck >= sub.maxProjects) {
+      return res.status(403).json({
+        error: "Limite de proyectos alcanzado",
+        errorEn: "Project limit reached",
+        limit: sub.maxProjects,
+        plan: sub.plan,
+        upgrade: true,
+      });
+    }
+
+    const project = await prisma.project.create({
+      data: {
+        userId: accountOwnerId,
+        name: normalizeProjectName(req.body?.name, targetUrl),
+        targetUrl,
+      },
     });
+
+    // Track cumulative counter for FREE plan — deletion doesn't free slots
+    if (isFree) {
+      await prisma.subscription.upsert({
+        where: { userId: accountOwnerId },
+        create: { userId: accountOwnerId, plan: "FREE", projectsCreated: 1, ...planDbFields("FREE") },
+        update: { projectsCreated: { increment: 1 } },
+      });
+    }
+
+    res.status(201).json({ project });
+  } catch (err) {
+    console.error("[POST /api/projects]", err);
+    res.status(500).json({ error: "No se pudo crear el proyecto" });
   }
-
-  const project = await prisma.project.create({
-    data: {
-      userId: accountOwnerId,
-      name: normalizeProjectName(req.body?.name, targetUrl),
-      targetUrl,
-    },
-  });
-
-  // Track cumulative counter for FREE plan — deletion doesn't free slots
-  if (isFree) {
-    await prisma.subscription.upsert({
-      where: { userId: accountOwnerId },
-      create: { userId: accountOwnerId, plan: "FREE", projectsCreated: 1, ...PLAN_DEFAULTS.FREE },
-      update: { projectsCreated: { increment: 1 } },
-    });
-  }
-
-  res.status(201).json({ project });
 });
 
 app.get("/api/projects/:projectId", requireAuth, async (req, res) => {
@@ -3819,7 +3839,7 @@ app.post("/api/subscription/checkout", requireAuth, async (req, res) => {
     try {
       await prisma.subscription.upsert({
         where: { userId: req.user.id },
-        create: { userId: req.user.id, plan: "FREE", stripeCustomerId: customerId, ...PLAN_DEFAULTS.FREE },
+        create: { userId: req.user.id, plan: "FREE", stripeCustomerId: customerId, ...planDbFields("FREE") },
         update: { stripeCustomerId: customerId },
       });
     } catch { /* table may not exist */ }
@@ -4074,7 +4094,7 @@ app.post("/api/subscription/change", requireAuth, async (req, res) => {
 });
 
 // POST /api/subscription/upgrade - Admin/manual upgrade (no Stripe)
-app.post("/api/subscription/upgrade", requireAuth, async (req, res) => {
+app.post("/api/subscription/upgrade", requireAuth, requireUserManagement, async (req, res) => {
   try {
     const newPlan = String(req.body?.plan || "").toUpperCase();
     if (!PLAN_DEFAULTS[newPlan]) {
@@ -4274,6 +4294,19 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
   let cancelled = false;
 
   req.on("close", () => { cancelled = true; });
+
+  // Create the run record immediately so status is visible in history
+  let pendingRunId = null;
+  try {
+    const pr = await prisma.crawlRun.create({
+      data: { userId: accountOwnerId, projectId: project.id, sourceUrl: startUrl, sourceType: source, maxPages, rateDelay, checkExt, status: "RUNNING" },
+      select: { id: true },
+    });
+    pendingRunId = pr.id;
+  } catch (e) {
+    console.error("[crawl] failed to create pending run:", e?.message || e);
+  }
+
   const canJsCrawl = hasFeature(sub, "js_crawl") && !!process.env.BROWSERLESS_TOKEN;
 
   // Robots
@@ -4554,6 +4587,7 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
     active--;
   }
 
+  try {
   const CONCURRENCY = 5;
   while ((queue.length > 0 || active > 0) && !cancelled) {
     while (active < CONCURRENCY && queue.length > 0 && !cancelled)
@@ -4659,23 +4693,16 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
         update: { crawlsThisMonth: _isNewMonth ? 1 : { increment: 1 }, crawlsResetAt: _isNewMonth ? _monthStart : undefined },
         create: { userId: accountOwnerId, crawlsThisMonth: 1, crawlsResetAt: _monthStart },
       });
-      const run = await tx.crawlRun.create({
-        data: {
-          userId: accountOwnerId,
-          projectId: project.id,
-          sourceUrl: startUrl,
-          sourceType: source,
-          maxPages,
-          rateDelay,
-          checkExt,
-          total: results.length,
-          withIssues,
-          stats,
-          downloadName,
-          status: "COMPLETED",
-        },
-        select: { id: true },
-      });
+      const run = pendingRunId
+        ? await tx.crawlRun.update({
+            where: { id: pendingRunId },
+            data: { total: results.length, withIssues, stats, downloadName, status: "COMPLETED" },
+            select: { id: true },
+          })
+        : await tx.crawlRun.create({
+            data: { userId: accountOwnerId, projectId: project.id, sourceUrl: startUrl, sourceType: source, maxPages, rateDelay, checkExt, total: results.length, withIssues, stats, downloadName, status: "COMPLETED" },
+            select: { id: true },
+          });
 
       if (normalizedResults.length) {
         await tx.crawlRunPage.createMany({
@@ -4740,6 +4767,16 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
           console.error("[pagespeed-bg]", err?.message || err);
         }
       });
+    }
+  }
+
+  if (cancelled && pendingRunId) {
+    await prisma.crawlRun.update({ where: { id: pendingRunId }, data: { status: "CANCELLED" } }).catch(() => {});
+  }
+  } catch (crawlErr) {
+    console.error("[crawl] fatal error:", crawlErr?.message || crawlErr);
+    if (pendingRunId) {
+      await prisma.crawlRun.update({ where: { id: pendingRunId }, data: { status: "FAILED" } }).catch(() => {});
     }
   }
 
