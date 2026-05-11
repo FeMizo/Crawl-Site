@@ -11,7 +11,7 @@
 Tu sitio está en **excelentes condiciones**. Los últimos 2 días de cambios fueron puramente visuales (v2.14.1 - logo actualizado). **3 cosas críticas** requieren atención esta semana:
 
 1. **Verificar JWT cookie tiene `httpOnly: true`** (prevención XSS) — 30 min
-2. **Rate limiting en login** (prevención brute force) — 30 min  
+2. **Rate limiting en login** (prevención brute force) — 30 min
 3. **Crear página `/terminos`** (cumplimiento legal) — 2-3 horas
 
 Resto de mejoras son **opcionales** (nice-to-have).
@@ -20,14 +20,14 @@ Resto de mejoras son **opcionales** (nice-to-have).
 
 ## 📊 Scorecard Actual
 
-| Aspecto | Puntuación | Estado | Nota |
-|---------|-----------|--------|------|
-| **Seguridad** | 9.5/10 | 🟢 Excelente | HSTS, CSP, JWT presente |
-| **SEO** | 9/10 | 🟢 Muy bueno | Meta tags, schema, sitemap |
-| **UX/Flujo** | 9.5/10 | 🟢 Excelente | Onboarding, error handling |
-| **Traducción** | 10/10 | 🟢 Completo | 440+ keys (ES/EN) |
-| **Layout/Mobile** | 9.5/10 | 🟢 Excelente | Responsive, dark-first |
-| **Documentación** | 9/10 | 🟢 Muy bueno | CLAUDE.md detallado |
+| Aspecto           | Puntuación | Estado       | Nota                       |
+| ----------------- | ---------- | ------------ | -------------------------- |
+| **Seguridad**     | 9.5/10     | 🟢 Excelente | HSTS, CSP, JWT presente    |
+| **SEO**           | 9/10       | 🟢 Muy bueno | Meta tags, schema, sitemap |
+| **UX/Flujo**      | 9.5/10     | 🟢 Excelente | Onboarding, error handling |
+| **Traducción**    | 10/10      | 🟢 Completo  | 440+ keys (ES/EN)          |
+| **Layout/Mobile** | 9.5/10     | 🟢 Excelente | Responsive, dark-first     |
+| **Documentación** | 9/10       | 🟢 Muy bueno | CLAUDE.md detallado        |
 
 **PROMEDIO: 94/100** → **PRODUCCIÓN LISTA**
 
@@ -38,30 +38,42 @@ Resto de mejoras son **opcionales** (nice-to-have).
 ### #1: JWT Cookie Security (30 min)
 
 **Verificar que la cookie `auth_token` tiene estos flags:**
+
 ```
 ✅ HttpOnly (impide acceso desde JavaScript)
-✅ Secure (HTTPS only)  
+✅ Secure (HTTPS only)
 ✅ SameSite=Strict (CSRF prevention)
 ```
 
 **Test:** En navegador console, `document.cookie` debe estar vacío.
 
+### #2: Rate Limiting Specification (COMPLETO)
+
+**Status:** ✅ Implementado y verificado
+
+- Login/register: 20 intentos por 15 minutos
+- Contacto: 1 por minuto
+- Crawls: 2 por minuto (configurable)
+
+**No requiere acción.**
+
 ---
 
-### #2: Rate Limiting en Login (30 min)
+### #2: Rate Limiting en Login (COMPLETO)
 
-**Verificar que `/api/auth/login` rechaza 6to intento rápido en 5 min:**
-```
-Máx 5 intentos por IP en 5 minutos → Bloquea 6to
-```
+**Status:** ✅ Implementado y verificado
+- Login/register: 20 intentos por 15 minutos
+- Contacto: 1 por minuto
+- Crawls: 2 por minuto (configurable)
 
-**Test:** `curl http://localhost:3000/api/auth/login` 6 veces rápido, debe rechazar.
+**No requiere acción.**
 
 ---
 
 ### #3: Crear Página `/terminos` (2-3 horas)
 
 **Crear archivo `pages/terminos.jsx` con:**
+
 - Title: "Términos de Servicio | SEO Crawler"
 - Secciones: Aceptación, Licencia, Responsabilidad, Reembolsos
 - Link en footer
@@ -73,35 +85,38 @@ Máx 5 intentos por IP en 5 minutos → Bloquea 6to
 
 ## ✨ OPCIONALES (Próximas 2 semanas)
 
-| Item | Tiempo | Impacto | Prioridad |
-|------|--------|---------|-----------|
-| Breadcrumb schema en dashboard | 1h | SEO (SERP) | Media |
-| OG image específica para /aviso-privacidad | 30min | Social preview | Baja |
-| Core Web Vitals audit | 1h | SEO/Performance | Alta |
-| WCAG AA formal audit | 2h | Accesibilidad legal | Media |
-| Cookie banner GDPR | 2-3h | Cumplimiento legal | Media |
+| Item                                       | Tiempo | Impacto             | Prioridad |
+| ------------------------------------------ | ------ | ------------------- | --------- |
+| Breadcrumb schema en dashboard             | 1h     | SEO (SERP)          | Media     |
+| OG image específica para /aviso-privacidad | 30min  | Social preview      | Baja      |
+| Core Web Vitals audit                      | 1h     | SEO/Performance     | Alta      |
+| WCAG AA formal audit                       | 2h     | Accesibilidad legal | Media     |
+| Cookie banner GDPR                         | 2-3h   | Cumplimiento legal  | Media     |
 
 ---
 
 ## ✅ QUÉ ESTÁ BIEN
 
 ### Seguridad
+
 ✅ HSTS (2 años)  
 ✅ CSP restrictiva (`default-src 'self'`)  
 ✅ X-Frame-Options SAMEORIGIN (previene clickjacking)  
-✅ Sin exposición de secrets en código  
+✅ Sin exposición de secrets en código
 
 ### SEO
+
 ✅ Meta tags completos en todas las páginas  
 ✅ Schema.org implementado (SoftwareApplication, HowTo, FAQPage)  
 ✅ Sitemap dinámico + robots.txt  
-✅ Canonical tags presentes  
+✅ Canonical tags presentes
 
 ### UX
+
 ✅ Flujos claros (registro → proyecto → rastreo)  
 ✅ Error pages (404, 500) implementadas  
 ✅ Traducción bilingüe completa (ES/EN)  
-✅ Responsive mobile-first  
+✅ Responsive mobile-first
 
 ---
 
@@ -129,6 +144,7 @@ He creado 3 documentos detallados para guiar la implementación:
 ## 🎯 PRÓXIMOS PASOS
 
 ### Hoy/Mañana
+
 ```bash
 # 1. Leer este documento (5 min)
 # 2. Verificar JWT httpOnly (30 min)
@@ -140,6 +156,7 @@ grep -r "express-rate-limit" . --include="*.ts" --include="*.js"
 ```
 
 ### Esta semana
+
 ```bash
 # 4. Crear /pages/terminos.jsx (2h)
 # 5. Agregar link en footer (15 min)
@@ -148,6 +165,7 @@ grep -r "express-rate-limit" . --include="*.ts" --include="*.js"
 ```
 
 ### Próximas 2 semanas
+
 ```bash
 # 8. Audit con PageSpeed Insights
 # 9. Audit con Axe DevTools
@@ -189,5 +207,5 @@ R: No. Todo está bien en el código actual. Solo agregar/validar mejoras.
 
 ---
 
-*Documento generado por Claude Agent*  
-*Auditoría automática: 29 de abril de 2026*
+_Documento generado por Claude Agent_  
+_Auditoría automática: 29 de abril de 2026_

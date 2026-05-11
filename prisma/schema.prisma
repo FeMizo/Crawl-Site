@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("dashboard_DATABASE_URL")
-  directUrl = env("dashboard_DATABASE_URL_UNPOOLED")
+  provider = "postgresql"
+  url      = env("dashboard_DATABASE_URL")
 }
 
 enum UserRole {
@@ -33,50 +32,50 @@ enum PlanType {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  name         String?
-  email        String        @unique
-  role         UserRole      @default(USER)
-  phoneCountry String?
-  phoneNumber  String?
-  jobRole      String?
-  passwordHash String
-  emailVerified       Boolean             @default(false)
-  teamOwnerId         String?
-  teamOwner           User?               @relation("TeamMembers", fields: [teamOwnerId], references: [id], onDelete: SetNull)
-  teamMembers         User[]              @relation("TeamMembers")
-  projects            Project[]
-  crawlRuns           CrawlRun[]
-  subscription        Subscription?
-  crawlSchedules      CrawlSchedule[]
-  passwordResetTokens PasswordResetToken[]
+  id                      String                   @id @default(cuid())
+  name                    String?
+  email                   String                   @unique
+  role                    UserRole                 @default(USER)
+  phoneCountry            String?
+  phoneNumber             String?
+  jobRole                 String?
+  passwordHash            String
+  emailVerified           Boolean                  @default(false)
+  teamOwnerId             String?
+  teamOwner               User?                    @relation("TeamMembers", fields: [teamOwnerId], references: [id], onDelete: SetNull)
+  teamMembers             User[]                   @relation("TeamMembers")
+  projects                Project[]
+  crawlRuns               CrawlRun[]
+  subscription            Subscription?
+  crawlSchedules          CrawlSchedule[]
+  passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   @@index([teamOwnerId])
 }
 
 model Subscription {
-  id               String    @id @default(cuid())
-  userId           String    @unique
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan             PlanType  @default(FREE)
-  stripeCustomerId String?
-  stripeSubId      String?
-  maxProjects      Int       @default(1)
-  maxPagesPerCrawl Int       @default(50)
-  maxCrawlsPerMonth Int      @default(2)
-  maxHistoryRuns   Int       @default(1)
-  features         String[]  @default([])
-  projectsCreated  Int       @default(0)
-  crawlsThisMonth  Int       @default(0)
-  crawlsResetAt    DateTime?
-  trialEndsAt      DateTime?
-  expiresAt        DateTime?
-  cancelledAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan              PlanType  @default(FREE)
+  stripeCustomerId  String?
+  stripeSubId       String?
+  maxProjects       Int       @default(1)
+  maxPagesPerCrawl  Int       @default(50)
+  maxCrawlsPerMonth Int       @default(2)
+  maxHistoryRuns    Int       @default(1)
+  features          String[]  @default([])
+  projectsCreated   Int       @default(0)
+  crawlsThisMonth   Int       @default(0)
+  crawlsResetAt     DateTime?
+  trialEndsAt       DateTime?
+  expiresAt         DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([stripeSubId])
   @@index([stripeCustomerId])
@@ -177,25 +176,25 @@ model CrawlRunDuplicate {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

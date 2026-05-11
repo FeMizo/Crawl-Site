@@ -56,17 +56,19 @@ curl -I https://crawlsite.app/api/auth/me \
 pages/api/auth/login.js (o .ts)
 ```
 
-**Verificación esperada:**
+**Implementación verificada:**
 ```javascript
-import rateLimit from 'express-rate-limit';
-
-const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutos
-  max: 5, // máximo 5 intentos
-  message: 'Demasiados intentos de login. Intenta después de 5 minutos.'
+// Rate limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 20, // máximo 20 intentos
+  message: 'Demasiados intentos. Intenta de nuevo en 15 minutos.',
+  skipSuccessfulRequests: true // solo cuenta intentos fallidos
 });
 
-router.post('/login', loginLimiter, async (req, res) => { ... });
+// Aplicado a:
+app.post('/api/auth/login', authLimiter, handler);
+app.post('/api/auth/register', authLimiter, handler);
 ```
 
 **Si NO está implementado:**

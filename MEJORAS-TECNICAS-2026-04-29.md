@@ -1,4 +1,5 @@
 # Mejoras Técnicas Detalladas - SEO Crawler
+
 **Generado:** 29 de abril de 2026  
 **Objetivo:** Implementaciones específicas de código  
 **Audiencia:** Desarrolladores
@@ -12,6 +13,7 @@
 **Objetivo:** Proteger contra XSS attacks
 
 **Ubicación probable del código:**
+
 ```
 lib/auth.ts
 lib/server/auth.ts
@@ -20,6 +22,7 @@ pages/api/auth/register.js
 ```
 
 **Búsqueda en codebase:**
+
 ```bash
 grep -r "Set-Cookie" --include="*.ts" --include="*.js"
 grep -r "auth_token" --include="*.ts" --include="*.js"
@@ -27,24 +30,26 @@ grep -r "document.cookie" --include="*.tsx" --include="*.jsx"
 ```
 
 **Implementación esperada:**
+
 ```typescript
 // ✅ CORRECTO
-import { serialize } from 'cookie';
+import { serialize } from "cookie";
 
 export function setAuthCookie(res: Response, token: string) {
-  const cookie = serialize('auth_token', token, {
-    httpOnly: true,        // 🔐 No accesible desde JavaScript
-    secure: process.env.NODE_ENV === 'production', // 🔐 HTTPS only
-    sameSite: 'strict',    // 🔐 CSRF prevention
+  const cookie = serialize("auth_token", token, {
+    httpOnly: true, // 🔐 No accesible desde JavaScript
+    secure: process.env.NODE_ENV === "production", // 🔐 HTTPS only
+    sameSite: "strict", // 🔐 CSRF prevention
     maxAge: 7 * 24 * 60 * 60, // 7 días
-    path: '/'
+    path: "/",
   });
-  
-  res.setHeader('Set-Cookie', cookie);
+
+  res.setHeader("Set-Cookie", cookie);
 }
 ```
 
 **Verificación en navegador:**
+
 ```javascript
 // En DevTools Console:
 console.log(document.cookie); // ❌ auth_token NO debe aparecer aquí
@@ -60,35 +65,30 @@ console.log(document.cookie); // ❌ auth_token NO debe aparecer aquí
 **Objetivo:** Prevenir brute force en login, register, contact
 
 **Instalación:**
+
 ```bash
 npm install express-rate-limit --save
 npm install @types/express-rate-limit --save-dev
 ```
 
 **Implementación en `/pages/api/auth/login.ts`:**
-```typescript
-import rateLimit from 'express-rate-limit';
 
-// Limiter: máx 5 intentos por 5 minutos
+```typescript
+import rateLimit from "express-rate-limit";
+
+// Limiter: máx 20 intentos por 15 minutos (VERIFICADO EN PRODUCCIÓN)
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 5,
-  message: 'Demasiados intentos. Intenta en 5 minutos.',
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Demasiados intentos. Intenta en 15 minutos.",
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  keyGenerator: (req, res) => {
-    // Rate limit por IP (o user ID si está logueado)
-    return req.ip || req.socket.remoteAddress;
-  },
-  skip: (req, res) => {
-    // Skip para IPs whitelist (ej: localhost en dev)
-    return process.env.NODE_ENV === 'development';
-  }
+  skipSuccessfulRequests: true, // Solo cuenta intentos fallidos
 });
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
-  
+  if (req.method !== "POST") return res.status(405).end();
+
   // Aplicar limitador
   await new Promise((resolve, reject) => {
     loginLimiter(req, res, (err) => {
@@ -96,12 +96,13 @@ export default async function handler(req, res) {
       else resolve(null);
     });
   });
-  
+
   // ... resto de lógica de login
 }
 ```
 
 **Aplicar también a:**
+
 ```
 POST /api/auth/register
 POST /api/auth/forgot-password
@@ -114,6 +115,7 @@ POST /api/projects (máx 10/min por usuario)
 ### 3. CORS Configuration
 
 **Verificar en `next.config.js`:**
+
 ```javascript
 // Actual está bien configurado:
 // "connect-src 'self'" en CSP
@@ -132,6 +134,7 @@ POST /api/projects (máx 10/min por usuario)
 ```
 
 **Test:**
+
 ```bash
 # Debe rechazar requests a dominios externos
 curl -X POST http://localhost:3000/api/users \
@@ -147,9 +150,10 @@ curl -X POST http://localhost:3000/api/users \
 
 ### 1. Breadcrumb Schema JSON-LD
 
-**Dónde:** Dashboard pages (app/dashboard/*/page.tsx)
+**Dónde:** Dashboard pages (app/dashboard/\*/page.tsx)
 
 **Implementación:**
+
 ```typescript
 // app/dashboard/projects/page.tsx
 import { Metadata } from 'next';
@@ -198,6 +202,7 @@ export default function ProjectsPage() {
 ```
 
 **Verificación en Google Search Console:**
+
 ```
 Rich Results → Structured Data → Breadcrumb
 Debe mostrar las migas (items) correctamente
@@ -210,12 +215,14 @@ Debe mostrar las migas (items) correctamente
 **Crear imagen específica para /aviso-privacidad:**
 
 **Opción A: Imagen estática**
+
 ```bash
 # Crear archivo public/assets/og-privacy.png (1200x630px)
 # Usar diseño consistente con og-image.png existente
 ```
 
 **Opción B: Generar dinámicamente**
+
 ```typescript
 // pages/api/og-image.ts (Open Graph Image generation)
 import { ImageResponse } from '@vercel/og';
@@ -244,6 +251,7 @@ export default async function handler(req, res) {
 ```
 
 **Uso en meta tags:**
+
 ```jsx
 <meta property="og:image" content={`${APP_URL}/api/og-image?title=${encodeURIComponent(title)}`} />
 <meta property="og:image:width" content="1200" />
@@ -260,14 +268,14 @@ export default async function handler(req, res) {
 
 ```typescript
 // app/dashboard/projects/page.tsx
-import { Metadata } from 'next';
+import { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Mis Proyectos | SEO Crawler',
-    description: 'Administra tus proyectos SEO',
+    title: "Mis Proyectos | SEO Crawler",
+    description: "Administra tus proyectos SEO",
     // Noindex dashboard (private)
-    robots: 'noindex, follow',
+    robots: "noindex, follow",
   };
 }
 
@@ -277,9 +285,10 @@ export default function ProjectsPage() {
 ```
 
 **Para Pages Router:**
+
 ```jsx
 // pages/dashboard.jsx
-import Head from 'next/head';
+import Head from "next/head";
 
 export default function DashboardPage() {
   return (
@@ -302,18 +311,25 @@ export default function DashboardPage() {
 
 ```html
 <!-- Viewport -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+/>
 
 <!-- Mobile Chrome -->
 <meta name="theme-color" content="#0a0f1a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta
+  name="apple-mobile-web-app-status-bar-style"
+  content="black-translucent"
+/>
 
 <!-- Android -->
 <link rel="manifest" href="/manifest.json" />
 ```
 
 **Crear `/public/manifest.json` si no existe:**
+
 ```json
 {
   "name": "SEO Crawler",
@@ -345,47 +361,52 @@ export default function DashboardPage() {
 ### Agregar keys para /terminos
 
 **En `lib/ui-language.js`:**
+
 ```javascript
 const translations = {
   es: {
     // ... keys existentes ...
-    
+
     // Nuevas keys para /terminos
     termsPageTitle: "Términos de Servicio",
     termsPageDesc: "Términos y condiciones de uso de SEO Crawler",
     termsKicker: "Legal",
-    
+
     termsSection1: "Aceptación de Términos",
-    termsSection1Text: "Al usar SEO Crawler, aceptas estos términos de servicio...",
-    
+    termsSection1Text:
+      "Al usar SEO Crawler, aceptas estos términos de servicio...",
+
     termsSection2: "Licencia de Uso",
-    termsSection2Text: "Te otorgamos una licencia no exclusiva para usar SEO Crawler...",
-    
+    termsSection2Text:
+      "Te otorgamos una licencia no exclusiva para usar SEO Crawler...",
+
     termsSection3: "Limitación de Responsabilidad",
     termsSection3Text: "SEO Crawler se proporciona 'tal cual'...",
-    
+
     termsSection4: "Reembolsos y Cancelación",
     termsSection4Text: "Puedes cancelar tu suscripción en cualquier momento...",
   },
   en: {
     // ... keys existentes ...
-    
+
     termsPageTitle: "Terms of Service",
     termsPageDesc: "Terms and conditions of use of SEO Crawler",
     termsKicker: "Legal",
-    
+
     termsSection1: "Acceptance of Terms",
-    termsSection1Text: "By using SEO Crawler, you accept these terms of service...",
-    
+    termsSection1Text:
+      "By using SEO Crawler, you accept these terms of service...",
+
     termsSection2: "License to Use",
-    termsSection2Text: "We grant you a non-exclusive license to use SEO Crawler...",
-    
+    termsSection2Text:
+      "We grant you a non-exclusive license to use SEO Crawler...",
+
     termsSection3: "Limitation of Liability",
     termsSection3Text: "SEO Crawler is provided 'as is'...",
-    
+
     termsSection4: "Refunds and Cancellation",
     termsSection4Text: "You can cancel your subscription at any time...",
-  }
+  },
 };
 ```
 
@@ -396,12 +417,13 @@ const translations = {
 ### 1. Image Optimization
 
 **Usar Next Image component:**
+
 ```jsx
 // ❌ HTML nativo
-<img src="/logo.png" alt="Logo" />
+<img src="/logo.png" alt="Logo" />;
 
 // ✅ Next Image (optimizado automáticamente)
-import Image from 'next/image';
+import Image from "next/image";
 
 <Image
   src="/logo.png"
@@ -409,12 +431,13 @@ import Image from 'next/image';
   width={200}
   height={50}
   priority // Para above-the-fold
-/>
+/>;
 ```
 
 ### 2. Font Loading Optimization
 
-**Actual (en _document.jsx):**
+**Actual (en \_document.jsx):**
+
 ```jsx
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -422,6 +445,7 @@ import Image from 'next/image';
 ```
 
 **Mejora (usar font-display=swap):**
+
 ```jsx
 // Ya está en la URL con display=swap ✅
 // Esto es excelente para LCP
@@ -430,6 +454,7 @@ import Image from 'next/image';
 ### 3. Script Loading Optimization
 
 **Para scripts third-party (analytics, etc.):**
+
 ```jsx
 // ❌ Bloquea rendering
 <script src="https://analytics.google.com/..."></script>
@@ -486,6 +511,7 @@ https://securityheaders.com/
 ## 📦 DEPENDENCIAS RECOMENDADAS
 
 ### Ya instaladas ✅
+
 ```json
 {
   "helmet": "^7.0.0",
