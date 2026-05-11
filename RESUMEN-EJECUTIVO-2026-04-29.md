@@ -62,6 +62,7 @@ Resto de mejoras son **opcionales** (nice-to-have).
 ### #2: Rate Limiting en Login (COMPLETO)
 
 **Status:** ✅ Implementado y verificado
+
 - Login/register: 20 intentos por 15 minutos
 - Contacto: 1 por minuto
 - Crawls: 2 por minuto (configurable)

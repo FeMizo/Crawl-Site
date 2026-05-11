@@ -1,4 +1,5 @@
 # Acciones Inmediatas - SEO Crawler
+
 **Generado:** 29 de abril de 2026  
 **Basado en:** Auditoría automatizada 2026-04-29  
 **Prioridad:** INMEDIATA (implementar esta semana)
@@ -12,6 +13,7 @@
 **Por qué:** La cookie de autenticación debe tener `httpOnly: true` para prevenir XSS.
 
 **Dónde buscar:**
+
 ```
 lib/auth.ts
 lib/server/auth.ts
@@ -19,17 +21,19 @@ pages/api/auth/*
 ```
 
 **Verificación:**
+
 ```javascript
 // ❌ MALO
-res.setHeader('Set-Cookie', 'auth_token=' + token);
+res.setHeader("Set-Cookie", "auth_token=" + token);
 
 // ✅ BUENO
-res.setHeader('Set-Cookie', [
-  `auth_token=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${7*86400}`
+res.setHeader("Set-Cookie", [
+  `auth_token=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${7 * 86400}`,
 ]);
 ```
 
 **Cómo verificar en production:**
+
 ```bash
 # En navegador DevTools → Network → Copiar una cookie
 # Verificar que NO aparece en document.cookie
@@ -39,7 +43,8 @@ curl -I https://crawlsite.app/api/auth/me \
   -H "Cookie: auth_token=test" | grep Set-Cookie
 ```
 
-**Acción:** 
+**Acción:**
+
 - [ ] Localizar código de `setCookie` para JWT
 - [ ] Agregar flags: HttpOnly, Secure, SameSite=Strict
 - [ ] Test en local: `npm run dev`
@@ -52,31 +57,35 @@ curl -I https://crawlsite.app/api/auth/me \
 **Por qué:** Prevenir ataques de fuerza bruta en /api/auth/login
 
 **Dónde está:**
+
 ```
 pages/api/auth/login.js (o .ts)
 ```
 
 **Implementación verificada:**
+
 ```javascript
 // Rate limiter for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 20, // máximo 20 intentos
-  message: 'Demasiados intentos. Intenta de nuevo en 15 minutos.',
-  skipSuccessfulRequests: true // solo cuenta intentos fallidos
+  message: "Demasiados intentos. Intenta de nuevo en 15 minutos.",
+  skipSuccessfulRequests: true, // solo cuenta intentos fallidos
 });
 
 // Aplicado a:
-app.post('/api/auth/login', authLimiter, handler);
-app.post('/api/auth/register', authLimiter, handler);
+app.post("/api/auth/login", authLimiter, handler);
+app.post("/api/auth/register", authLimiter, handler);
 ```
 
 **Si NO está implementado:**
+
 ```bash
 npm install express-rate-limit --save
 ```
 
 **Acción:**
+
 - [ ] Buscar `express-rate-limit` en `pages/api/auth/login`
 - [ ] Si NO existe, agregar limitador
 - [ ] Aplicar también a: `/register`, `/forgot-password`
@@ -89,11 +98,13 @@ npm install express-rate-limit --save
 **Por qué:** Cumplimiento legal si tienes usuarios pagos (planes BASIC, PRO, etc.)
 
 **Dónde crear:**
+
 ```
 pages/terminos.jsx  (o app/terminos/page.tsx si migrás a App Router)
 ```
 
 **Template mínimo:**
+
 ```jsx
 import Head from "next/head";
 import AppShell from "../components/layout/AppShell";
@@ -105,29 +116,34 @@ export default function TerminosPage() {
     <>
       <Head>
         <title>Términos de Servicio | SEO Crawler</title>
-        <meta name="description" content="Términos y condiciones de uso de SEO Crawler" />
+        <meta
+          name="description"
+          content="Términos y condiciones de uso de SEO Crawler"
+        />
         <link rel="canonical" href={`${APP_URL}/terminos`} />
       </Head>
       <AppShell activeKey="" showSidebar={false} title="Términos de Servicio">
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem" }}>
           <h1>Términos de Servicio</h1>
-          <p>Última actualización: {new Date().toLocaleDateString('es-MX')}</p>
-          
+          <p>Última actualización: {new Date().toLocaleDateString("es-MX")}</p>
+
           <section>
             <h2>1. Aceptación de Términos</h2>
             <p>Al usar SEO Crawler, aceptas estos términos...</p>
           </section>
-          
+
           <section>
             <h2>2. Licencia de uso</h2>
-            <p>Te otorgamos una licencia no exclusiva para usar el servicio...</p>
+            <p>
+              Te otorgamos una licencia no exclusiva para usar el servicio...
+            </p>
           </section>
-          
+
           <section>
             <h2>3. Limitación de responsabilidad</h2>
             <p>SEO Crawler se proporciona "tal cual"...</p>
           </section>
-          
+
           <section>
             <h2>4. Cancelación y reembolsos</h2>
             <p>Puedes cancelar tu suscripción en cualquier momento...</p>
@@ -140,6 +156,7 @@ export default function TerminosPage() {
 ```
 
 **Checklist:**
+
 - [ ] Crear archivo `pages/terminos.jsx`
 - [ ] Agregar meta tags (title, description, canonical)
 - [ ] Incluir secciones legales básicas:
@@ -158,6 +175,7 @@ export default function TerminosPage() {
 ## ✨ 5 Mejoras Opcionales (No Críticas)
 
 ### 1. Mejorar og:image en /aviso-privacidad
+
 **Tiempo:** 15 min  
 **Impacto:** Mejor preview en redes sociales
 
@@ -170,6 +188,7 @@ export default function TerminosPage() {
 ```
 
 ### 2. Agregar Breadcrumb schema en dashboard
+
 **Tiempo:** 1 hora  
 **Impacto:** Rich snippets en Google Search
 
@@ -178,10 +197,10 @@ export default function TerminosPage() {
 const breadcrumb = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
-  "itemListElement": [
-    { "position": 1, "name": "Home", "item": APP_URL },
-    { "position": 2, "name": "Dashboard", "item": `${APP_URL}/dashboard` }
-  ]
+  itemListElement: [
+    { position: 1, name: "Home", item: APP_URL },
+    { position: 2, name: "Dashboard", item: `${APP_URL}/dashboard` },
+  ],
 };
 
 export const metadata = {
@@ -191,6 +210,7 @@ export const metadata = {
 ```
 
 ### 3. Setup Cookie Banner (GDPR)
+
 **Tiempo:** 2-3 horas  
 **Impacto:** Cumplimiento GDPR/privacidad
 
@@ -199,11 +219,13 @@ npm install next-cookie-consent
 ```
 
 Implementar banner que pida consentimiento para:
+
 - Analytics
 - Marketing cookies
 - Essential cookies (siempre activos)
 
 ### 4. Validar Core Web Vitals
+
 **Tiempo:** 30 min  
 **Impacto:** SEO + Ranking
 
@@ -212,16 +234,18 @@ Implementar banner que pida consentimiento para:
 # Ingresar: https://crawlsite.app
 # Revisar:
 # - LCP (< 2.5s) = Largest Contentful Paint
-# - FID (< 100ms) = First Input Delay  
+# - FID (< 100ms) = First Input Delay
 # - CLS (< 0.1) = Cumulative Layout Shift
 ```
 
 **Si hay problemas:**
+
 - Optimizar imágenes (Next Image component)
 - Lazy load scripts no críticos
 - Minificar CSS/JS
 
 ### 5. WCAG AA Audit formal
+
 **Tiempo:** 1-2 horas  
 **Impacto:** Accesibilidad legal
 
