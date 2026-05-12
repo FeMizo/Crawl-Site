@@ -1,0 +1,12 @@
+#!/bin/sh
+# Prevent accidental secret commits by scanning staged files before commit.
+# This hook is enabled when core.hooksPath is configured to .githooks.
+
+echo "Running secret scan..."
+npm run check:secrets
+RESULT=$?
+if [ "$RESULT" -ne 0 ]; then
+  echo "Commit aborted due to detected secret patterns."
+  exit 1
+fi
+exit 0
