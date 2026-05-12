@@ -7,51 +7,27 @@ datasource db {
   url      = env("dashboard_DATABASE_URL")
 }
 
-enum UserRole {
-  OWNER
-  SUPER_ADMIN
-  ADMIN
-  EDITOR
-  USER
-}
-
-enum CrawlStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum PlanType {
-  FREE
-  BASIC
-  STARTER
-  PRO
-  AGENCY
-}
-
 model User {
   id                      String                   @id @default(cuid())
   name                    String?
   email                   String                   @unique
-  role                    UserRole                 @default(USER)
-  phoneCountry            String?
-  phoneNumber             String?
-  jobRole                 String?
   passwordHash            String
-  emailVerified           Boolean                  @default(false)
-  teamOwnerId             String?
-  teamOwner               User?                    @relation("TeamMembers", fields: [teamOwnerId], references: [id], onDelete: SetNull)
-  teamMembers             User[]                   @relation("TeamMembers")
-  projects                Project[]
-  crawlRuns               CrawlRun[]
-  subscription            Subscription?
-  crawlSchedules          CrawlSchedule[]
-  passwordResetTokens     PasswordResetToken[]
-  emailVerificationTokens EmailVerificationToken[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  phoneCountry            String?
+  phoneNumber             String?
+  role                    UserRole                 @default(USER)
+  emailVerified           Boolean                  @default(false)
+  jobRole                 String?
+  teamOwnerId             String?
+  crawlRuns               CrawlRun[]
+  crawlSchedules          CrawlSchedule[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  projects                Project[]
+  subscription            Subscription?
+  teamOwner               User?                    @relation("TeamMembers", fields: [teamOwnerId], references: [id])
+  teamMembers             User[]                   @relation("TeamMembers")
 
   @@index([teamOwnerId])
 }
@@ -59,7 +35,6 @@ model User {
 model Subscription {
   id                String    @id @default(cuid())
   userId            String    @unique
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan              PlanType  @default(FREE)
   stripeCustomerId  String?
   stripeSubId       String?
@@ -68,14 +43,15 @@ model Subscription {
   maxCrawlsPerMonth Int       @default(2)
   maxHistoryRuns    Int       @default(1)
   features          String[]  @default([])
-  projectsCreated   Int       @default(0)
-  crawlsThisMonth   Int       @default(0)
-  crawlsResetAt     DateTime?
-  trialEndsAt       DateTime?
   expiresAt         DateTime?
   cancelledAt       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  projectsCreated   Int       @default(0)
+  trialEndsAt       DateTime?
+  crawlsResetAt     DateTime?
+  crawlsThisMonth   Int       @default(0)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([stripeSubId])
   @@index([stripeCustomerId])
@@ -84,13 +60,13 @@ model Subscription {
 model Project {
   id            String         @id @default(cuid())
   userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   targetUrl     String
-  crawlRuns     CrawlRun[]
-  crawlSchedule CrawlSchedule?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  crawlRuns     CrawlRun[]
+  crawlSchedule CrawlSchedule?
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -107,8 +83,8 @@ model CrawlSchedule {
   nextRunAt  DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([enabled, nextRunAt])
@@ -119,7 +95,6 @@ model CrawlRun {
   userId       String
   projectId    String
   sourceUrl    String
-  sourceType   String              @default("crawl")
   maxPages     Int
   rateDelay    Int
   checkExt     Boolean
@@ -127,13 +102,14 @@ model CrawlRun {
   withIssues   Int                 @default(0)
   stats        Json?
   downloadName String?
-  status       CrawlStatus         @default(COMPLETED)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType   String              @default("crawl")
+  status       CrawlStatus         @default(COMPLETED)
   project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  storedPages  CrawlRunPage[]
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   storedDups   CrawlRunDuplicate[]
+  storedPages  CrawlRunPage[]
 
   @@index([userId, createdAt])
   @@index([projectId, createdAt])
@@ -204,9 +180,9 @@ model RoadmapPhase {
   title       String
   description String?
   position    Int           @default(0)
-  tasks       RoadmapTask[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  tasks       RoadmapTask[]
 
   @@index([position])
 }
@@ -222,4 +198,28 @@ model RoadmapTask {
   phase     RoadmapPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
 
   @@index([phaseId, position])
+}
+
+enum UserRole {
+  OWNER
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  USER
+}
+
+enum CrawlStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PlanType {
+  FREE
+  STARTER
+  PRO
+  AGENCY
+  BASIC
 }

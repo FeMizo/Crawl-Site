@@ -3395,8 +3395,13 @@ app.put("/api/projects/:projectId", requireAuth, requireEditor, async (req, res)
 });
 
 app.delete("/api/projects/:projectId/runs/:runId", requireAuth, requireAdmin, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
   const run = await prisma.crawlRun.findFirst({
-    where: { id: req.params.runId, projectId: req.params.projectId, userId: getAccountOwnerId(req.user) },
+    where: {
+      id: req.params.runId,
+      projectId: req.params.projectId,
+      userId: { in: [req.user.id, accountOwnerId] },
+    },
     select: { id: true },
   });
   if (!run) return res.status(404).json({ error: "Historial no encontrado" });
@@ -3404,16 +3409,35 @@ app.delete("/api/projects/:projectId/runs/:runId", requireAuth, requireAdmin, as
   res.json({ ok: true });
 });
 
-app.delete("/api/projects/:projectId", requireAuth, requireAdmin, async (req, res) => {
+app.delete("/api/projects/:projectId", requireAuth, requireEditor, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
   const existing = await prisma.project.findFirst({
-    where: { id: req.params.projectId, userId: getAccountOwnerId(req.user) },
+    where: {
+      id: req.params.projectId,
+      userId: { in: [req.user.id, accountOwnerId] },
+    },
     select: { id: true },
   });
   if (!existing) {
     return res.status(404).json({ error: "Proyecto no encontrado" });
   }
 
-  await prisma.project.delete({ where: { id: existing.id } });
+  // Usar transacción para eliminar en orden: schedules → runs (y sus pages/dupes) → project
+  await prisma.$transaction([
+    // 1. Eliminar schedule del proyecto
+    prisma.crawlSchedule.deleteMany({
+      where: { projectId: existing.id },
+    }),
+    // 2. Eliminar todos los runs del proyecto (pages y dupes se eliminan en cascada)
+    prisma.crawlRun.deleteMany({
+      where: { projectId: existing.id },
+    }),
+    // 3. Eliminar el proyecto
+    prisma.project.delete({
+      where: { id: existing.id },
+    }),
+  ]);
+
   res.json({ ok: true });
 });
 

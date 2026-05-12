@@ -121,17 +121,29 @@ export default function ProjectsPage() {
   const deleteProject = async (projectId) => {
     const confirmed = window.confirm(t("confirmDelete"));
     if (!confirmed) return;
-    const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(data.error || "No se pudo eliminar el proyecto");
-      return;
+    
+    setFetching(true);
+    setError("");
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo eliminar el proyecto");
+      }
+      
+      // Si es el último proyecto de la página y no es la primera página, retrocede
+      if (projects.length === 1 && page > 1) {
+        setPage((current) => Math.max(1, current - 1));
+      } else {
+        // Recarga la lista actual
+        setReloadKey((current) => current + 1);
+      }
+    } catch (err) {
+      setError(err.message);
+      setFetching(false);
     }
-    if (projects.length === 1 && page > 1) {
-      setPage((current) => Math.max(1, current - 1));
-      return;
-    }
-    setReloadKey((current) => current + 1);
   };
 
   return (
