@@ -28,8 +28,9 @@ yarn-error.log*
 .next-*.err.log
 
 # local env files
-.env*.local
 .env
+.env.local
+.env*.local
 
 # vercel
 .vercel
