@@ -153,6 +153,35 @@ export default function ProjectsPage() {
         <meta name="description" content="Gestiona todos tus proyectos SEO: accede al historial de rastreos, revisa hallazgos por dominio y organiza tus auditorías." />
         <meta name="robots" content="noindex, nofollow" />
         <link rel="canonical" href={`${process.env.NEXT_PUBLIC_APP_URL || ""}/projects`} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Inicio",
+                  "item": process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": "Dashboard",
+                  "item": `${process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app"}/dashboard`
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 3,
+                  "name": "Proyectos",
+                  "item": `${process.env.NEXT_PUBLIC_APP_URL || "https://crawlsite.app"}/projects`
+                }
+              ]
+            })
+          }}
+        />
       </Head>
       <AppShell
         activeKey="projects"

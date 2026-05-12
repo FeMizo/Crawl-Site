@@ -1,31 +1,28 @@
 import nodemailer from "nodemailer";
+import rateLimit from "express-rate-limit";
 
-const RATE_MAP = new Map();
-const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 3;
-
-function checkRate(ip) {
-  const now = Date.now();
-  const entry = RATE_MAP.get(ip) || { count: 0, start: now };
-  if (now - entry.start > WINDOW_MS) {
-    RATE_MAP.set(ip, { count: 1, start: now });
-    return true;
-  }
-  if (entry.count >= MAX_PER_WINDOW) return false;
-  entry.count++;
-  RATE_MAP.set(ip, entry);
-  return true;
-}
+// Rate limiter for contact form (prevent spam)
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,                   // max 5 contact submissions per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados mensajes. Intenta de nuevo en 15 minutos." },
+  skipSuccessfulRequests: false, // count all requests for contact form
+});
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0].trim() || req.socket.remoteAddress || "unknown";
-  if (!checkRate(ip)) {
-    return res.status(429).json({ error: "Demasiadas solicitudes. Intenta en unos minutos." });
-  }
+  // Apply rate limiter
+  await new Promise((resolve, reject) => {
+    contactLimiter(req, res, (err) => {
+      if (err) reject(err);
+      else resolve(null);
+    });
+  });
 
   const { name, email, message } = req.body || {};
 

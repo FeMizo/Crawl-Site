@@ -114,6 +114,8 @@ export default function AppShell({
               <span className="footer-nav-sep" aria-hidden="true">·</span>
               <a href="/aviso-privacidad" className="footer-nav-link">{tUi(lang, "footerPrivacy")}</a>
               <span className="footer-nav-sep" aria-hidden="true">·</span>
+              <a href="/terminos" className="footer-nav-link">{tUi(lang, "footerTerms")}</a>
+              <span className="footer-nav-sep" aria-hidden="true">·</span>
               <a href="/contacto" className="footer-nav-link">{tUi(lang, "footerContact")}</a>
             </nav>
             <div className="app-footer-social">
