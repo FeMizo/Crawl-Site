@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/new-module/**)",
+      "Read(//c/Users/mizo_/.claude/skills/improve/references/**)",
+      "Read(//c/Users/mizo_/Sync/.agent-config/skills/improve/references/**)",
+      "Bash(grep -i \"\\\\.md$\")",
+      "Bash(grep -E \"^[A-Z]+.*\\\\.md$\")",
+      "Bash(grep -rn \" as any\\\\| as const\\\\|@ts-ignore\\\\|//@ts-ignore\" src/ app/ lib/ --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(npm audit *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.production)",
+      "Read(./backup_neon.dump)",
+      "Bash(npx prisma db push --force-reset:*)",
+      "Bash(npx prisma migrate reset:*)",
+      "Bash(node scripts/reset-all-to-free.js:*)",
+      "Bash(node scripts/clear-stripe-test-data.js:*)"
+    ]
+  }
+}
