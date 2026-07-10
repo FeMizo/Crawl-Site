@@ -156,6 +156,7 @@ function preferLocalDatabaseInDevelopment() {
 preferLocalDatabaseInDevelopment();
 
 const app = express();
+app.set("trust proxy", 1); // Vercel places the client IP in X-Forwarded-For; trust exactly one hop so the rate limiter keys on the real client, not the edge, without trusting a client-spoofable full chain.
 // Reuse the same PrismaClient instance that lib/prisma.ts creates via globalThis,
 // preventing two connection pools when Express runs inside the Next.js process.
 if (!global.__prisma) global.__prisma = new PrismaClient();
