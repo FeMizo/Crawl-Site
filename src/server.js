@@ -18,6 +18,7 @@ const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
+const { PrismaRateLimitStore } = require("../lib/server/rate-limit-store");
 const net = require("net");
 const Stripe = require("stripe");
 const { PrismaClient } = require("@prisma/client");
@@ -361,6 +362,7 @@ const crawlLimiter = rateLimit({
     : 2,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new PrismaRateLimitStore({ prisma, prefix: "crawl" }),
 });
 
 // Rate limiter for auth endpoints (login, register, forgot-password, resend-verification)
@@ -372,6 +374,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Demasiados intentos. Intenta de nuevo en 15 minutos." },
   skipSuccessfulRequests: true, // only count failed requests
+  store: new PrismaRateLimitStore({ prisma, prefix: "auth" }),
 });
 
 function getAuthCookieOptions() {

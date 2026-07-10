@@ -223,3 +223,11 @@ enum PlanType {
   AGENCY
   BASIC
 }
+
+model RateLimitEntry {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
