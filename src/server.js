@@ -3767,6 +3767,8 @@ app.get(
 app.get("/api/site-info", requireAuth, async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).json({ error: "URL requerida" });
+  const allowed = await ensureUrlAllowed(url);
+  if (!allowed) return res.status(400).json({ error: "URL no permitida" });
   try {
     const info = await fetchSiteInfo(url);
     res.json(info);
