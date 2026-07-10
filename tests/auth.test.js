@@ -1,6 +1,7 @@
 const { loadEnvConfig } = require("@next/env");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 loadEnvConfig(process.cwd(), true);
 
 function applyEnvFile(fileName) {
@@ -59,6 +60,7 @@ async function createUser(email, role = USER_ROLE.USER) {
       name: email.split("@")[0],
       passwordHash,
       role: role.toUpperCase(),
+      emailVerified: true,
     },
   });
 }
@@ -229,7 +231,7 @@ describe("POST /api/auth/register", () => {
     expect(res.body.error).toMatch(/8 caracteres/i);
   });
 
-  test("successful registration returns 201, user data and sets cookie", async () => {
+  test("successful registration returns 201 pending email verification (no session cookie)", async () => {
     const email = `register-ok-${suffix}@example.com`;
     created.push(email);
 
@@ -240,11 +242,14 @@ describe("POST /api/auth/register", () => {
     });
 
     expect(res.statusCode).toBe(201);
-    expect(res.body.user.email).toBe(email);
-    expect(res.body.user.role).toBe(USER_ROLE.USER);
-    expect(res.body.user.passwordHash).toBeUndefined();
+    expect(res.body.pending).toBe(true);
+    // No session until the email is verified
     const cookie = res.headers["set-cookie"]?.[0] || "";
-    expect(cookie).toMatch(/auth_token/);
+    expect(cookie).not.toMatch(/auth_token/);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    expect(user).not.toBeNull();
+    expect(user.emailVerified).toBe(false);
   });
 
   test("duplicate email returns 409", async () => {
@@ -465,95 +470,106 @@ describe("PUT /api/auth/password", () => {
 // ─── Auth endpoints: POST /api/auth/forgot-password ──────────────────────────
 
 describe("POST /api/auth/forgot-password", () => {
-  beforeAll(() => createUser(emails.forgot));
-  afterAll(() => prisma.user.deleteMany({ where: { email: { in: [emails.forgot] } } }));
+  let forgotUser;
+
+  beforeAll(async () => {
+    forgotUser = await createUser(emails.forgot);
+  });
+  afterAll(async () => {
+    await prisma.passwordResetToken.deleteMany({ where: { userId: forgotUser.id } });
+    await prisma.user.deleteMany({ where: { email: { in: [emails.forgot] } } });
+  });
 
   test("returns 400 when email is missing", async () => {
     const res = await request(app)
       .post("/api/auth/forgot-password")
-      .send({ password: "NewPass999!" });
+      .send({});
     expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe("Email requerido");
   });
 
-  test("returns 400 when new password is missing", async () => {
+  test("returns 200 for existing user (issues reset token)", async () => {
     const res = await request(app)
       .post("/api/auth/forgot-password")
       .send({ email: emails.forgot });
-    expect(res.statusCode).toBe(400);
-  });
-
-  test("returns 400 when new password is too short", async () => {
-    const res = await request(app)
-      .post("/api/auth/forgot-password")
-      .send({ email: emails.forgot, password: "short" });
-    expect(res.statusCode).toBe(400);
-    expect(res.body.error).toMatch(/8 caracteres/i);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
   });
 
   test("non-existent email still returns 200 (no email disclosure)", async () => {
     const res = await request(app)
       .post("/api/auth/forgot-password")
-      .send({ email: `nobody-${suffix}@example.com`, password: "NewPass999!" });
+      .send({ email: `nobody-${suffix}@example.com` });
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
-  });
-
-  test("resets password for existing user and new password works", async () => {
-    const newPassword = "ForgotPass99!";
-    const res = await request(app)
-      .post("/api/auth/forgot-password")
-      .send({ email: emails.forgot, password: newPassword });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body.ok).toBe(true);
-
-    const { response } = await login(emails.forgot, newPassword);
-    expect(response.statusCode).toBe(200);
   });
 });
 
 // ─── Auth endpoints: POST /api/auth/reset-password ───────────────────────────
 
 describe("POST /api/auth/reset-password", () => {
-  beforeAll(() => createUser(emails.reset));
+  let resetUser;
+
+  beforeAll(async () => {
+    resetUser = await createUser(emails.reset);
+  });
   afterAll(async () => {
+    await prisma.passwordResetToken.deleteMany({ where: { userId: resetUser.id } });
     await prisma.user.deleteMany({ where: { email: { in: [emails.reset] } } });
     await prisma.$disconnect();
   });
 
-  test("returns 400 when fields are missing", async () => {
+  test("returns 400 when token is missing", async () => {
     const res = await request(app)
       .post("/api/auth/reset-password")
-      .send({});
+      .send({ password: "NewPass123!" });
     expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe("Token requerido");
   });
 
   test("returns 400 when new password is too short", async () => {
     const res = await request(app)
       .post("/api/auth/reset-password")
-      .send({ email: emails.reset, password: "short" });
+      .send({ token: "x", password: "short" });
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/8 caracteres/i);
   });
 
-  test("returns 404 for non-existent email", async () => {
+  test("returns 400 for non-existent token", async () => {
     const res = await request(app)
       .post("/api/auth/reset-password")
-      .send({ email: `nobody-${suffix}@example.com`, password: "NewPass999!" });
-    expect(res.statusCode).toBe(404);
-    expect(res.body.error).toMatch(/no encontrado/i);
+      .send({ token: "nonexistent-token", password: "NewPass123!" });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe("El enlace no es válido o ha expirado");
   });
 
-  test("resets password for existing user", async () => {
-    const newPassword = "ResetPass99!";
+  test("resets password with a valid token, which is single-use", async () => {
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: resetUser.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 3600000),
+      },
+    });
+
+    const newPassword = "NewPass456!";
     const res = await request(app)
       .post("/api/auth/reset-password")
-      .send({ email: emails.reset, password: newPassword });
+      .send({ token: rawToken, password: newPassword });
 
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
 
     const { response } = await login(emails.reset, newPassword);
     expect(response.statusCode).toBe(200);
+
+    // Same token must be rejected on reuse (single-use)
+    const reuse = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token: rawToken, password: "AnotherPass789!" });
+    expect(reuse.statusCode).toBe(400);
+    expect(reuse.body.error).toBe("El enlace no es válido o ha expirado");
   });
 });

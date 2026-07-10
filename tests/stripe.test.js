@@ -19,6 +19,9 @@ function applyEnvFile(fileName) {
 }
 applyEnvFile(".env.local");
 
+process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "sk_test_dummy_for_jest";
+process.env.STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "whsec_dummy_for_jest";
+
 const bcrypt = require("bcryptjs");
 const request = require("supertest");
 const { PrismaClient } = require("@prisma/client");
@@ -70,7 +73,13 @@ jest.mock("stripe", () => {
 async function createUser(email, role = USER_ROLE.USER) {
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
   return prisma.user.create({
-    data: { email, name: email.split("@")[0], passwordHash, role: role.toUpperCase() },
+    data: {
+      email,
+      name: email.split("@")[0],
+      passwordHash,
+      role: role.toUpperCase(),
+      emailVerified: true,
+    },
   });
 }
 
@@ -120,7 +129,7 @@ describe("Stripe subscription endpoints", () => {
     it("returns all plans with prices in MXN", async () => {
       const res = await request(app).get("/api/subscription/plans");
       expect(res.status).toBe(200);
-      expect(res.body.plans).toHaveLength(4);
+      expect(res.body.plans).toHaveLength(5);
 
       const starter = res.body.plans.find((p) => p.plan === "STARTER");
       expect(starter.price).toBe(499);
