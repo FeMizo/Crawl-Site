@@ -19,6 +19,9 @@
     "pages/api/subscription/[[...slug]].js": {
       "maxDuration": 30
     },
+    "pages/api/scheduler/[[...slug]].js": {
+      "maxDuration": 30
+    },
     "pages/api/stripe/webhook.js": {
       "maxDuration": 30
     }

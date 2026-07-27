@@ -22,6 +22,7 @@ model User {
   teamOwnerId             String?
   crawlRuns               CrawlRun[]
   crawlSchedules          CrawlSchedule[]
+  googleDriveConnections  GoogleDriveConnection[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   projects                Project[]
@@ -66,6 +67,9 @@ model Project {
   updatedAt     DateTime       @updatedAt
   crawlRuns     CrawlRun[]
   crawlSchedule CrawlSchedule?
+  aiSeoRecommendations AiSeoRecommendation[]
+  blogDrafts    BlogDraft[]
+  wordpressConnection WordPressConnection?
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
@@ -90,6 +94,27 @@ model CrawlSchedule {
   @@index([enabled, nextRunAt])
 }
 
+model CrawlAlert {
+  id            String   @id @default(cuid())
+  userId        String
+  projectId     String
+  runId         String
+  previousRunId String?
+  type          String
+  severity      String
+  title         String
+  message       String
+  payload       Json?
+  readAt        DateTime?
+  emailedAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([userId, readAt])
+  @@index([runId])
+}
+
 model CrawlRun {
   id           String              @id @default(cuid())
   userId       String
@@ -110,10 +135,92 @@ model CrawlRun {
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   storedDups   CrawlRunDuplicate[]
   storedPages  CrawlRunPage[]
+  aiSeoRecommendations AiSeoRecommendation[]
+  blogDrafts   BlogDraft[]
 
   @@index([userId, createdAt])
   @@index([projectId, createdAt])
   @@index([status, createdAt])
+}
+
+model AiSeoRecommendation {
+  id                String   @id @default(cuid())
+  userId            String
+  projectId         String
+  runId             String
+  pageUrl           String
+  primaryKeyword    String
+  secondaryKeywords String[] @default([])
+  intent            String?
+  suggestedTitle    String?
+  suggestedMeta     String?
+  suggestedH1       String?
+  suggestedH2s      String[] @default([])
+  recommendations   String[] @default([])
+  provider          String   @default("local")
+  model             String?
+  payload           Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  run               CrawlRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, pageUrl])
+  @@index([userId, projectId])
+}
+
+model BlogDraft {
+  id             String   @id @default(cuid())
+  userId         String
+  projectId      String
+  runId          String?
+  title          String
+  slug           String
+  excerpt        String?
+  content        String
+  keywords       String[] @default([])
+  brief          Json?
+  status         String   @default("draft")
+  wpPostId       String?
+  wpPostUrl      String?
+  driveFileId    String?
+  driveFileUrl   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  run            CrawlRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([userId, projectId, createdAt])
+  @@index([projectId, slug])
+}
+
+model WordPressConnection {
+  id                    String   @id @default(cuid())
+  userId                String
+  projectId             String   @unique
+  siteUrl               String
+  username              String
+  encryptedAppPassword  String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model GoogleDriveConnection {
+  id                    String   @id @default(cuid())
+  userId                String
+  email                 String?
+  folderId              String?
+  encryptedAccessToken  String?
+  encryptedRefreshToken String
+  expiryDate            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
 }
 
 model CrawlRunPage {

@@ -8,11 +8,14 @@ import Card from "../components/ui/Card";
 import Eyebrow from "../components/ui/Eyebrow";
 import Icon from "../components/ui/Icon";
 import StatCard from "../components/ui/StatCard";
+import Notifications, { useNotifications } from "../components/ui/Notifications";
 import DashboardSkeleton from "../components/dashboard/DashboardSkeleton";
 import Skeleton from "../components/ui/Skeleton";
 import useSessionUser from "../hooks/useSessionUser";
 import { tUi, useUiLanguage } from "../lib/ui-language";
 import HistoryPanel from "../components/dashboard/HistoryPanel";
+import CrawlSchedulePanel from "../components/dashboard/CrawlSchedulePanel";
+import CrawlAlertsPanel from "../components/dashboard/CrawlAlertsPanel";
 
 let legacyMarkupCache = "";
 
@@ -38,6 +41,15 @@ export default function DashboardPage() {
   const [retryKey, setRetryKey] = useState(0);
   const [activeRunId, setActiveRunId] = useState("");
   const [subscription, setSubscription] = useState(null);
+  const { notifications, notify, dismiss } = useNotifications();
+  const [schedule, setSchedule] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+  const [alerts, setAlerts] = useState([]);
+  const [alertsCounts, setAlertsCounts] = useState({ total: 0, unread: 0 });
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState("");
   const runCacheRef = useRef(new Map());
 
   useEffect(() => {
@@ -162,6 +174,76 @@ export default function DashboardPage() {
   }, [subscription]);
 
   useEffect(() => {
+    if (!project?.id) return undefined;
+
+    let active = true;
+    setScheduleLoading(true);
+    setScheduleError("");
+
+    fetch(`/api/projects/${project.id}/schedule`)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (response.status === 403 && data?.error === "scheduled_crawl_required") {
+            if (active) {
+              setSchedule(null);
+              setScheduleError("Los rastreos programados requieren un plan con esa funcion.");
+            }
+            return null;
+          }
+          throw new Error(data.error || "No se pudo cargar la programacion");
+        }
+        return data;
+      })
+      .then((data) => {
+        if (!active || !data) return;
+        setSchedule(data.schedule || null);
+      })
+      .catch((err) => {
+        if (active) setScheduleError(err.message || "No se pudo cargar la programacion");
+      })
+      .finally(() => {
+        if (active) setScheduleLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [project?.id, retryKey]);
+
+  useEffect(() => {
+    if (!project?.id) return undefined;
+
+    let active = true;
+    setAlertsLoading(true);
+    setAlertsError("");
+
+    fetch(`/api/projects/${project.id}/alerts?limit=8`)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || "No se pudieron cargar las alertas");
+        }
+        return data;
+      })
+      .then((data) => {
+        if (!active) return;
+        setAlerts(Array.isArray(data.alerts) ? data.alerts : []);
+        setAlertsCounts(data.counts || { total: 0, unread: 0 });
+      })
+      .catch((err) => {
+        if (active) setAlertsError(err.message || "No se pudieron cargar las alertas");
+      })
+      .finally(() => {
+        if (active) setAlertsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [project?.id, retryKey]);
+
+  useEffect(() => {
     if (!canInit || typeof window.initSeoCrawlerApp !== "function") return;
     window.__SEO_CRAWLER_PROJECT__ = project;
     window.__SEO_CRAWLER_SUBSCRIPTION__ = subscription;
@@ -232,6 +314,66 @@ export default function DashboardPage() {
       delete window.__SEO_CRAWLER_AFTER_CRAWL__;
     };
   }, []);
+
+  const refreshAlerts = async () => {
+    if (!project?.id) return;
+    const response = await fetch(`/api/projects/${project.id}/alerts?limit=8`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "No se pudieron cargar las alertas");
+    setAlerts(Array.isArray(data.alerts) ? data.alerts : []);
+    setAlertsCounts(data.counts || { total: 0, unread: 0 });
+  };
+
+  const saveSchedule = async (form) => {
+    if (!project?.id) return;
+    setScheduleSaving(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}/schedule`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo guardar la programacion");
+      setSchedule(data.schedule || null);
+      notify({
+        tone: "success",
+        title: "Programacion guardada",
+        message: "El siguiente crawl quedo actualizado.",
+      });
+      await refreshAlerts().catch(() => {});
+    } catch (err) {
+      notify({
+        tone: "error",
+        title: "No se pudo guardar la programacion",
+        message: err.message || "Error desconocido",
+      });
+    } finally {
+      setScheduleSaving(false);
+    }
+  };
+
+  const markAlertRead = async (alertId) => {
+    if (!project?.id || !alertId) return;
+    try {
+      const response = await fetch(`/api/projects/${project.id}/alerts/${alertId}`, {
+        method: "PATCH",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo marcar como leida");
+      setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, readAt: data.alert?.readAt || new Date().toISOString() } : alert)));
+      setAlertsCounts((current) => ({
+        ...current,
+        unread: Math.max(0, current.unread - 1),
+      }));
+    } catch (err) {
+      notify({
+        tone: "error",
+        title: "No se pudo actualizar la alerta",
+        message: err.message || "Error desconocido",
+      });
+    }
+  };
 
   const renameProject = () => {
     if (!project) return;
@@ -346,12 +488,16 @@ export default function DashboardPage() {
           </>
         }
         aside={
-        <div className="dashboard-aside">
+          <div className="dashboard-aside">
             <StatCard label={t("statRuns")} value={project?.runCount ?? project?.crawlRuns?.length ?? 0} hint={t("hintRecent")} tone="primary" icon={<Icon name="run" size={14} />} />
             <StatCard label={t("statProject")} value={project?.name || "--"} hint={t("hintActive")} tone="secondary" icon={<Icon name="projects" size={14} />} />
+            <StatCard label="Programacion" value={schedule?.enabled ? "Activa" : "Pausada"} hint={schedule?.nextRunAt ? formatDate(schedule.nextRunAt, lang) : "Sin siguiente corrida"} tone="primary" icon={<Icon name="history" size={14} />} />
+            <StatCard label="Alertas" value={alertsCounts.unread || 0} hint="Sin leer" tone="secondary" icon={<Icon name="shield" size={14} />} />
           </div>
         }
       >
+        <Notifications items={notifications} onDismiss={dismiss} />
+
         {pendingDelete ? (
           <Card className="confirm-banner">
             <div className="confirm-banner-body">
@@ -408,6 +554,26 @@ export default function DashboardPage() {
               formatDate={formatDate}
               lang={lang}
               t={t}
+            />
+
+            <CrawlSchedulePanel
+              schedule={schedule}
+              loading={scheduleLoading}
+              saving={scheduleSaving}
+              error={scheduleError}
+              onSave={saveSchedule}
+              formatDate={(value) => formatDate(value, lang)}
+            />
+
+            <CrawlAlertsPanel
+              alerts={alerts}
+              loading={alertsLoading}
+              unreadCount={alertsCounts.unread || 0}
+              error={alertsError}
+              onRefresh={refreshAlerts}
+              onMarkRead={markAlertRead}
+              formatDate={formatDate}
+              lang={lang}
             />
 
             <Card className="legacy-surface" padding="sm">

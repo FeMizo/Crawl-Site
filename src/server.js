@@ -49,12 +49,34 @@ const {
   PLAN_DEFAULTS,
   PLAN_DISPLAY_PRICES,
   PLAN_CURRENCY,
+  PLAN_BLOG_MAX,
   PLAN_TEAM_MAX,
   PLAN_KEYWORD_MAX,
   TEAM_FEATURE_MAX,
 } = require("../lib/plan-data");
 const crawlAnalysis = require("../lib/crawl-analysis");
 const { fetchPageSpeed, PSI_PAGE_LIMITS } = require("../lib/pagespeed");
+const {
+  estimateBlogTokens,
+  generateBlogDraft,
+  generateSeoRecommendations,
+  normalizeBlogBrief,
+} = require("../lib/ai-seo");
+const {
+  createBlogDocxBuffer,
+  exchangeGoogleCode,
+  getGoogleAuthUrl,
+  publishToWordPress,
+  sanitizeFileName,
+  uploadDocxToDrive,
+} = require("../lib/blog-export");
+const { encryptSecret } = require("../lib/secret-crypto");
+const {
+  buildCrawlAlertDigests,
+  computeNextScheduleRunAt,
+  normalizeScheduleFrequency,
+  summarizeAlertDigest,
+} = require("../lib/crawl-scheduler");
 
 function createMailTransporter() {
   const host = process.env.SMTP_HOST;
@@ -376,6 +398,24 @@ const authLimiter = rateLimit({
   message: { error: "Demasiados intentos. Intenta de nuevo en 15 minutos." },
   skipSuccessfulRequests: true, // only count failed requests
   store: new PrismaRateLimitStore({ prisma, prefix: "auth" }),
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.AI_MAX_PER_MIN ? parseInt(process.env.AI_MAX_PER_MIN) : 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes de IA. Intenta de nuevo en un minuto." },
+  store: new PrismaRateLimitStore({ prisma, prefix: "ai" }),
+});
+
+const exportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.EXPORT_MAX_PER_MIN ? parseInt(process.env.EXPORT_MAX_PER_MIN) : 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas exportaciones. Intenta de nuevo en un minuto." },
+  store: new PrismaRateLimitStore({ prisma, prefix: "export" }),
 });
 
 function getAuthCookieOptions() {
@@ -780,6 +820,83 @@ function buildPaginationMeta(total, page, limit) {
     hasPrev: safePage > 1,
     hasNext: safePage < pageCount,
   };
+}
+
+function slugify(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90) || `blog-${Date.now()}`;
+}
+
+function normalizeBlogStatus(value) {
+  const status = String(value || "").toLowerCase();
+  return ["draft", "ready", "published"].includes(status) ? status : "draft";
+}
+
+function normalizeWordPressStatus(value) {
+  return String(value || "draft").toLowerCase() === "publish" ? "publish" : "draft";
+}
+
+function sanitizeBlogDraft(blog) {
+  if (!blog) return null;
+  return {
+    id: blog.id,
+    projectId: blog.projectId,
+    runId: blog.runId || null,
+    title: blog.title,
+    slug: blog.slug,
+    excerpt: blog.excerpt || "",
+    content: blog.content || "",
+    keywords: Array.isArray(blog.keywords) ? blog.keywords : [],
+    brief: blog.brief || null,
+    status: blog.status,
+    wpPostId: blog.wpPostId || null,
+    wpPostUrl: blog.wpPostUrl || "",
+    driveFileId: blog.driveFileId || null,
+    driveFileUrl: blog.driveFileUrl || "",
+    createdAt: blog.createdAt,
+    updatedAt: blog.updatedAt,
+  };
+}
+
+function buildBlogBriefFromRequest(body = {}, recommendation = null) {
+  return normalizeBlogBrief({
+    ...(body.brief && typeof body.brief === "object" ? body.brief : {}),
+    recommendation,
+    recommendationId: body.recommendationId || recommendation?.id,
+    source: body.source || (recommendation ? "recommendation" : "custom"),
+    keyword: body.keyword,
+    primaryKeywords: body.primaryKeywords || body.keywords,
+    secondaryKeywords: body.secondaryKeywords,
+    title: body.title,
+    slug: body.slug,
+    language: body.language,
+    tone: body.tone,
+    writingStyle: body.writingStyle,
+    audience: body.audience,
+    intent: body.intent,
+    length: body.length,
+    cta: body.cta,
+    outline: body.outline,
+    includeFaq: body.includeFaq,
+    useCrawlContext: body.useCrawlContext,
+    useRecommendation: body.useRecommendation,
+  });
+}
+
+function getMaxBlogsForPlan(plan) {
+  return PLAN_BLOG_MAX[String(plan || "FREE").toUpperCase()] || 0;
+}
+
+async function getOwnedProject(projectId, user) {
+  return prisma.project.findFirst({
+    where: { id: projectId, userId: getAccountOwnerId(user) },
+    select: { id: true, name: true, targetUrl: true, userId: true },
+  });
 }
 
 function normalizeSearchQuery(value, maxLength = 64) {
@@ -1196,6 +1313,344 @@ function normalizeRunSourceType(sourceType) {
 function serializeRunStatus(status) {
   return String(status || "COMPLETED").toLowerCase();
 }
+
+function getAppBaseUrl(req) {
+  const headerBase = req?.headers?.origin || req?.headers?.referer || "";
+  if (headerBase) {
+    try {
+      return new URL(headerBase).origin;
+    } catch {}
+  }
+
+  const envBase =
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.SITE_URL ||
+    "";
+  if (envBase) {
+    try {
+      return new URL(envBase).origin;
+    } catch {}
+  }
+
+  return "http://127.0.0.1:3666";
+}
+
+function getSchedulerSecret() {
+  return String(
+    process.env.CRAWL_SCHEDULER_SECRET ||
+      process.env.SCHEDULER_SECRET ||
+      "",
+  ).trim();
+}
+
+function isSchedulerRequestAuthorized(req) {
+  const secret = getSchedulerSecret();
+  if (!secret) {
+    return process.env.NODE_ENV !== "production";
+  }
+  const header = String(req.headers["x-scheduler-secret"] || "").trim();
+  return header === secret;
+}
+
+async function readSseDoneEvent(response) {
+  if (!response.ok) {
+    const contentType = String(response.headers.get("content-type") || "");
+    if (contentType.includes("application/json")) {
+      const payload = await response.json().catch(() => ({}));
+      const error = new Error(payload.error || "No se pudo lanzar el crawl");
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    const text = await response.text().catch(() => "");
+    const error = new Error(text || "No se pudo lanzar el crawl");
+    error.status = response.status;
+    throw error;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return null;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const block = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const lines = block.split(/\r?\n/);
+      const eventName = lines
+        .map((line) => line.trim())
+        .find((line) => line.startsWith("event:"));
+      if (!eventName || !eventName.slice(6).trim()) {
+        boundary = buffer.indexOf("\n\n");
+        continue;
+      }
+      const event = eventName.slice(6).trim();
+      const dataLine = lines.find((line) => line.startsWith("data:"));
+      if (event === "done" && dataLine) {
+        const rawData = dataLine.slice(5).trim();
+        return JSON.parse(rawData);
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+
+  return null;
+}
+
+async function sendAlertEmail({ userEmail, projectName, alerts }) {
+  const transporter = createMailTransporter();
+  if (!transporter || !alerts.length) return false;
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  if (!from) return false;
+
+  const subject =
+    alerts.some((alert) => alert.severity === "critical")
+      ? `SEO Crawler: regresiones criticas en ${projectName}`
+      : `SEO Crawler: cambios relevantes en ${projectName}`;
+  const body = summarizeAlertDigest(alerts);
+  const html = body
+    .split(/\n\n/)
+    .map((chunk) => `<p>${chunk.replace(/\n/g, "<br />")}</p>`)
+    .join("");
+
+  await transporter.sendMail({
+    from,
+    to: userEmail,
+    subject,
+    text: body,
+    html,
+  });
+  return true;
+}
+
+async function createCrawlAlertsForRun({ runId, projectId, userId, projectName }) {
+  if (!runId || !projectId || !userId) return { alertsCreated: 0, alerts: [] };
+
+  const existingAlerts = await prisma.crawlAlert.count({ where: { runId } });
+  if (existingAlerts > 0) {
+    return { alertsCreated: 0, alerts: [] };
+  }
+
+  const currentRun = await prisma.crawlRun.findFirst({
+    where: { id: runId, projectId, userId },
+    select: {
+      id: true,
+      projectId: true,
+      userId: true,
+      createdAt: true,
+      stats: true,
+      total: true,
+      withIssues: true,
+    },
+  });
+
+  if (!currentRun) {
+    return { alertsCreated: 0, alerts: [] };
+  }
+
+  const previousRun = await prisma.crawlRun.findFirst({
+    where: {
+      projectId,
+      createdAt: { lt: currentRun.createdAt },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      stats: true,
+      total: true,
+      withIssues: true,
+      createdAt: true,
+    },
+  });
+
+  const alerts = buildCrawlAlertDigests({
+    projectName,
+    currentRunId: currentRun.id,
+    previousRunId: previousRun?.id || null,
+    currentStats: currentRun.stats,
+    previousStats: previousRun?.stats || null,
+    currentWithIssues: currentRun.withIssues,
+    previousWithIssues: previousRun?.withIssues || 0,
+  });
+
+  if (!alerts.length) {
+    return { alertsCreated: 0, alerts: [] };
+  }
+
+  const storedAlerts = await prisma.crawlAlert.createMany({
+    data: alerts.map((alert) => ({
+      userId,
+      projectId,
+      runId: currentRun.id,
+      previousRunId: previousRun?.id || null,
+      type: alert.type,
+      severity: alert.severity,
+      title: alert.title,
+      message: alert.message,
+      payload: alert.payload || {},
+    })),
+  });
+
+  await sendAlertEmail({
+    userEmail: await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    }).then((user) => user?.email || ""),
+    projectName,
+    alerts,
+  }).catch((error) => {
+    console.error("[alerts] email failed:", error?.message || error);
+  });
+
+  return { alertsCreated: storedAlerts.count || alerts.length, alerts };
+}
+
+async function triggerScheduledCrawl(schedule, baseUrl) {
+  const crawlUrl = new URL("/api/crawl", baseUrl);
+  crawlUrl.searchParams.set("url", schedule.project.targetUrl);
+  crawlUrl.searchParams.set("projectId", schedule.projectId);
+  crawlUrl.searchParams.set("source", "schedule");
+  crawlUrl.searchParams.set("max", String(schedule.maxPages || 50));
+  crawlUrl.searchParams.set("rate", "0");
+  crawlUrl.searchParams.set("external", "0");
+  crawlUrl.searchParams.set("lang", "es");
+  crawlUrl.searchParams.set("renderMode", schedule.renderMode || "auto");
+
+  const response = await fetch(crawlUrl, {
+    method: "GET",
+    headers: {
+      Cookie: `auth_token=${createAuthToken({ id: schedule.userId })}`,
+    },
+  });
+
+  const done = await readSseDoneEvent(response);
+  if (!done?.runId) {
+    throw new Error("Scheduled crawl finished without runId");
+  }
+
+  await createCrawlAlertsForRun({
+    runId: done.runId,
+    projectId: schedule.projectId,
+    userId: schedule.userId,
+    projectName: schedule.project.name,
+  });
+
+  return done;
+}
+
+const activeScheduledCrawls = new Set();
+let schedulerLoopStarted = false;
+
+async function runDueCrawlSchedules({ baseUrl, now = new Date() } = {}) {
+  const dueSchedules = await prisma.crawlSchedule.findMany({
+    where: {
+      enabled: true,
+      nextRunAt: { lte: now },
+    },
+    select: {
+      id: true,
+      userId: true,
+      projectId: true,
+      frequency: true,
+      maxPages: true,
+      renderMode: true,
+      nextRunAt: true,
+      project: {
+        select: {
+          id: true,
+          name: true,
+          targetUrl: true,
+        },
+      },
+    },
+    orderBy: [{ nextRunAt: "asc" }, { createdAt: "asc" }],
+  });
+
+  const claimed = [];
+
+  for (const schedule of dueSchedules) {
+    const updated = await prisma.crawlSchedule.updateMany({
+      where: {
+        id: schedule.id,
+        enabled: true,
+        nextRunAt: { lte: now },
+      },
+      data: {
+        lastRunAt: now,
+        nextRunAt: computeNextScheduleRunAt(schedule.frequency, now),
+      },
+    });
+
+    if (updated.count !== 1) {
+      continue;
+    }
+
+    if (activeScheduledCrawls.has(schedule.id)) {
+      continue;
+    }
+
+    activeScheduledCrawls.add(schedule.id);
+    claimed.push(schedule.id);
+    setImmediate(async () => {
+      try {
+        await triggerScheduledCrawl(schedule, baseUrl || getAppBaseUrl());
+      } catch (error) {
+        console.error("[scheduler] crawl failed:", error?.message || error);
+        await prisma.crawlAlert
+          .create({
+            data: {
+              userId: schedule.userId,
+              projectId: schedule.projectId,
+              runId: "",
+              previousRunId: null,
+              type: "schedule_launch_failed",
+              severity: "warning",
+              title: `No se pudo lanzar el crawl programado para ${schedule.project.name}`,
+              message: error?.message || "Error desconocido",
+              payload: { scheduleId: schedule.id },
+            },
+          })
+          .catch(() => {});
+      } finally {
+        activeScheduledCrawls.delete(schedule.id);
+      }
+    });
+  }
+
+  return { claimed: claimed.length, due: dueSchedules.length };
+}
+
+function startCrawlSchedulerLoop() {
+  if (schedulerLoopStarted) return;
+  if (process.env.NODE_ENV === "test") return;
+  if (process.env.VERCEL === "1") return;
+  if (String(process.env.CRAWL_SCHEDULER_AUTOSTART || "1") === "0") return;
+
+  schedulerLoopStarted = true;
+  const tick = async () => {
+    try {
+      await runDueCrawlSchedules({ baseUrl: getAppBaseUrl() });
+    } catch (error) {
+      console.error("[scheduler] tick failed:", error?.message || error);
+    }
+  };
+
+  setTimeout(tick, 10_000);
+  setInterval(tick, 60_000);
+}
+
+startCrawlSchedulerLoop();
 
 async function loadStoredRunPageChunk(runId, page, limit) {
   const where = { runId };
@@ -3432,6 +3887,10 @@ app.delete("/api/projects/:projectId", requireAuth, requireEditor, async (req, r
     prisma.crawlSchedule.deleteMany({
       where: { projectId: existing.id },
     }),
+    // 1b. Eliminar alertas asociadas al proyecto
+    prisma.crawlAlert.deleteMany({
+      where: { projectId: existing.id },
+    }),
     // 2. Eliminar todos los runs del proyecto (pages y dupes se eliminan en cascada)
     prisma.crawlRun.deleteMany({
       where: { projectId: existing.id },
@@ -3487,32 +3946,23 @@ app.put("/api/projects/:projectId/schedule", requireAuth, requireEditor, async (
   const cap = sub.maxPagesPerCrawl;
   const safePg = Math.min(parseInt(maxPages) || 50, cap);
 
-  const computeNext = (freq) => {
-    const d = new Date();
-    if (freq === "daily") d.setDate(d.getDate() + 1);
-    else if (freq === "monthly") d.setMonth(d.getMonth() + 1);
-    else d.setDate(d.getDate() + 7);
-    d.setHours(3, 0, 0, 0);
-    return d;
-  };
-
   const schedule = await prisma.crawlSchedule.upsert({
     where: { projectId: req.params.projectId },
     create: {
       userId: accountOwnerId,
       projectId: req.params.projectId,
-      frequency: frequency || "weekly",
+      frequency: normalizeScheduleFrequency(frequency),
       maxPages: safePg,
       renderMode: renderMode || "auto",
       enabled: enabled !== false,
-      nextRunAt: computeNext(frequency || "weekly"),
+      nextRunAt: computeNextScheduleRunAt(frequency || "weekly"),
     },
     update: {
-      ...(frequency && { frequency }),
+      ...(frequency && { frequency: normalizeScheduleFrequency(frequency) }),
       ...(maxPages !== undefined && { maxPages: safePg }),
       ...(renderMode && { renderMode }),
       ...(enabled !== undefined && { enabled: Boolean(enabled) }),
-      ...(frequency && { nextRunAt: computeNext(frequency) }),
+      ...(frequency && { nextRunAt: computeNextScheduleRunAt(frequency) }),
     },
   });
   res.json({ schedule });
@@ -3528,6 +3978,91 @@ app.delete("/api/projects/:projectId/schedule", requireAuth, requireAdmin, async
 
   await prisma.crawlSchedule.deleteMany({ where: { projectId: req.params.projectId, userId: accountOwnerId } });
   res.json({ ok: true });
+});
+
+app.post("/api/scheduler/run-due", async (req, res) => {
+  if (!isSchedulerRequestAuthorized(req)) {
+    return res.status(401).json({ error: "No autorizado" });
+  }
+
+  try {
+    const result = await runDueCrawlSchedules({ baseUrl: getAppBaseUrl(req) });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    return handleApiError(res, req, "scheduler/run-due", error, "No se pudo ejecutar el scheduler");
+  }
+});
+
+app.get("/api/projects/:projectId/alerts", requireAuth, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
+  const project = await prisma.project.findFirst({
+    where: { id: req.params.projectId, userId: accountOwnerId },
+    select: { id: true },
+  });
+  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+  const limit = Math.min(parseInt(req.query.limit) || 10, 25);
+  const unreadOnly = String(req.query.unread || "") === "1";
+  const where = {
+    projectId: req.params.projectId,
+    userId: accountOwnerId,
+    ...(unreadOnly ? { readAt: null } : {}),
+  };
+
+  const [total, unread, alerts] = await Promise.all([
+    prisma.crawlAlert.count({ where: { projectId: req.params.projectId, userId: accountOwnerId } }),
+    prisma.crawlAlert.count({ where: { projectId: req.params.projectId, userId: accountOwnerId, readAt: null } }),
+    prisma.crawlAlert.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }],
+      take: limit,
+      select: {
+        id: true,
+        type: true,
+        severity: true,
+        title: true,
+        message: true,
+        payload: true,
+        runId: true,
+        previousRunId: true,
+        readAt: true,
+        emailedAt: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  res.json({
+    alerts,
+    counts: {
+      total,
+      unread,
+    },
+  });
+});
+
+app.patch("/api/projects/:projectId/alerts/:alertId", requireAuth, async (req, res) => {
+  const accountOwnerId = getAccountOwnerId(req.user);
+  const alert = await prisma.crawlAlert.findFirst({
+    where: {
+      id: req.params.alertId,
+      projectId: req.params.projectId,
+      userId: accountOwnerId,
+    },
+    select: { id: true },
+  });
+  if (!alert) return res.status(404).json({ error: "Alerta no encontrada" });
+
+  const updated = await prisma.crawlAlert.update({
+    where: { id: alert.id },
+    data: { readAt: new Date() },
+    select: {
+      id: true,
+      readAt: true,
+    },
+  });
+
+  res.json({ alert: updated });
 });
 
 // Team management
@@ -3767,6 +4302,382 @@ app.get(
   },
 );
 
+app.post(
+  "/api/projects/:projectId/ai/recommendations",
+  aiLimiter,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    try {
+      const project = await getOwnedProject(req.params.projectId, req.user);
+      if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+      const run = await prisma.crawlRun.findFirst({
+        where: {
+          id: String(req.body?.runId || ""),
+          projectId: project.id,
+          userId: getAccountOwnerId(req.user),
+        },
+        select: { id: true, sourceUrl: true, total: true },
+      });
+      if (!run) return res.status(404).json({ error: "Historial no encontrado" });
+
+      const existing = await prisma.aiSeoRecommendation.findMany({
+        where: { runId: run.id },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existing.length && !req.body?.force) {
+        return res.json({ recommendations: existing });
+      }
+
+      const pages = await loadRunPagesForResponse(run.id);
+      const generated = await generateSeoRecommendations({ project, run, pages });
+      const saved = await prisma.$transaction(
+        generated.recommendations.map((item) => prisma.aiSeoRecommendation.upsert({
+          where: { runId_pageUrl: { runId: run.id, pageUrl: item.pageUrl } },
+          create: {
+            userId: getAccountOwnerId(req.user),
+            projectId: project.id,
+            runId: run.id,
+            pageUrl: item.pageUrl,
+            primaryKeyword: item.primaryKeyword,
+            secondaryKeywords: item.secondaryKeywords,
+            intent: item.intent,
+            suggestedTitle: item.suggestedTitle,
+            suggestedMeta: item.suggestedMeta,
+            suggestedH1: item.suggestedH1,
+            suggestedH2s: item.suggestedH2s,
+            recommendations: item.recommendations,
+            provider: generated.provider,
+            model: generated.model,
+            payload: item,
+          },
+          update: {
+            primaryKeyword: item.primaryKeyword,
+            secondaryKeywords: item.secondaryKeywords,
+            intent: item.intent,
+            suggestedTitle: item.suggestedTitle,
+            suggestedMeta: item.suggestedMeta,
+            suggestedH1: item.suggestedH1,
+            suggestedH2s: item.suggestedH2s,
+            recommendations: item.recommendations,
+            provider: generated.provider,
+            model: generated.model,
+            payload: item,
+          },
+        })),
+      );
+      res.json({ provider: generated.provider, model: generated.model, recommendations: saved });
+    } catch (error) {
+      handleApiError(res, req, "ai/recommendations", error, "No se pudieron generar recomendaciones");
+    }
+  },
+);
+
+app.get("/api/projects/:projectId/blogs", requireAuth, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const [blogs, wordpressConnection, googleDriveConnection, sub] = await Promise.all([
+      prisma.blogDraft.findMany({
+        where: { projectId: project.id, userId: getAccountOwnerId(req.user) },
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.wordPressConnection.findUnique({
+        where: { projectId: project.id },
+        select: { id: true, siteUrl: true, username: true, updatedAt: true },
+      }),
+      prisma.googleDriveConnection.findUnique({
+        where: { userId: req.user.id },
+        select: { id: true, email: true, folderId: true, updatedAt: true },
+      }),
+      getUserSubscription(getAccountOwnerId(req.user)),
+    ]);
+    const maxBlogs = getMaxBlogsForPlan(sub.plan);
+    res.json({
+      project,
+      blogs: blogs.map(sanitizeBlogDraft),
+      wordpressConnection,
+      googleDriveConnection,
+      limits: {
+        maxBlogs,
+        blogsUsed: blogs.length,
+        blogsRemaining: Math.max(0, maxBlogs - blogs.length),
+      },
+    });
+  } catch (error) {
+    handleApiError(res, req, "blogs:list", error, "No se pudieron cargar los blogs");
+  }
+});
+
+app.post("/api/projects/:projectId/blogs", aiLimiter, requireAuth, requireEditor, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const accountOwnerId = getAccountOwnerId(req.user);
+    const sub = await getUserSubscription(accountOwnerId);
+    const maxBlogs = getMaxBlogsForPlan(sub.plan);
+    const currentBlogs = await prisma.blogDraft.count({ where: { userId: accountOwnerId } });
+    if (currentBlogs >= maxBlogs) {
+      return res.status(403).json({
+        error: "Limite de blogs alcanzado",
+        errorEn: "Blog limit reached",
+        limit: maxBlogs,
+        current: currentBlogs,
+        plan: sub.plan,
+        upgrade: true,
+      });
+    }
+    const recommendation = req.body?.recommendationId
+      ? await prisma.aiSeoRecommendation.findFirst({
+          where: { id: String(req.body.recommendationId), projectId: project.id },
+        })
+      : null;
+    const brief = buildBlogBriefFromRequest(req.body || {}, recommendation);
+    const shouldGenerate = req.body?.generate !== false && req.body?.mode !== "empty";
+    const tokenEstimate = estimateBlogTokens({ project, brief, recommendations: recommendation?.recommendations || [] });
+    const draft = shouldGenerate
+      ? await generateBlogDraft({
+          project,
+          brief,
+          keyword: brief.primaryKeyword,
+          title: brief.title || recommendation?.suggestedTitle,
+          outline: brief.outline,
+          recommendations: brief.useRecommendation ? (recommendation?.recommendations || []) : [],
+        })
+      : {
+          title: brief.title || `Nuevo blog sobre ${brief.primaryKeyword}`,
+          excerpt: req.body?.excerpt || "",
+          content: req.body?.content || `# ${brief.title || brief.primaryKeyword}\n\n`,
+          keywords: [...brief.primaryKeywords, ...brief.secondaryKeywords],
+        };
+    const title = String(req.body?.title || draft.title || "Nuevo blog").trim().slice(0, 160);
+    const blog = await prisma.blogDraft.create({
+      data: {
+        userId: accountOwnerId,
+        projectId: project.id,
+        runId: req.body?.runId || recommendation?.runId || null,
+        title,
+        slug: slugify(req.body?.slug || title),
+        excerpt: String(req.body?.excerpt || draft.excerpt || "").slice(0, 300),
+        content: String(req.body?.content || draft.content || "").slice(0, 30000),
+        keywords: normalizeStringList(req.body?.keywords || draft.keywords || []),
+        brief,
+        status: normalizeBlogStatus(req.body?.status),
+      },
+    });
+    res.status(201).json({ blog: sanitizeBlogDraft(blog), tokenEstimate, generated: shouldGenerate });
+  } catch (error) {
+    handleApiError(res, req, "blogs:create", error, "No se pudo crear el blog");
+  }
+});
+
+app.put("/api/projects/:projectId/blogs/:blogId", requireAuth, requireEditor, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const existing = await prisma.blogDraft.findFirst({
+      where: { id: req.params.blogId, projectId: project.id, userId: getAccountOwnerId(req.user) },
+    });
+    if (!existing) return res.status(404).json({ error: "Blog no encontrado" });
+    const title = req.body?.title ? String(req.body.title).trim().slice(0, 160) : existing.title;
+    const blog = await prisma.blogDraft.update({
+      where: { id: existing.id },
+      data: {
+        title,
+        slug: req.body?.slug ? slugify(req.body.slug) : existing.slug,
+        excerpt: req.body?.excerpt !== undefined ? String(req.body.excerpt).slice(0, 300) : existing.excerpt,
+        content: req.body?.content !== undefined ? String(req.body.content).slice(0, 30000) : existing.content,
+        keywords: req.body?.keywords ? normalizeStringList(req.body.keywords) : existing.keywords,
+        brief: req.body?.brief && typeof req.body.brief === "object" ? normalizeBlogBrief(req.body.brief) : existing.brief,
+        status: req.body?.status ? normalizeBlogStatus(req.body.status) : existing.status,
+      },
+    });
+    res.json({ blog: sanitizeBlogDraft(blog) });
+  } catch (error) {
+    handleApiError(res, req, "blogs:update", error, "No se pudo actualizar el blog");
+  }
+});
+
+app.post("/api/projects/:projectId/blogs/:blogId/export/docx", exportLimiter, requireAuth, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const blog = await prisma.blogDraft.findFirst({
+      where: { id: req.params.blogId, projectId: project.id, userId: getAccountOwnerId(req.user) },
+    });
+    if (!blog) return res.status(404).json({ error: "Blog no encontrado" });
+    const buffer = await createBlogDocxBuffer(blog);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${sanitizeFileName(blog.slug || blog.title)}.docx"`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.send(buffer);
+  } catch (error) {
+    handleApiError(res, req, "blogs:docx", error, "No se pudo exportar DOCX");
+  }
+});
+
+app.put("/api/projects/:projectId/wordpress-connection", requireAuth, requireEditor, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const siteUrl = normalizeUrl(req.body?.siteUrl || "");
+    const username = String(req.body?.username || "").trim();
+    const appPassword = String(req.body?.appPassword || "").trim();
+    if (!siteUrl || !username || !appPassword) {
+      return res.status(400).json({ error: "siteUrl, username y appPassword son requeridos" });
+    }
+    const connection = await prisma.wordPressConnection.upsert({
+      where: { projectId: project.id },
+      create: {
+        userId: getAccountOwnerId(req.user),
+        projectId: project.id,
+        siteUrl,
+        username,
+        encryptedAppPassword: encryptSecret(appPassword),
+      },
+      update: {
+        siteUrl,
+        username,
+        encryptedAppPassword: encryptSecret(appPassword),
+      },
+      select: { id: true, siteUrl: true, username: true, updatedAt: true },
+    });
+    res.json({ connection });
+  } catch (error) {
+    handleApiError(res, req, "wordpress:save", error, "No se pudo guardar WordPress");
+  }
+});
+
+app.delete("/api/projects/:projectId/wordpress-connection", requireAuth, requireEditor, async (req, res) => {
+  const project = await getOwnedProject(req.params.projectId, req.user);
+  if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+  await prisma.wordPressConnection.deleteMany({ where: { projectId: project.id } });
+  res.json({ ok: true });
+});
+
+app.post("/api/projects/:projectId/blogs/:blogId/export/wordpress", exportLimiter, requireAuth, requireEditor, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const status = normalizeWordPressStatus(req.body?.status);
+    if (status === "publish" && req.body?.confirmPublish !== true) {
+      return res.status(400).json({ error: "Confirmacion requerida para publicar" });
+    }
+    const [blog, connection] = await Promise.all([
+      prisma.blogDraft.findFirst({
+        where: { id: req.params.blogId, projectId: project.id, userId: getAccountOwnerId(req.user) },
+      }),
+      prisma.wordPressConnection.findUnique({ where: { projectId: project.id } }),
+    ]);
+    if (!blog) return res.status(404).json({ error: "Blog no encontrado" });
+    if (!connection) return res.status(400).json({ error: "WordPress no conectado" });
+    const published = await publishToWordPress({ connection, blog, status });
+    const updated = await prisma.blogDraft.update({
+      where: { id: blog.id },
+      data: {
+        status: status === "publish" ? "published" : "ready",
+        wpPostId: published.postId,
+        wpPostUrl: published.link,
+      },
+    });
+    res.json({ blog: sanitizeBlogDraft(updated), wordpress: published });
+  } catch (error) {
+    handleApiError(res, req, "blogs:wordpress", error, "No se pudo exportar a WordPress");
+  }
+});
+
+app.get("/api/google-drive/connect", requireAuth, (req, res) => {
+  const state = jwt.sign({ userId: req.user.id }, getJwtSecret(), { expiresIn: "10m" });
+  const authUrl = getGoogleAuthUrl(state);
+  if (!authUrl) return res.status(501).json({ error: "Google Drive no configurado" });
+  res.json({ authUrl });
+});
+
+app.get("/api/google-drive/callback", requireAuth, async (req, res) => {
+  const sendDrivePopupResult = (type, message = "") => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!doctype html>
+<html><head><title>Google Drive</title></head>
+<body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: ${JSON.stringify(type)}, message: ${JSON.stringify(message)} }, window.location.origin);
+  }
+  window.close();
+</script>
+<p>${message || "Google Drive procesado."}</p>
+</body></html>`);
+  };
+  try {
+    if (req.query.error) {
+      return sendDrivePopupResult(
+        "seo-crawler:google-drive-failed",
+        String(req.query.error_description || req.query.error || "Google Drive OAuth falló"),
+      );
+    }
+    const payload = jwt.verify(String(req.query.state || ""), getJwtSecret());
+    if (payload.userId !== req.user.id) {
+      return sendDrivePopupResult("seo-crawler:google-drive-failed", "Estado OAuth invalido");
+    }
+    const { tokens, email } = await exchangeGoogleCode(String(req.query.code || ""));
+    if (!tokens.refresh_token) {
+      return sendDrivePopupResult("seo-crawler:google-drive-failed", "Google no devolvio refresh token");
+    }
+    await prisma.googleDriveConnection.upsert({
+      where: { userId: req.user.id },
+      create: {
+        userId: req.user.id,
+        email,
+        encryptedAccessToken: tokens.access_token ? encryptSecret(tokens.access_token) : null,
+        encryptedRefreshToken: encryptSecret(tokens.refresh_token),
+        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+      },
+      update: {
+        email,
+        encryptedAccessToken: tokens.access_token ? encryptSecret(tokens.access_token) : undefined,
+        encryptedRefreshToken: encryptSecret(tokens.refresh_token),
+        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+      },
+    });
+    return sendDrivePopupResult("seo-crawler:google-drive-connected", "Google Drive conectado");
+  } catch (error) {
+    logServerError("google-drive:callback", error, {
+      path: req.originalUrl || req.url,
+      method: req.method,
+    });
+    return sendDrivePopupResult("seo-crawler:google-drive-failed", getPublicError(error, "No se pudo conectar Google Drive").message);
+  }
+});
+
+app.delete("/api/google-drive/connection", requireAuth, requireEditor, async (req, res) => {
+  await prisma.googleDriveConnection.deleteMany({ where: { userId: req.user.id } });
+  res.json({ ok: true });
+});
+
+app.post("/api/projects/:projectId/blogs/:blogId/export/google-drive", exportLimiter, requireAuth, requireEditor, async (req, res) => {
+  try {
+    const project = await getOwnedProject(req.params.projectId, req.user);
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+    const [blog, connection] = await Promise.all([
+      prisma.blogDraft.findFirst({
+        where: { id: req.params.blogId, projectId: project.id, userId: getAccountOwnerId(req.user) },
+      }),
+      prisma.googleDriveConnection.findUnique({ where: { userId: req.user.id } }),
+    ]);
+    if (!blog) return res.status(404).json({ error: "Blog no encontrado" });
+    if (!connection) return res.status(400).json({ error: "Google Drive no conectado" });
+    const buffer = await createBlogDocxBuffer(blog);
+    const uploaded = await uploadDocxToDrive({ connection, blog, buffer });
+    const updated = await prisma.blogDraft.update({
+      where: { id: blog.id },
+      data: { driveFileId: uploaded.fileId, driveFileUrl: uploaded.webViewLink },
+    });
+    res.json({ blog: sanitizeBlogDraft(updated), drive: uploaded });
+  } catch (error) {
+    handleApiError(res, req, "blogs:drive", error, "No se pudo exportar a Google Drive");
+  }
+});
+
 //  API: Site info
 app.get("/api/site-info", requireAuth, async (req, res) => {
   const url = req.query.url;
@@ -3792,9 +4703,10 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const [projectCount, dbCrawlCount] = await Promise.all([
+    const [projectCount, dbCrawlCount, blogCount] = await Promise.all([
       prisma.project.count({ where: { userId: accountOwnerId } }),
       prisma.crawlRun.count({ where: { userId: accountOwnerId, createdAt: { gte: monthStart } } }),
+      prisma.blogDraft.count({ where: { userId: accountOwnerId } }),
     ]);
     const resetAt = sub.crawlsResetAt ? new Date(sub.crawlsResetAt) : null;
     const counterCount = (!resetAt || resetAt < monthStart) ? 0 : (sub.crawlsThisMonth ?? 0);
@@ -3809,6 +4721,7 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
         maxPagesPerCrawl: sub.maxPagesPerCrawl,
         maxCrawlsPerMonth: sub.maxCrawlsPerMonth,
         maxHistoryRuns: sub.maxHistoryRuns,
+        maxBlogs: getMaxBlogsForPlan(sub.plan),
         features: sub.features,
         expiresAt: sub.expiresAt,
         cancelledAt: sub.cancelledAt,
@@ -3823,10 +4736,12 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
       usage: {
         projects: (sub.plan === "FREE" && !sub.inTrial) ? sub.projectsCreated : projectCount,
         crawlsThisMonth: crawlCount,
+        blogs: blogCount,
       },
       limits: {
         projectsRemaining: Math.max(0, sub.maxProjects - ((sub.plan === "FREE" && !sub.inTrial) ? sub.projectsCreated : projectCount)),
         crawlsRemaining: Math.max(0, sub.maxCrawlsPerMonth - crawlCount),
+        blogsRemaining: Math.max(0, getMaxBlogsForPlan(sub.plan) - blogCount),
       },
       plans: PLAN_DEFAULTS,
       stripeEnabled: !!getStripe(),
@@ -4754,6 +5669,16 @@ app.get("/api/crawl", crawlLimiter, requireAuth, requireEditor, async (req, res)
 
       return run;
     });
+
+    await createCrawlAlertsForRun({
+      runId: createdRun.id,
+      projectId: project.id,
+      userId: accountOwnerId,
+      projectName: project.name,
+    }).catch((error) => {
+      console.error("[alerts] failed to create crawl alerts:", error?.message || error);
+    });
+
     send("done", {
       total: normalizedResults.length,
       withIssues,
