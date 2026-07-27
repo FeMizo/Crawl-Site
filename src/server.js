@@ -70,6 +70,17 @@ const {
   sanitizeFileName,
   uploadDocxToDrive,
 } = require("../lib/blog-export");
+const {
+  compareMetricSnapshots,
+  fetchGa4Snapshot,
+  fetchSearchConsoleSnapshot,
+  listGa4Properties,
+  listSearchConsoleProperties,
+  normalizeGa4PropertyId,
+  normalizeGoogleBindingInput,
+  normalizeDateKey,
+  normalizeSearchConsoleProperty,
+} = require("../lib/google-workspace");
 const { encryptSecret } = require("../lib/secret-crypto");
 const {
   buildCrawlAlertDigests,
@@ -1516,6 +1527,159 @@ async function createCrawlAlertsForRun({ runId, projectId, userId, projectName }
   return { alertsCreated: storedAlerts.count || alerts.length, alerts };
 }
 
+function buildGoogleAlertDigests({
+  projectName,
+  source,
+  currentSummary,
+  previousSummary,
+  crawlRun,
+  previousCrawlRun,
+}) {
+  if (!currentSummary || !previousSummary) return [];
+
+  const diffs = compareMetricSnapshots(currentSummary, previousSummary);
+  const alertCandidates = [];
+
+  if (source === "searchconsole") {
+    const clicks = diffs.find((item) => item.key === "clicks");
+    const impressions = diffs.find((item) => item.key === "impressions");
+    const ctr = diffs.find((item) => item.key === "ctr");
+    const severeDrop = (clicks?.changePct ?? 0) <= -25 || (impressions?.changePct ?? 0) <= -25;
+    const issueSpike = Number(crawlRun?.withIssues || 0) > Number(previousCrawlRun?.withIssues || 0);
+
+    if (severeDrop && Number(previousSummary.clicks || previousSummary.impressions || 0) >= 20) {
+      alertCandidates.push({
+        severity: issueSpike ? "critical" : "warning",
+        title: `Caida de Search Console en ${projectName}`,
+        message: `Clicks e impresiones bajaron en ${projectName} frente a la sincronizacion anterior.`,
+        payload: {
+          source,
+          diffs,
+          currentSummary,
+          previousSummary,
+          crawlRunId: crawlRun?.id || null,
+          previousCrawlRunId: previousCrawlRun?.id || null,
+        },
+      });
+    } else if ((ctr?.changePct ?? 0) <= -20) {
+      alertCandidates.push({
+        severity: "warning",
+        title: `CTR en descenso en ${projectName}`,
+        message: `El CTR de Search Console bajo frente a la sincronizacion anterior.`,
+        payload: {
+          source,
+          diffs,
+          currentSummary,
+          previousSummary,
+          crawlRunId: crawlRun?.id || null,
+          previousCrawlRunId: previousCrawlRun?.id || null,
+        },
+      });
+    }
+    return alertCandidates;
+  }
+
+  if (source === "ga4") {
+    const sessions = diffs.find((item) => item.key === "sessions");
+    const users = diffs.find((item) => item.key === "users");
+    const conversions = diffs.find((item) => item.key === "conversions");
+    const severeDrop = (sessions?.changePct ?? 0) <= -25 || (users?.changePct ?? 0) <= -25;
+    const issueSpike = Number(crawlRun?.withIssues || 0) > Number(previousCrawlRun?.withIssues || 0);
+
+    if (severeDrop && Number(previousSummary.sessions || previousSummary.users || 0) >= 20) {
+      alertCandidates.push({
+        severity: issueSpike ? "critical" : "warning",
+        title: `Caida de trafico en ${projectName}`,
+        message: `Sessions o usuarios bajaron en ${projectName} frente a la sincronizacion anterior.`,
+        payload: {
+          source,
+          diffs,
+          currentSummary,
+          previousSummary,
+          crawlRunId: crawlRun?.id || null,
+          previousCrawlRunId: previousCrawlRun?.id || null,
+        },
+      });
+    } else if ((conversions?.changePct ?? 0) <= -20) {
+      alertCandidates.push({
+        severity: "warning",
+        title: `Conversiones en descenso en ${projectName}`,
+        message: `Las conversiones de GA4 bajaron frente a la sincronizacion anterior.`,
+        payload: {
+          source,
+          diffs,
+          currentSummary,
+          previousSummary,
+          crawlRunId: crawlRun?.id || null,
+          previousCrawlRunId: previousCrawlRun?.id || null,
+        },
+      });
+    }
+  }
+
+  return alertCandidates;
+}
+
+function buildGoogleSeries(snapshots, source) {
+  const ordered = [...snapshots]
+    .filter((snapshot) => snapshot.source === source)
+    .sort((a, b) => new Date(a.snapshotDate) - new Date(b.snapshotDate));
+
+  return ordered.map((snapshot) => ({
+    date: snapshot.snapshotDate,
+    ...snapshot.summary,
+  }));
+}
+
+async function persistGoogleSyncAlerts({
+  userId,
+  projectId,
+  projectName,
+  source,
+  currentSnapshot,
+  previousSnapshot,
+  crawlRun,
+  previousCrawlRun,
+}) {
+  const alerts = buildGoogleAlertDigests({
+    projectName,
+    source,
+    currentSummary: currentSnapshot.summary,
+    previousSummary: previousSnapshot?.summary || null,
+    crawlRun,
+    previousCrawlRun,
+  });
+
+  if (!alerts.length) return [];
+
+  const storedAlerts = await prisma.crawlAlert.createMany({
+    data: alerts.map((alert) => ({
+      userId,
+      projectId,
+      runId: crawlRun?.id || "",
+      previousRunId: previousCrawlRun?.id || null,
+      type: `google_${source}_regression`,
+      severity: alert.severity,
+      title: alert.title,
+      message: alert.message,
+      payload: alert.payload || {},
+    })),
+  });
+
+  await sendAlertEmail({
+    userEmail: await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    }).then((user) => user?.email || ""),
+    projectName,
+    alerts,
+  }).catch((error) => {
+    console.error("[google-alerts] email failed:", error?.message || error);
+  });
+
+  return storedAlerts.count || alerts.length;
+}
+
 async function triggerScheduledCrawl(schedule, baseUrl) {
   const crawlUrl = new URL("/api/crawl", baseUrl);
   crawlUrl.searchParams.set("url", schedule.project.targetUrl);
@@ -1550,6 +1714,7 @@ async function triggerScheduledCrawl(schedule, baseUrl) {
 }
 
 const activeScheduledCrawls = new Set();
+const activeGoogleSyncs = new Set();
 let schedulerLoopStarted = false;
 
 async function runDueCrawlSchedules({ baseUrl, now = new Date() } = {}) {
@@ -1631,6 +1796,258 @@ async function runDueCrawlSchedules({ baseUrl, now = new Date() } = {}) {
   return { claimed: claimed.length, due: dueSchedules.length };
 }
 
+function isGoogleSyncDue(lastSyncAt, now = new Date()) {
+  if (!lastSyncAt) return true;
+  const syncDate = new Date(lastSyncAt);
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+  return syncDate < dayStart;
+}
+
+async function syncGoogleBinding({
+  project,
+  binding,
+  connection,
+  now = new Date(),
+  source = "manual",
+}) {
+  const endDate = normalizeDateKey(now);
+  const startDate = normalizeDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29));
+  const snapshotDate = new Date(`${endDate}T00:00:00.000Z`);
+  const accountOwnerId = binding.userId;
+  const result = {
+    searchConsole: null,
+    ga4: null,
+    alerts: 0,
+  };
+
+  const latestCrawlRun = await prisma.crawlRun.findFirst({
+    where: { projectId: project.id, userId: accountOwnerId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, withIssues: true, createdAt: true },
+  });
+  const previousCrawlRun = await prisma.crawlRun.findFirst({
+    where: {
+      projectId: project.id,
+      userId: accountOwnerId,
+      createdAt: { lt: latestCrawlRun?.createdAt || now },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, withIssues: true, createdAt: true },
+  });
+
+  if (binding.searchConsoleProperty) {
+    const current = await fetchSearchConsoleSnapshot({
+      connection,
+      property: binding.searchConsoleProperty,
+      startDate,
+      endDate,
+      rowLimit: 10,
+    });
+    const previous = await prisma.googleInsightSnapshot.findFirst({
+      where: {
+        projectId: project.id,
+        source: "searchconsole",
+        snapshotDate: { lt: snapshotDate },
+      },
+      orderBy: { snapshotDate: "desc" },
+    });
+    const saved = await prisma.googleInsightSnapshot.upsert({
+      where: {
+        projectId_source_snapshotDate: {
+          projectId: project.id,
+          source: "searchconsole",
+          snapshotDate,
+        },
+      },
+      create: {
+        userId: accountOwnerId,
+        projectId: project.id,
+        bindingId: binding.id,
+        source: "searchconsole",
+        snapshotDate,
+        summary: current.summary,
+        rows: {
+          topQueries: current.topQueries,
+          topPages: current.topPages,
+        },
+      },
+      update: {
+        bindingId: binding.id,
+        summary: current.summary,
+        rows: {
+          topQueries: current.topQueries,
+          topPages: current.topPages,
+        },
+      },
+    });
+    result.searchConsole = saved;
+    result.alerts += await persistGoogleSyncAlerts({
+      userId: accountOwnerId,
+      projectId: project.id,
+      projectName: project.name,
+      source: "searchconsole",
+      currentSnapshot: saved,
+      previousSnapshot: previous,
+      crawlRun: latestCrawlRun,
+      previousCrawlRun,
+    });
+  }
+
+  if (binding.ga4PropertyId) {
+    const current = await fetchGa4Snapshot({
+      connection,
+      propertyId: binding.ga4PropertyId,
+      startDate,
+      endDate,
+      rowLimit: 10,
+    });
+    const previous = await prisma.googleInsightSnapshot.findFirst({
+      where: {
+        projectId: project.id,
+        source: "ga4",
+        snapshotDate: { lt: snapshotDate },
+      },
+      orderBy: { snapshotDate: "desc" },
+    });
+    const saved = await prisma.googleInsightSnapshot.upsert({
+      where: {
+        projectId_source_snapshotDate: {
+          projectId: project.id,
+          source: "ga4",
+          snapshotDate,
+        },
+      },
+      create: {
+        userId: accountOwnerId,
+        projectId: project.id,
+        bindingId: binding.id,
+        source: "ga4",
+        snapshotDate,
+        summary: current.summary,
+        rows: {
+          landingPages: current.landingPages,
+          sourceMedium: current.sourceMedium,
+        },
+      },
+      update: {
+        bindingId: binding.id,
+        summary: current.summary,
+        rows: {
+          landingPages: current.landingPages,
+          sourceMedium: current.sourceMedium,
+        },
+      },
+    });
+    result.ga4 = saved;
+    result.alerts += await persistGoogleSyncAlerts({
+      userId: accountOwnerId,
+      projectId: project.id,
+      projectName: project.name,
+      source: "ga4",
+      currentSnapshot: saved,
+      previousSnapshot: previous,
+      crawlRun: latestCrawlRun,
+      previousCrawlRun,
+    });
+  }
+
+  await prisma.projectGoogleBinding.update({
+    where: { projectId: project.id },
+    data: {
+      status: "active",
+      lastSyncAt: now,
+    },
+  });
+  await prisma.googleDriveConnection.updateMany({
+    where: { userId: accountOwnerId },
+    data: {
+      status: "connected",
+      lastSyncAt: now,
+    },
+  });
+
+  return result;
+}
+
+async function runDueGoogleSyncs({ now = new Date() } = {}) {
+  const dueBindings = await prisma.projectGoogleBinding.findMany({
+    where: {
+      status: "active",
+      OR: [
+        { lastSyncAt: null },
+        { lastSyncAt: { lt: new Date(new Date(now).setHours(0, 0, 0, 0)) } },
+      ],
+    },
+    select: {
+      id: true,
+      userId: true,
+      projectId: true,
+      searchConsoleProperty: true,
+      ga4PropertyId: true,
+      lastSyncAt: true,
+      project: {
+        select: {
+          id: true,
+          name: true,
+          targetUrl: true,
+        },
+      },
+    },
+    orderBy: [{ lastSyncAt: "asc" }, { createdAt: "asc" }],
+  });
+
+  const claimed = [];
+
+  for (const binding of dueBindings) {
+    if (activeGoogleSyncs.has(binding.id)) continue;
+    activeGoogleSyncs.add(binding.id);
+    claimed.push(binding.id);
+    setImmediate(async () => {
+      try {
+        const connection = await prisma.googleDriveConnection.findUnique({
+          where: { userId: binding.userId },
+        });
+        if (!connection) {
+          await prisma.projectGoogleBinding.update({
+            where: { projectId: binding.projectId },
+            data: { status: "needs_connection" },
+          });
+          return;
+        }
+        await syncGoogleBinding({
+          project: binding.project,
+          binding,
+          connection,
+          now,
+          source: "scheduler",
+        });
+      } catch (error) {
+        console.error("[google-scheduler] sync failed:", error?.message || error);
+        await prisma.crawlAlert
+          .create({
+            data: {
+              userId: binding.userId,
+              projectId: binding.projectId,
+              runId: "",
+              previousRunId: null,
+              type: "google_sync_failed",
+              severity: "warning",
+              title: `No se pudo sincronizar Google para ${binding.project.name}`,
+              message: error?.message || "Error desconocido",
+              payload: { bindingId: binding.id },
+            },
+          })
+          .catch(() => {});
+      } finally {
+        activeGoogleSyncs.delete(binding.id);
+      }
+    });
+  }
+
+  return { claimed: claimed.length, due: dueBindings.length };
+}
+
 function startCrawlSchedulerLoop() {
   if (schedulerLoopStarted) return;
   if (process.env.NODE_ENV === "test") return;
@@ -1640,7 +2057,10 @@ function startCrawlSchedulerLoop() {
   schedulerLoopStarted = true;
   const tick = async () => {
     try {
-      await runDueCrawlSchedules({ baseUrl: getAppBaseUrl() });
+      await Promise.all([
+        runDueCrawlSchedules({ baseUrl: getAppBaseUrl() }),
+        runDueGoogleSyncs(),
+      ]);
     } catch (error) {
       console.error("[scheduler] tick failed:", error?.message || error);
     }
@@ -4593,6 +5013,13 @@ app.get("/api/google-drive/connect", requireAuth, (req, res) => {
   res.json({ authUrl });
 });
 
+app.get("/api/google/connect", requireAuth, (req, res) => {
+  const state = jwt.sign({ userId: req.user.id }, getJwtSecret(), { expiresIn: "10m" });
+  const authUrl = getGoogleAuthUrl(state);
+  if (!authUrl) return res.status(501).json({ error: "Google no configurado" });
+  res.json({ authUrl });
+});
+
 app.get("/api/google-drive/callback", requireAuth, async (req, res) => {
   const sendDrivePopupResult = (type, message = "") => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -4631,12 +5058,18 @@ app.get("/api/google-drive/callback", requireAuth, async (req, res) => {
         encryptedAccessToken: tokens.access_token ? encryptSecret(tokens.access_token) : null,
         encryptedRefreshToken: encryptSecret(tokens.refresh_token),
         expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        scopes: tokens.scope ? String(tokens.scope).split(/\s+/).filter(Boolean) : [],
+        status: "connected",
+        lastSyncAt: new Date(),
       },
       update: {
         email,
         encryptedAccessToken: tokens.access_token ? encryptSecret(tokens.access_token) : undefined,
         encryptedRefreshToken: encryptSecret(tokens.refresh_token),
         expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        scopes: tokens.scope ? String(tokens.scope).split(/\s+/).filter(Boolean) : [],
+        status: "connected",
+        lastSyncAt: new Date(),
       },
     });
     return sendDrivePopupResult("seo-crawler:google-drive-connected", "Google Drive conectado");
@@ -4650,8 +5083,258 @@ app.get("/api/google-drive/callback", requireAuth, async (req, res) => {
 });
 
 app.delete("/api/google-drive/connection", requireAuth, requireEditor, async (req, res) => {
-  await prisma.googleDriveConnection.deleteMany({ where: { userId: req.user.id } });
+  await prisma.$transaction([
+    prisma.projectGoogleBinding.deleteMany({ where: { userId: req.user.id } }),
+    prisma.googleDriveConnection.deleteMany({ where: { userId: req.user.id } }),
+  ]);
   res.json({ ok: true });
+});
+
+app.get("/api/projects/:projectId/google-integration", requireAuth, async (req, res) => {
+  try {
+    const accountOwnerId = getAccountOwnerId(req.user);
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.projectId, userId: accountOwnerId },
+      select: { id: true, name: true, targetUrl: true },
+    });
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+    const [connection, binding, snapshots, alerts] = await Promise.all([
+      prisma.googleDriveConnection.findUnique({
+        where: { userId: req.user.id },
+        select: {
+          id: true,
+          email: true,
+          folderId: true,
+          scopes: true,
+          status: true,
+          lastSyncAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.projectGoogleBinding.findUnique({
+        where: { projectId: project.id },
+        select: {
+          id: true,
+          searchConsoleProperty: true,
+          ga4PropertyId: true,
+          status: true,
+          lastSyncAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.googleInsightSnapshot.findMany({
+        where: { projectId: project.id },
+        orderBy: { snapshotDate: "asc" },
+        take: 60,
+      }),
+      prisma.crawlAlert.findMany({
+        where: {
+          projectId: project.id,
+          userId: accountOwnerId,
+          type: { startsWith: "google_" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          type: true,
+          severity: true,
+          title: true,
+          message: true,
+          payload: true,
+          runId: true,
+          previousRunId: true,
+          readAt: true,
+          emailedAt: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    let searchConsoleProperties = [];
+    let ga4Properties = [];
+    if (connection) {
+      [searchConsoleProperties, ga4Properties] = await Promise.all([
+        listSearchConsoleProperties(connection).catch(() => []),
+        listGa4Properties(connection).catch(() => []),
+      ]);
+    }
+
+    const searchConsoleSnapshots = snapshots.filter((snapshot) => snapshot.source === "searchconsole");
+    const ga4Snapshots = snapshots.filter((snapshot) => snapshot.source === "ga4");
+    const latestSearchConsole = searchConsoleSnapshots[searchConsoleSnapshots.length - 1] || null;
+    const latestGa4 = ga4Snapshots[ga4Snapshots.length - 1] || null;
+    const previousSearchConsole = searchConsoleSnapshots[searchConsoleSnapshots.length - 2] || null;
+    const previousGa4 = ga4Snapshots[ga4Snapshots.length - 2] || null;
+
+    const buildSnapshotPayload = (latest, previous, metricsKeys, extras = {}) => ({
+      latest: latest
+        ? {
+            summary: latest.summary,
+            rows: latest.rows || {},
+            snapshotDate: latest.snapshotDate,
+          }
+        : null,
+      previous: previous
+        ? {
+            summary: previous.summary,
+            rows: previous.rows || {},
+            snapshotDate: previous.snapshotDate,
+          }
+        : null,
+      diffs: latest && previous ? compareMetricSnapshots(latest.summary || {}, previous.summary || {}, metricsKeys) : [],
+      series7: snapshots
+        .filter((snapshot) => snapshot.source === (latest?.source || ""))
+        .slice(-7)
+        .map((snapshot) => ({ date: snapshot.snapshotDate, ...snapshot.summary })),
+      series30: snapshots
+        .filter((snapshot) => snapshot.source === (latest?.source || ""))
+        .slice(-30)
+        .map((snapshot) => ({ date: snapshot.snapshotDate, ...snapshot.summary })),
+      ...extras,
+    });
+
+    res.json({
+      project,
+      connection,
+      binding,
+      availableProperties: {
+        searchConsole: searchConsoleProperties,
+        ga4: ga4Properties,
+      },
+      insights: {
+        searchConsole: buildSnapshotPayload(
+          latestSearchConsole,
+          previousSearchConsole,
+          ["clicks", "impressions", "ctr", "position"],
+          {
+            topQueries: latestSearchConsole?.rows?.topQueries || [],
+            topPages: latestSearchConsole?.rows?.topPages || [],
+          },
+        ),
+        ga4: buildSnapshotPayload(
+          latestGa4,
+          previousGa4,
+          ["sessions", "users", "conversions"],
+          {
+            landingPages: latestGa4?.rows?.landingPages || [],
+            sourceMedium: latestGa4?.rows?.sourceMedium || [],
+          },
+        ),
+      },
+      alerts,
+    });
+  } catch (error) {
+    handleApiError(res, req, "google-integration:get", error, "No se pudo cargar Google");
+  }
+});
+
+app.put("/api/projects/:projectId/google-integration", requireAuth, requireEditor, async (req, res) => {
+  try {
+    const accountOwnerId = getAccountOwnerId(req.user);
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.projectId, userId: accountOwnerId },
+      select: { id: true },
+    });
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+    const connection = await prisma.googleDriveConnection.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+    if (!connection) return res.status(400).json({ error: "Google no conectado" });
+
+    const normalized = normalizeGoogleBindingInput(req.body || {});
+    if (!normalized.searchConsoleProperty && !normalized.ga4PropertyId) {
+      return res.status(400).json({ error: "searchConsoleProperty o ga4PropertyId son requeridos" });
+    }
+
+    const binding = await prisma.projectGoogleBinding.upsert({
+      where: { projectId: project.id },
+      create: {
+        userId: accountOwnerId,
+        projectId: project.id,
+        searchConsoleProperty: normalized.searchConsoleProperty || null,
+        ga4PropertyId: normalized.ga4PropertyId || null,
+        status: "active",
+      },
+      update: {
+        searchConsoleProperty: normalized.searchConsoleProperty || null,
+        ga4PropertyId: normalized.ga4PropertyId || null,
+        status: "active",
+      },
+      select: {
+        id: true,
+        searchConsoleProperty: true,
+        ga4PropertyId: true,
+        status: true,
+        lastSyncAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({ binding });
+  } catch (error) {
+    handleApiError(res, req, "google-integration:update", error, "No se pudo guardar Google");
+  }
+});
+
+app.post("/api/projects/:projectId/google-integration/sync", exportLimiter, requireAuth, requireEditor, async (req, res) => {
+  try {
+    const accountOwnerId = getAccountOwnerId(req.user);
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.projectId, userId: accountOwnerId },
+      select: { id: true, name: true, targetUrl: true },
+    });
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+    const [connection, binding] = await Promise.all([
+      prisma.googleDriveConnection.findUnique({
+        where: { userId: req.user.id },
+      }),
+      prisma.projectGoogleBinding.findUnique({
+        where: { projectId: project.id },
+      }),
+    ]);
+
+    if (!connection) return res.status(400).json({ error: "Google no conectado" });
+    if (!binding) return res.status(400).json({ error: "No hay binding de Google para este proyecto" });
+
+    const result = await syncGoogleBinding({
+      project,
+      binding,
+      connection,
+      now: new Date(),
+      source: "manual",
+    });
+
+    const payload = await prisma.project.findFirst({
+      where: { id: project.id, userId: accountOwnerId },
+      select: { id: true },
+    });
+    if (!payload) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+    const integration = await prisma.projectGoogleBinding.findUnique({
+      where: { projectId: project.id },
+      select: {
+        id: true,
+        searchConsoleProperty: true,
+        ga4PropertyId: true,
+        status: true,
+        lastSyncAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({
+      ok: true,
+      result,
+      binding: integration,
+    });
+  } catch (error) {
+    handleApiError(res, req, "google-integration:sync", error, "No se pudo sincronizar Google");
+  }
 });
 
 app.post("/api/projects/:projectId/blogs/:blogId/export/google-drive", exportLimiter, requireAuth, requireEditor, async (req, res) => {

@@ -23,6 +23,8 @@ model User {
   crawlRuns               CrawlRun[]
   crawlSchedules          CrawlSchedule[]
   googleDriveConnections  GoogleDriveConnection[]
+  googleProjectBindings   ProjectGoogleBinding[]
+  googleInsightSnapshots  GoogleInsightSnapshot[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   projects                Project[]
@@ -67,6 +69,8 @@ model Project {
   updatedAt     DateTime       @updatedAt
   crawlRuns     CrawlRun[]
   crawlSchedule CrawlSchedule?
+  googleBinding ProjectGoogleBinding?
+  googleInsightSnapshots GoogleInsightSnapshot[]
   aiSeoRecommendations AiSeoRecommendation[]
   blogDrafts    BlogDraft[]
   wordpressConnection WordPressConnection?
@@ -213,14 +217,55 @@ model GoogleDriveConnection {
   userId                String
   email                 String?
   folderId              String?
+  scopes                String[] @default([])
+  status                String   @default("connected")
   encryptedAccessToken  String?
   encryptedRefreshToken String
   expiryDate            DateTime?
+  lastSyncAt            DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
+}
+
+model ProjectGoogleBinding {
+  id                    String   @id @default(cuid())
+  userId                String
+  projectId             String   @unique
+  searchConsoleProperty  String?
+  ga4PropertyId         String?
+  status                String   @default("active")
+  lastSyncAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots             GoogleInsightSnapshot[]
+
+  @@index([userId])
+  @@index([status, lastSyncAt])
+}
+
+model GoogleInsightSnapshot {
+  id             String   @id @default(cuid())
+  userId         String
+  projectId      String
+  bindingId      String?
+  source         String
+  snapshotDate   DateTime
+  summary        Json
+  rows           Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  binding        ProjectGoogleBinding? @relation(fields: [bindingId], references: [id], onDelete: SetNull)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, source, snapshotDate])
+  @@index([userId, createdAt])
+  @@index([projectId, source, snapshotDate])
 }
 
 model CrawlRunPage {
