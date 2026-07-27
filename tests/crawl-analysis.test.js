@@ -42,6 +42,29 @@ describe("crawl analysis", () => {
     expect(keywords).toEqual([]);
   });
 
+  test("extractKeywords prefers contextual phrases from structural SEO signals", () => {
+    const html = `
+      <html lang="es">
+        <head>
+          <title>Consultoria SEO tecnica para ecommerce</title>
+          <meta name="description" content="Consultoria SEO tecnica para ecommerce con auditorias, arquitectura y contenido.">
+        </head>
+        <body>
+          <main>
+            <h1>Consultoria SEO tecnica para ecommerce</h1>
+            <h2>Auditoria SEO tecnica</h2>
+            <p>La consultoria SEO tecnica ayuda a mejorar arquitectura, indexacion y contenido para ecommerce.</p>
+            <p>Una auditoria SEO tecnica detecta problemas de rastreo y oportunidades de contenido.</p>
+          </main>
+        </body>
+      </html>
+    `;
+    const meta = extractMeta(html, "https://example.com/consultoria-seo-tecnica");
+    const keywords = extractKeywords(html, meta, 5);
+    expect(keywords.some((keyword) => keyword.includes("consultoria seo"))).toBe(true);
+    expect(keywords.some((keyword) => keyword.includes("seo tecnica"))).toBe(true);
+  });
+
   test("detectGoogleTools reads scripts, dataLayer and ids", () => {
     const html = `
       <script src="https://www.googletagmanager.com/gtm.js?id=GTM-ABC1234"></script>

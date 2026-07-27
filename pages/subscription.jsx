@@ -320,6 +320,12 @@ export default function SubscriptionPage() {
                       </strong>
                     </div>
                     <div className="sub-stat">
+                      <span className="sub-stat-label">Blogs SEO</span>
+                      <strong className="sub-stat-val">
+                        {usage?.blogs ?? 0} / {sub.maxBlogs >= 999 ? "?" : sub.maxBlogs}
+                      </strong>
+                    </div>
+                    <div className="sub-stat">
                       <span className="sub-stat-label">Paginas por rastreo</span>
                       <strong className="sub-stat-val">
                         {sub.maxPagesPerCrawl >= 9999 ? "∞" : sub.maxPagesPerCrawl}

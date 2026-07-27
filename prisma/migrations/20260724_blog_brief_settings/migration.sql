@@ -1,0 +1,1 @@
+ALTER TABLE "BlogDraft" ADD COLUMN "brief" JSONB;

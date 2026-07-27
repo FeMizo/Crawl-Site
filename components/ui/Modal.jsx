@@ -24,7 +24,7 @@ const cardVariants = {
   },
 };
 
-export default function Modal({ title, children, onClose, actions }) {
+export default function Modal({ title, children, onClose, actions, maxWidth = 420 }) {
   const titleId = useId();
   const cardRef = useRef(null);
 
@@ -64,6 +64,7 @@ export default function Modal({ title, children, onClose, actions }) {
         <motion.div
           ref={cardRef}
           className="modal-card"
+          style={{ "--modal-max-width": `${maxWidth}px` }}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
@@ -90,7 +91,7 @@ export default function Modal({ title, children, onClose, actions }) {
           {actions && <div className="modal-actions">{actions}</div>}
         </motion.div>
 
-        <style jsx>{`
+        <style jsx global>{`
           .modal-overlay {
             position: fixed;
             inset: 0;
@@ -107,7 +108,9 @@ export default function Modal({ title, children, onClose, actions }) {
             border: 1px solid var(--border2);
             border-radius: 14px;
             width: 100%;
-            max-width: 420px;
+            max-width: var(--modal-max-width, 420px);
+            max-height: calc(100vh - 32px);
+            overflow: auto;
             box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
             display: grid;
             gap: 0;

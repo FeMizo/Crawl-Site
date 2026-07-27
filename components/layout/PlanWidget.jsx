@@ -123,6 +123,13 @@ export default function PlanWidget({ user }) {
           max={sub?.maxCrawlsPerMonth ?? 1}
           color={colors.bar}
         />
+        <StatRow
+          icon="run"
+          label="Blogs / mes"
+          used={usage?.blogs ?? usage?.blogsThisMonth ?? 0}
+          max={sub?.maxBlogs ?? sub?.maxBlogsPerMonth ?? 0}
+          color={colors.bar}
+        />
       </div>
 
       {isFree && (
