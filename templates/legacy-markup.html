@@ -390,7 +390,7 @@ body.feature-locked-excel #dlb { display: none !important; }
           </div>
         </aside>
 
-        <div class="content-area">
+        <div class="content-area content-area-legacy content-area-main">
           <!-- Text moved from redundant cards -->
           <p style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="helperText" data-i18n="clickPageSeo">Haz clic en una fila para ver los detalles.</p>
           
@@ -700,7 +700,17 @@ body.feature-locked-excel #dlb { display: none !important; }
             </div>
           </div>
 
-          <div class="tpane" id="tab-googletools">
+          <div class="tpane content-area-googletools" id="tab-googletools">
+            <div class="google-insights-panel" id="googleInsightsPanel">
+              <div class="google-insights-head">
+                <div>
+                  <div class="google-insights-kicker">Google Tools</div>
+                  <strong>Esperando crawl...</strong>
+                  <span>Resumen de GTM y GA4</span>
+                </div>
+                <button type="button" class="google-insights-connect" id="googleConnectBtn" onclick="connectGoogleLegacy()">Conectar Google</button>
+              </div>
+            </div>
             <div id="googletoolsBox" style="display:grid;gap:16px;padding:4px 0;">
               <p style="color:var(--muted);font-size:13px;" data-i18n="waitingCrawl">Esperando crawl...</p>
             </div>

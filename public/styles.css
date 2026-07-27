@@ -1035,6 +1035,78 @@ header.is-scrolled {
   overflow: hidden;
 }
 
+.workspace-row > .sidebar > .tnav {
+  min-width: 0;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  background: var(--bg2);
+  color: var(--text);
+  text-align: left;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel span {
+  display: block;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-insights-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-insights-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-insights-connect {
+  background: var(--accent);
+  color: #000;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-insights-connect:hover {
+  filter: brightness(1.05);
+}
+
+.workspace-row > .content-area.content-area-main,
+.workspace-row > .content-area.content-area-legacy,
+.workspace-row > .content-area.content-area-google {
+  min-width: 0;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools,
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools #googletoolsBox {
+  min-width: 0;
+}
+
 .main-layout.mode-seo #hostingCard,
 .main-layout.mode-seo #securityCard,
 .main-layout.mode-seo #techCard,

@@ -109,7 +109,7 @@ function TrendCard({ title, series, metricKey, color, subtitle, valueLabel }) {
   );
 }
 
-export default function GoogleInsightsPanel({ project, notify, formatDate }) {
+export default function GoogleInsightsPanel({ project, notify, formatDate, compact = false }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -317,70 +317,76 @@ export default function GoogleInsightsPanel({ project, notify, formatDate }) {
         </div>
       </div>
 
-      <div className="google-kpis">
-        <StatCard label="Clicks" value={formatNumber(searchConsoleCurrent.clicks || 0)} hint="Search Console" tone="primary" icon={<Icon name="run" size={14} />} />
-        <StatCard label="Impresiones" value={formatNumber(searchConsoleCurrent.impressions || 0)} hint={`CTR ${formatPct(searchConsoleCurrent.ctr || 0)}`} tone="secondary" icon={<Icon name="history" size={14} />} />
-        <StatCard label="Sesiones" value={formatNumber(ga4Current.sessions || 0)} hint="GA4" tone="primary" icon={<Icon name="tasks" size={14} />} />
-        <StatCard label="Usuarios" value={formatNumber(ga4Current.users || 0)} hint={`Conv. ${formatNumber(ga4Current.conversions || 0)}`} tone="secondary" icon={<Icon name="projects" size={14} />} />
-      </div>
+      {!compact ? (
+        <div className={`google-kpis${compact ? " compact" : ""}`}>
+          <StatCard label="Clicks" value={formatNumber(searchConsoleCurrent.clicks || 0)} hint="Search Console" tone="primary" icon={<Icon name="run" size={14} />} />
+          <StatCard label="Impresiones" value={formatNumber(searchConsoleCurrent.impressions || 0)} hint={`CTR ${formatPct(searchConsoleCurrent.ctr || 0)}`} tone="secondary" icon={<Icon name="history" size={14} />} />
+          <StatCard label="Sesiones" value={formatNumber(ga4Current.sessions || 0)} hint="GA4" tone="primary" icon={<Icon name="tasks" size={14} />} />
+          <StatCard label="Usuarios" value={formatNumber(ga4Current.users || 0)} hint={`Conv. ${formatNumber(ga4Current.conversions || 0)}`} tone="secondary" icon={<Icon name="projects" size={14} />} />
+        </div>
+      ) : null}
 
-      <div className="google-trends">
-        <TrendCard
-          title="Search Console"
-          subtitle="Clicks de los ultimos 30 dias"
-          series={searchConsole.series30 || []}
-          metricKey="clicks"
-          color="#4d8dff"
-          valueLabel={(value) => formatNumber(value)}
-        />
-        <TrendCard
-          title="GA4"
-          subtitle="Sesiones de los ultimos 30 dias"
-          series={ga4.series30 || []}
-          metricKey="sessions"
-          color="#12b886"
-          valueLabel={(value) => formatNumber(value)}
-        />
-      </div>
+      {!compact ? (
+        <>
+          <div className="google-trends">
+            <TrendCard
+              title="Search Console"
+              subtitle="Clicks de los ultimos 30 dias"
+              series={searchConsole.series30 || []}
+              metricKey="clicks"
+              color="#4d8dff"
+              valueLabel={(value) => formatNumber(value)}
+            />
+            <TrendCard
+              title="GA4"
+              subtitle="Sesiones de los ultimos 30 dias"
+              series={ga4.series30 || []}
+              metricKey="sessions"
+              color="#12b886"
+              valueLabel={(value) => formatNumber(value)}
+            />
+          </div>
 
-      <div className="google-grid">
-        <DataTable
-          title="Top queries"
-          rows={searchConsole.topQueries || []}
-          columns={[
-            { key: "query", label: "Query" },
-            { key: "clicks", label: "Clicks", render: (value) => formatNumber(value) },
-            { key: "impressions", label: "Impresiones", render: (value) => formatNumber(value) },
-          ]}
-        />
-        <DataTable
-          title="Top landing pages"
-          rows={ga4.landingPages || []}
-          columns={[
-            { key: "landingPage", label: "Landing page" },
-            { key: "sessions", label: "Sesiones", render: (value) => formatNumber(value) },
-            { key: "users", label: "Usuarios", render: (value) => formatNumber(value) },
-          ]}
-        />
-        <DataTable
-          title="Top pages"
-          rows={searchConsole.topPages || []}
-          columns={[
-            { key: "page", label: "Pagina" },
-            { key: "clicks", label: "Clicks", render: (value) => formatNumber(value) },
-            { key: "position", label: "Posicion", render: (value) => formatNumber(value, 1) },
-          ]}
-        />
-        <DataTable
-          title="Source / medium"
-          rows={ga4.sourceMedium || []}
-          columns={[
-            { key: "sourceMedium", label: "Source / medium" },
-            { key: "sessions", label: "Sesiones", render: (value) => formatNumber(value) },
-            { key: "conversions", label: "Conv.", render: (value) => formatNumber(value) },
-          ]}
-        />
-      </div>
+          <div className="google-grid">
+            <DataTable
+              title="Top queries"
+              rows={searchConsole.topQueries || []}
+              columns={[
+                { key: "query", label: "Query" },
+                { key: "clicks", label: "Clicks", render: (value) => formatNumber(value) },
+                { key: "impressions", label: "Impresiones", render: (value) => formatNumber(value) },
+              ]}
+            />
+            <DataTable
+              title="Top landing pages"
+              rows={ga4.landingPages || []}
+              columns={[
+                { key: "landingPage", label: "Landing page" },
+                { key: "sessions", label: "Sesiones", render: (value) => formatNumber(value) },
+                { key: "users", label: "Usuarios", render: (value) => formatNumber(value) },
+              ]}
+            />
+            <DataTable
+              title="Top pages"
+              rows={searchConsole.topPages || []}
+              columns={[
+                { key: "page", label: "Pagina" },
+                { key: "clicks", label: "Clicks", render: (value) => formatNumber(value) },
+                { key: "position", label: "Posicion", render: (value) => formatNumber(value, 1) },
+              ]}
+            />
+            <DataTable
+              title="Source / medium"
+              rows={ga4.sourceMedium || []}
+              columns={[
+                { key: "sourceMedium", label: "Source / medium" },
+                { key: "sessions", label: "Sesiones", render: (value) => formatNumber(value) },
+                { key: "conversions", label: "Conv.", render: (value) => formatNumber(value) },
+              ]}
+            />
+          </div>
+        </>
+      ) : null}
 
       <div className="google-alerts">
         <div className="google-alerts-head">
@@ -504,6 +510,9 @@ export default function GoogleInsightsPanel({ project, notify, formatDate }) {
           display: grid;
           gap: 12px;
           grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .google-kpis.compact {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .google-trends {
           display: grid;
@@ -637,6 +646,9 @@ export default function GoogleInsightsPanel({ project, notify, formatDate }) {
           .google-kpis,
           .google-trends,
           .google-grid {
+            grid-template-columns: 1fr;
+          }
+          .google-kpis.compact {
             grid-template-columns: 1fr;
           }
         }

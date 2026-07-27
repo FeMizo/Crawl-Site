@@ -16,7 +16,6 @@ import { tUi, useUiLanguage } from "../lib/ui-language";
 import HistoryPanel from "../components/dashboard/HistoryPanel";
 import CrawlSchedulePanel from "../components/dashboard/CrawlSchedulePanel";
 import CrawlAlertsPanel from "../components/dashboard/CrawlAlertsPanel";
-import GoogleInsightsPanel from "../components/dashboard/GoogleInsightsPanel";
 
 let legacyMarkupCache = "";
 
@@ -47,6 +46,7 @@ export default function DashboardPage() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [alertsCounts, setAlertsCounts] = useState({ total: 0, unread: 0 });
   const [alertsLoading, setAlertsLoading] = useState(false);
@@ -62,7 +62,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (legacyMarkupCache) return undefined;
     let active = true;
-    fetch("/api/legacy-markup")
+    fetch("/api/legacy-markup", { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("No se pudo cargar la interfaz");
         return r.text();
@@ -468,7 +468,7 @@ export default function DashboardPage() {
           }}
         />
       </Head>
-      <Script src="/app.js" strategy="afterInteractive" onLoad={() => setAppReady(true)} />
+      <Script src="/app.js?v=20260727-2" strategy="afterInteractive" onLoad={() => setAppReady(true)} />
       <AppShell
         activeKey="dashboard"
         user={sessionUser}
@@ -477,6 +477,9 @@ export default function DashboardPage() {
         description={project?.targetUrl || t("dashboardDescriptionLoading")}
         actions={
           <>
+            <Button type="button" variant="outline" tone="secondary" onClick={() => setScheduleOpen((current) => !current)} iconLeft={<Icon name="history" size={15} />}>
+              {scheduleOpen ? "Cerrar programacion" : "Abrir programacion"}
+            </Button>
             <Button href="/projects" variant="outline" tone="secondary" iconLeft={<Icon name="projects" size={15} />}>
               {t("btnProjects")}
             </Button>
@@ -487,14 +490,6 @@ export default function DashboardPage() {
               {t("btnDelete")}
             </Button>
           </>
-        }
-        aside={
-          <div className="dashboard-aside">
-            <StatCard label={t("statRuns")} value={project?.runCount ?? project?.crawlRuns?.length ?? 0} hint={t("hintRecent")} tone="primary" icon={<Icon name="run" size={14} />} />
-            <StatCard label={t("statProject")} value={project?.name || "--"} hint={t("hintActive")} tone="secondary" icon={<Icon name="projects" size={14} />} />
-            <StatCard label="Programacion" value={schedule?.enabled ? "Activa" : "Pausada"} hint={schedule?.nextRunAt ? formatDate(schedule.nextRunAt, lang) : "Sin siguiente corrida"} tone="primary" icon={<Icon name="history" size={14} />} />
-            <StatCard label="Alertas" value={alertsCounts.unread || 0} hint="Sin leer" tone="secondary" icon={<Icon name="shield" size={14} />} />
-          </div>
         }
       >
         <Notifications items={notifications} onDismiss={dismiss} />
@@ -546,76 +541,93 @@ export default function DashboardPage() {
         ) : null}
 
         {project ? (
-          <div className="dashboard-grid">
-            <HistoryPanel
-              project={project}
-              activeRunId={activeRunId}
-              openRun={openRun}
-              onDeleteRun={deleteRun}
-              formatDate={formatDate}
-              lang={lang}
-              t={t}
-            />
-
-            <CrawlSchedulePanel
-              schedule={schedule}
-              loading={scheduleLoading}
-              saving={scheduleSaving}
-              error={scheduleError}
-              onSave={saveSchedule}
-              formatDate={(value) => formatDate(value, lang)}
-            />
+          <>
+          <div className="dashboard-workspace">
+            <div className="dashboard-primary">
+              <HistoryPanel
+                project={project}
+                activeRunId={activeRunId}
+                openRun={openRun}
+                onDeleteRun={deleteRun}
+                formatDate={formatDate}
+                lang={lang}
+                t={t}
+              />
 
             <CrawlAlertsPanel
               alerts={alerts}
               loading={alertsLoading}
               unreadCount={alertsCounts.unread || 0}
-              error={alertsError}
-              onRefresh={refreshAlerts}
-              onMarkRead={markAlertRead}
-              formatDate={formatDate}
+                error={alertsError}
+                onRefresh={refreshAlerts}
+                onMarkRead={markAlertRead}
+                formatDate={formatDate}
               lang={lang}
             />
 
-            <GoogleInsightsPanel
-              project={project}
-              notify={notify}
-              formatDate={(value) => formatDate(value, lang)}
-            />
-
             <Card className="legacy-surface" padding="sm">
-              {loadError ? (
-                <div className="feedback error">
-                  <span>{loadError}</span>
-                  <button type="button" className="retry-btn" onClick={() => { setLoadError(""); setRetryKey((k) => k + 1); }}>
-                    {t("retry")}
-                  </button>
-                </div>
-              ) : null}
-              {!appReady && !loadError && !!activeRunId ? (
-                <div className="embed-skeleton" aria-label={t("loadingResults")}>
-                  <div className="esk-stats">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="esk-stat-box">
-                        <Skeleton width="50px" height="11px" borderRadius="4px" />
-                        <Skeleton width="64px" height="26px" borderRadius="6px" />
+                {loadError ? (
+                  <div className="feedback error">
+                    <span>{loadError}</span>
+                    <button type="button" className="retry-btn" onClick={() => { setLoadError(""); setRetryKey((k) => k + 1); }}>
+                      {t("retry")}
+                    </button>
+                  </div>
+                ) : null}
+                {!appReady && !loadError && !!activeRunId ? (
+                  <div className="embed-skeleton" aria-label={t("loadingResults")}>
+                    <div className="esk-stats">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="esk-stat-box">
+                          <Skeleton width="50px" height="11px" borderRadius="4px" />
+                          <Skeleton width="64px" height="26px" borderRadius="6px" />
+                        </div>
+                      ))}
+                    </div>
+                    <Skeleton width="100%" height="32px" borderRadius="6px" />
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <div key={i} className="esk-row">
+                        <Skeleton width={`${38 + (i % 3) * 8}%`} height="14px" borderRadius="4px" />
+                        <Skeleton width="10%" height="14px" borderRadius="4px" />
+                        <Skeleton width="10%" height="14px" borderRadius="4px" />
+                        <Skeleton width="15%" height="14px" borderRadius="4px" />
                       </div>
                     ))}
                   </div>
-                  <Skeleton width="100%" height="32px" borderRadius="6px" />
-                  {Array.from({ length: 7 }).map((_, i) => (
-                    <div key={i} className="esk-row">
-                      <Skeleton width={`${38 + (i % 3) * 8}%`} height="14px" borderRadius="4px" />
-                      <Skeleton width="10%" height="14px" borderRadius="4px" />
-                      <Skeleton width="10%" height="14px" borderRadius="4px" />
-                      <Skeleton width="15%" height="14px" borderRadius="4px" />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <div className="legacy-embed" dangerouslySetInnerHTML={{ __html: markup }} />
-            </Card>
+                ) : null}
+                <div className="legacy-embed" dangerouslySetInnerHTML={{ __html: markup }} />
+              </Card>
+            </div>
           </div>
+          <div className={`schedule-drawer${scheduleOpen ? " open" : ""}`} aria-hidden={!scheduleOpen}>
+            <button
+              type="button"
+              className="schedule-drawer-backdrop"
+              aria-label="Cerrar programacion"
+              onClick={() => setScheduleOpen(false)}
+            />
+            <div className="schedule-drawer-panel" role="dialog" aria-modal="true" aria-label="Rastreos programados">
+              <div className="schedule-drawer-head">
+                <div>
+                  <div className="schedule-drawer-kicker">Programacion</div>
+                  <h3>Rastreos programados</h3>
+                </div>
+                <button type="button" className="schedule-drawer-close" onClick={() => setScheduleOpen(false)}>
+                  Cerrar
+                </button>
+              </div>
+              <CrawlSchedulePanel
+                schedule={schedule}
+                loading={scheduleLoading}
+                saving={scheduleSaving}
+                error={scheduleError}
+                onSave={saveSchedule}
+                formatDate={(value) => formatDate(value, lang)}
+                compact
+              />
+            </div>
+          </div>
+          </>
         ) : loadError ? (
           <Card>
             <div className="feedback error">
@@ -650,14 +662,87 @@ export default function DashboardPage() {
           }
         `}</style>
         <style jsx>{`
+          .content-area {
+            display: grid;
+            gap: 18px;
+            min-width: 0;
+          }
           .dashboard-aside {
             display: grid;
             gap: 12px;
           }
-          .dashboard-grid {
+          .dashboard-workspace {
             display: grid;
             gap: 18px;
             min-width: 0;
+          }
+          .dashboard-primary {
+            display: grid;
+            gap: 18px;
+            min-width: 0;
+          }
+          .schedule-drawer {
+            position: fixed;
+            inset: 0;
+            z-index: 120;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+          }
+          .schedule-drawer.open {
+            pointer-events: auto;
+            opacity: 1;
+          }
+          .schedule-drawer-backdrop {
+            position: absolute;
+            inset: 0;
+            border: 0;
+            padding: 0;
+            background: rgba(8, 10, 16, 0.5);
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+          }
+          .schedule-drawer-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: min(720px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            overflow: auto;
+            background: var(--bg);
+            border: 1px solid var(--border2);
+            border-radius: 20px;
+            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+            padding: 18px;
+          }
+          .schedule-drawer-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+          }
+          .schedule-drawer-kicker {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 11px;
+            color: var(--text3);
+            margin-bottom: 6px;
+          }
+          .schedule-drawer-head h3 {
+            margin: 0;
+            font-size: 18px;
+          }
+          .schedule-drawer-close {
+            background: var(--bg3);
+            border: 1px solid var(--border2);
+            color: var(--text2);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
           }
           .legacy-surface {
             overflow: hidden;
@@ -751,8 +836,19 @@ export default function DashboardPage() {
             padding: 7px 0;
             border-top: 1px solid var(--border);
           }
+          @media (max-width: 1100px) {
+          }
           @media (max-width: 600px) {
             .esk-stats { grid-template-columns: repeat(2, 1fr); }
+            .schedule-drawer-panel {
+              top: auto;
+              right: 0;
+              left: 0;
+              bottom: 0;
+              width: 100%;
+              max-height: 82vh;
+              border-radius: 20px 20px 0 0;
+            }
           }
         `}</style>
       </AppShell>

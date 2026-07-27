@@ -10,7 +10,7 @@ const DEFAULT_FORM = {
   renderMode: "auto",
 };
 
-export default function CrawlSchedulePanel({ schedule, loading, saving, error, onSave, formatDate }) {
+export default function CrawlSchedulePanel({ schedule, loading, saving, error, onSave, formatDate, compact = false }) {
   const [form, setForm] = useState(DEFAULT_FORM);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function CrawlSchedulePanel({ schedule, loading, saving, error, o
   };
 
   return (
-    <Card className="schedule-panel">
+    <Card className={["schedule-panel", compact ? "compact" : ""].filter(Boolean).join(" ")}>
       <div className="schedule-head">
         <div>
           <div className="schedule-kicker">Programacion</div>
@@ -118,6 +118,10 @@ export default function CrawlSchedulePanel({ schedule, loading, saving, error, o
           display: grid;
           gap: 16px;
         }
+        .schedule-panel.compact {
+          gap: 12px;
+          padding: 14px;
+        }
         .schedule-head {
           display: flex;
           align-items: flex-start;
@@ -165,6 +169,9 @@ export default function CrawlSchedulePanel({ schedule, loading, saving, error, o
           display: grid;
           gap: 12px;
         }
+        .schedule-panel.compact .schedule-form {
+          gap: 10px;
+        }
         .schedule-field {
           display: grid;
           gap: 6px;
@@ -205,6 +212,9 @@ export default function CrawlSchedulePanel({ schedule, loading, saving, error, o
           align-items: center;
           gap: 12px;
           flex-wrap: wrap;
+        }
+        .schedule-panel.compact .schedule-actions {
+          gap: 8px;
         }
         @media (max-width: 720px) {
           .schedule-summary {

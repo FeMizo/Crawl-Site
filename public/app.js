@@ -3032,6 +3032,7 @@ function renderRobots(d) {
 
 function renderGoogleTools() {
   const box = document.getElementById("googletoolsBox");
+  const panel = document.getElementById("googleInsightsPanel");
   if (!box) return;
 
   const pages = crawlState.pages || [];
@@ -3040,6 +3041,23 @@ function renderGoogleTools() {
   const hasGA4 = tools.some((tool) => tool.hasGA4);
   const gtmIds = normalizeStringList(tools.flatMap((tool) => tool.gtmIds || []));
   const ga4Ids = normalizeStringList(tools.flatMap((tool) => tool.ga4Ids || []));
+  const panelTitle = hasGTM || hasGA4 ? "Google conectado" : "Esperando crawl...";
+  const panelSummary = hasGTM || hasGA4
+    ? `${hasGTM ? "GTM" : "Sin GTM"} · ${hasGA4 ? "GA4" : "Sin GA4"}`
+    : "Resumen de GTM y GA4";
+
+  if (panel) {
+    panel.innerHTML = `
+      <div class="google-insights-head">
+        <div>
+          <div class="google-insights-kicker">Google Tools</div>
+          <strong>${panelTitle}</strong>
+          <span>${panelSummary}</span>
+        </div>
+        <button type="button" class="google-insights-connect" onclick="connectGoogleLegacy()">Conectar Google</button>
+      </div>
+    `;
+  }
 
   if (!pages.length) {
     box.innerHTML = `<p style="color:var(--muted);font-size:12px;">Esperando crawl...</p>`;
@@ -3057,6 +3075,33 @@ function renderGoogleTools() {
       ${gtmIds.length ? `<div class="seotools-row ok">ID(s) GTM: <span>${esc(gtmIds.join(", "))}</span></div>` : ""}
       ${ga4Ids.length ? `<div class="seotools-row ok">ID(s) GA4: <span>${esc(ga4Ids.join(", "))}</span></div>` : ""}
     </div>`;
+}
+
+async function connectGoogleLegacy() {
+  const popup = window.open("", "googleIntegrationLogin", "width=520,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes");
+  if (!popup) {
+    window.alert("Permite ventanas emergentes para completar OAuth.");
+    return;
+  }
+  popup.document.write("<p style=\"font-family:sans-serif;padding:20px\">Abriendo Google...</p>");
+  try {
+    const response = await fetch("/api/google/connect");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      popup.close();
+      window.alert(payload.error || "Faltan credenciales OAuth.");
+      return;
+    }
+    popup.location.href = payload.authUrl;
+    const timer = window.setInterval(() => {
+      if (!popup.closed) return;
+      window.clearInterval(timer);
+      renderGoogleTools();
+    }, 800);
+  } catch (error) {
+    popup.close();
+    window.alert(error?.message || "No se pudo conectar Google.");
+  }
 }
 
 function renderSitemapTab() {
@@ -3104,6 +3149,7 @@ function renderSitemapTab() {
 
 let __seoCrawlerInited = false;
 window.loadSeoCrawlerRun = applySavedRun;
+window.connectGoogleLegacy = connectGoogleLegacy;
 window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
   applyPlanConstraints(window.__SEO_CRAWLER_SUBSCRIPTION__ || null);

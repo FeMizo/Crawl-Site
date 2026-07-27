@@ -5,6 +5,7 @@ export default function TopHeader({
   eyebrow,
   title,
   description,
+  tnav,
   lang,
   theme,
   onLangChange,
@@ -29,6 +30,7 @@ export default function TopHeader({
         />
         {user ? <UserMenu user={user} /> : null}
       </div>
+      {tnav ? <div className="dashboard-tnav">{tnav}</div> : null}
     </header>
   );
 }

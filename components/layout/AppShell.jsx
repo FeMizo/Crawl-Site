@@ -11,6 +11,7 @@ export default function AppShell({
   title,
   kicker,
   description,
+  tnav,
   user,
   actions,
   children,
@@ -78,6 +79,7 @@ export default function AppShell({
             eyebrow={kicker}
             title={title}
             description={description}
+            tnav={tnav}
             lang={lang}
             theme={theme}
             onLangChange={applyLang}
@@ -195,6 +197,11 @@ export default function AppShell({
           );
           min-width: 0;
         }
+        .sidebar-aside {
+          display: grid;
+          gap: var(--space-3);
+          min-width: 0;
+        }
         .dashboard-main {
           min-width: 0;
           display: flex;
@@ -221,6 +228,12 @@ export default function AppShell({
           gap: var(--space-3);
           align-items: flex-start;
           flex-wrap: wrap;
+          min-width: 0;
+        }
+        .dashboard-top-header .dashboard-tnav {
+          flex: 1 1 100%;
+          width: 100%;
+          margin-top: var(--space-3);
           min-width: 0;
         }
         .header-breadcrumb{
@@ -851,6 +864,7 @@ export default function AppShell({
             padding: var(--space-3) 0;
           }
           .dashboard-top-header,
+          .dashboard-top-header .dashboard-tnav,
           .hdr-r,
           .toolbar-block,
           .hdr-actions {
