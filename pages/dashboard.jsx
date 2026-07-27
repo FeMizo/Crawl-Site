@@ -16,6 +16,7 @@ import { tUi, useUiLanguage } from "../lib/ui-language";
 import HistoryPanel from "../components/dashboard/HistoryPanel";
 import CrawlSchedulePanel from "../components/dashboard/CrawlSchedulePanel";
 import CrawlAlertsPanel from "../components/dashboard/CrawlAlertsPanel";
+import GoogleInsightsPanel from "../components/dashboard/GoogleInsightsPanel";
 
 let legacyMarkupCache = "";
 
@@ -574,6 +575,12 @@ export default function DashboardPage() {
               onMarkRead={markAlertRead}
               formatDate={formatDate}
               lang={lang}
+            />
+
+            <GoogleInsightsPanel
+              project={project}
+              notify={notify}
+              formatDate={(value) => formatDate(value, lang)}
             />
 
             <Card className="legacy-surface" padding="sm">
