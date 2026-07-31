@@ -529,6 +529,15 @@ let crawlRenderMode =
 let allTablePageSize = 20;
 let allTablePage = 1;
 let currentProject = null;
+let googleIntegrationCache = { projectId: "", payload: null, error: "" };
+let googleBusinessDraft = {
+  accountName: "",
+  locationName: "",
+  summary: "",
+  callToActionUrl: "",
+  actionType: "LEARN_MORE",
+};
+let googleBusinessListenerBound = false;
 let currentWorkspace = "seo";
 let currentTab = "all";
 let activeRunLoadRequest = 0;
@@ -3030,7 +3039,76 @@ function renderRobots(d) {
     ${d.rawContent ? `<details style="margin-top:12px;"><summary style="font-size:13px;color:var(--muted);cursor:pointer;letter-spacing:2px;text-transform:uppercase;">${T("rawTitle")}</summary><div class="ri-raw">${esc(d.rawContent)}</div></details>` : ""}`;
 }
 
-function renderGoogleTools() {
+async function loadGoogleIntegrationData(force = false) {
+  const projectId = currentProject?.id;
+  if (!projectId) return null;
+  if (!force && googleIntegrationCache.projectId === projectId && googleIntegrationCache.payload) {
+    if (!googleBusinessDraft.accountName) {
+      googleBusinessDraft.accountName = googleIntegrationCache.payload?.businessProfile?.accountName || "";
+    }
+    if (!googleBusinessDraft.locationName) {
+      googleBusinessDraft.locationName = googleIntegrationCache.payload?.businessProfile?.locationName || "";
+    }
+    return googleIntegrationCache.payload;
+  }
+  try {
+    const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/google-integration`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "No se pudo cargar Google");
+    }
+    googleIntegrationCache = { projectId, payload, error: "" };
+    googleBusinessDraft.accountName = payload?.businessProfile?.accountName || "";
+    googleBusinessDraft.locationName = payload?.businessProfile?.locationName || "";
+    return payload;
+  } catch (error) {
+    googleIntegrationCache = { projectId, payload: null, error: error?.message || "No se pudo cargar Google" };
+    return null;
+  }
+}
+
+function googleBusinessOptions(items = [], selectedValue = "", placeholder = "Selecciona una opcion", labelKey = "label", valueKey = "name") {
+  const options = [`<option value="">${esc(placeholder)}</option>`];
+  for (const item of items) {
+    const value = String(item?.[valueKey] || "");
+    if (!value) continue;
+    const label = String(item?.[labelKey] || value);
+    options.push(`<option value="${esc(value)}"${value === selectedValue ? " selected" : ""}>${esc(label)}</option>`);
+  }
+  return options.join("");
+}
+
+function googleBusinessActionOptions(selectedValue = "LEARN_MORE") {
+  const options = [
+    ["LEARN_MORE", "Más información"],
+    ["BOOK", "Reservar"],
+    ["ORDER", "Ordenar"],
+    ["SHOP", "Comprar"],
+    ["SIGN_UP", "Registrarse"],
+  ];
+  return options
+    .map(([value, label]) => `<option value="${value}"${value === selectedValue ? " selected" : ""}>${esc(label)}</option>`)
+    .join("");
+}
+
+function bindGoogleBusinessMessageListener() {
+  if (googleBusinessListenerBound || typeof window === "undefined") return;
+  googleBusinessListenerBound = true;
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const type = event.data?.type || "";
+    if (type === "seo-crawler:google-business-connected") {
+      googleIntegrationCache = { projectId: currentProject?.id || "", payload: null, error: "" };
+      renderGoogleTools().catch(() => {});
+      window.alert("Google Business Profile conectado");
+    }
+    if (type === "seo-crawler:google-business-failed") {
+      window.alert(event.data?.message || "No se pudo conectar Google Business Profile.");
+    }
+  });
+}
+
+async function renderGoogleTools() {
   const box = document.getElementById("googletoolsBox");
   const panel = document.getElementById("googleInsightsPanel");
   if (!box) return;
@@ -3045,6 +3123,17 @@ function renderGoogleTools() {
   const panelSummary = hasGTM || hasGA4
     ? `${hasGTM ? "GTM" : "Sin GTM"} · ${hasGA4 ? "GA4" : "Sin GA4"}`
     : "Resumen de GTM y GA4";
+  const integration = await loadGoogleIntegrationData();
+  const business = integration?.businessProfile || {};
+  const businessAccounts = integration?.availableProperties?.business?.accounts || [];
+  const businessLocations = integration?.availableProperties?.business?.locations || [];
+  const businessConnected = !!integration?.connection;
+  const businessConfigured = !!business.locationName;
+  const accountSelectId = "gbpAccountSelect";
+  const locationSelectId = "gbpLocationSelect";
+  const summaryInputId = "gbpSummaryInput";
+  const urlInputId = "gbpUrlInput";
+  const actionSelectId = "gbpActionSelect";
 
   if (panel) {
     panel.innerHTML = `
@@ -3054,7 +3143,52 @@ function renderGoogleTools() {
           <strong>${panelTitle}</strong>
           <span>${panelSummary}</span>
         </div>
-        <button type="button" class="google-insights-connect" onclick="connectGoogleLegacy()">Conectar Google</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button type="button" class="google-insights-connect" onclick="connectGoogleLegacy()">Conectar Google</button>
+          <button type="button" class="google-insights-connect" onclick="connectGoogleBusinessLegacy()">Conectar GBP</button>
+        </div>
+      </div>
+      <div class="google-business-card">
+        <div class="google-insights-kicker">Google Business Profile</div>
+        <strong>${businessConfigured ? esc(business.locationLabel || business.locationName) : "Próximamente listo para publicar"}</strong>
+        <span>${businessConfigured
+          ? `Cuenta: ${esc(business.accountLabel || business.accountName || "GBP")} · Estado: ${esc(business.status || "configured")}`
+          : businessConnected
+            ? "Elige una cuenta y ubicación para empezar a publicar."
+            : "Conecta GBP para listar cuentas y ubicaciones."
+        }</span>
+      </div>
+      <div class="google-business-form">
+        <label class="google-business-field">
+          <span>Cuenta GBP</span>
+          <select id="${accountSelectId}" ${businessConnected ? `onchange="setGoogleBusinessAccountDraft(this.value)"` : "disabled"}>
+            ${googleBusinessOptions(businessAccounts, googleBusinessDraft.accountName || business.accountName || "", "Selecciona una cuenta")}
+          </select>
+        </label>
+        <label class="google-business-field">
+          <span>Ubicación GBP</span>
+          <select id="${locationSelectId}" ${businessConnected ? `onchange="setGoogleBusinessLocationDraft(this.value)"` : "disabled"}>
+            ${googleBusinessOptions(businessLocations, googleBusinessDraft.locationName || business.locationName || "", "Selecciona una ubicación", "title", "name")}
+          </select>
+        </label>
+        <button type="button" class="google-insights-connect" onclick="saveGoogleBusinessLegacy()">Guardar GBP</button>
+      </div>
+      <div class="google-business-compose">
+        <label class="google-business-field">
+          <span>Resumen del post</span>
+          <textarea id="${summaryInputId}" rows="3" placeholder="Texto principal del post de GBP" oninput="setGoogleBusinessSummaryDraft(this.value)">${esc(googleBusinessDraft.summary || "")}</textarea>
+        </label>
+        <label class="google-business-field">
+          <span>URL del CTA</span>
+          <input id="${urlInputId}" type="url" placeholder="https://tusitio.com/oferta" value="${esc(googleBusinessDraft.callToActionUrl || "")}" oninput="setGoogleBusinessUrlDraft(this.value)" />
+        </label>
+        <label class="google-business-field">
+          <span>Botón</span>
+          <select id="${actionSelectId}" onchange="setGoogleBusinessActionDraft(this.value)">
+            ${googleBusinessActionOptions(googleBusinessDraft.actionType || "LEARN_MORE")}
+          </select>
+        </label>
+        <button type="button" class="google-insights-connect" onclick="publishGoogleBusinessPostLegacy()">Publicar en GBP</button>
       </div>
     `;
   }
@@ -3104,6 +3238,145 @@ async function connectGoogleLegacy() {
   }
 }
 
+async function connectGoogleBusinessLegacy() {
+  const popup = window.open("", "googleBusinessLogin", "width=520,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes");
+  if (!popup) {
+    window.alert("Permite ventanas emergentes para completar OAuth.");
+    return;
+  }
+  popup.document.write("<p style=\"font-family:sans-serif;padding:20px\">Abriendo Google Business Profile...</p>");
+  try {
+    const response = await fetch("/api/google-business/connect");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      popup.close();
+      window.alert(payload.error || "Faltan credenciales OAuth.");
+      return;
+    }
+    popup.location.href = payload.authUrl;
+    const timer = window.setInterval(() => {
+      if (!popup.closed) return;
+      window.clearInterval(timer);
+      renderGoogleTools();
+    }, 800);
+  } catch (error) {
+    popup.close();
+    window.alert(error?.message || "No se pudo conectar Google Business Profile.");
+  }
+}
+
+async function loadGoogleBusinessLocationsLegacy() {
+  const projectId = currentProject?.id;
+  const accountName = String(googleBusinessDraft.accountName || "").trim();
+  if (!projectId || !accountName) return;
+  try {
+    const response = await fetch(`/api/google-business/accounts/${encodeURIComponent(accountName)}/locations`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "No se pudieron cargar las ubicaciones");
+    if (googleIntegrationCache.payload?.availableProperties?.business) {
+      googleIntegrationCache.payload.availableProperties.business.locations = payload.locations || [];
+    }
+    googleBusinessDraft.locationName = "";
+    await renderGoogleTools();
+    const accountSelect = document.getElementById("gbpAccountSelect");
+    if (accountSelect) accountSelect.value = accountName;
+  } catch (error) {
+    window.alert(error?.message || "No se pudieron cargar las ubicaciones.");
+  }
+}
+
+function setGoogleBusinessAccountDraft(value) {
+  googleBusinessDraft.accountName = String(value || "");
+  googleBusinessDraft.locationName = "";
+  loadGoogleBusinessLocationsLegacy();
+}
+
+function setGoogleBusinessLocationDraft(value) {
+  googleBusinessDraft.locationName = String(value || "");
+}
+
+function setGoogleBusinessSummaryDraft(value) {
+  googleBusinessDraft.summary = String(value || "");
+}
+
+function setGoogleBusinessUrlDraft(value) {
+  googleBusinessDraft.callToActionUrl = String(value || "");
+}
+
+function setGoogleBusinessActionDraft(value) {
+  googleBusinessDraft.actionType = String(value || "LEARN_MORE");
+}
+
+async function saveGoogleBusinessLegacy() {
+  const projectId = currentProject?.id;
+  if (!projectId) return;
+  const accountSelect = document.getElementById("gbpAccountSelect");
+  const locationSelect = document.getElementById("gbpLocationSelect");
+  const businessAccounts = googleIntegrationCache.payload?.availableProperties?.business?.accounts || [];
+  const businessLocations = googleIntegrationCache.payload?.availableProperties?.business?.locations || [];
+  const accountName = accountSelect?.value || "";
+  const locationName = locationSelect?.value || "";
+  const account = businessAccounts.find((item) => item.name === accountName) || null;
+  const location = businessLocations.find((item) => item.name === locationName) || null;
+  try {
+    const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/google-integration`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        searchConsoleProperty: googleIntegrationCache.payload?.binding?.searchConsoleProperty || "",
+        ga4PropertyId: googleIntegrationCache.payload?.binding?.ga4PropertyId || "",
+        gbpAccountName: accountName,
+        gbpAccountLabel: account?.nameLabel || account?.accountName || accountName,
+        gbpLocationName: locationName,
+        gbpLocationLabel: location?.title || location?.name || locationName,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "No se pudo guardar GBP");
+    googleIntegrationCache.payload.binding = payload.binding || googleIntegrationCache.payload.binding;
+    googleBusinessDraft.accountName = locationName ? accountName : googleBusinessDraft.accountName;
+    googleBusinessDraft.locationName = locationName;
+    await renderGoogleTools();
+    window.alert("GBP guardado");
+  } catch (error) {
+    window.alert(error?.message || "No se pudo guardar GBP.");
+  }
+}
+
+async function publishGoogleBusinessPostLegacy() {
+  const projectId = currentProject?.id;
+  if (!projectId) return;
+  const summary = String(googleBusinessDraft.summary || "").trim();
+  const callToActionUrl = String(googleBusinessDraft.callToActionUrl || "").trim();
+  const actionType = String(googleBusinessDraft.actionType || "LEARN_MORE").trim();
+  if (!summary) {
+    window.alert("Escribe un resumen para el post.");
+    return;
+  }
+  try {
+    const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/google-business/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        summary,
+        callToActionUrl,
+        actionType,
+        languageCode: "es-MX",
+        topicType: "STANDARD",
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "No se pudo publicar en GBP");
+    googleBusinessDraft.summary = "";
+    googleBusinessDraft.callToActionUrl = "";
+    googleBusinessDraft.actionType = "LEARN_MORE";
+    await renderGoogleTools();
+    window.alert("Post publicado en GBP");
+  } catch (error) {
+    window.alert(error?.message || "No se pudo publicar en GBP.");
+  }
+}
+
 function renderSitemapTab() {
   const box = document.getElementById("sitemapBox");
   if (!box) return;
@@ -3150,8 +3423,17 @@ function renderSitemapTab() {
 let __seoCrawlerInited = false;
 window.loadSeoCrawlerRun = applySavedRun;
 window.connectGoogleLegacy = connectGoogleLegacy;
+window.connectGoogleBusinessLegacy = connectGoogleBusinessLegacy;
+window.saveGoogleBusinessLegacy = saveGoogleBusinessLegacy;
+window.publishGoogleBusinessPostLegacy = publishGoogleBusinessPostLegacy;
+window.setGoogleBusinessAccountDraft = setGoogleBusinessAccountDraft;
+window.setGoogleBusinessLocationDraft = setGoogleBusinessLocationDraft;
+window.setGoogleBusinessSummaryDraft = setGoogleBusinessSummaryDraft;
+window.setGoogleBusinessUrlDraft = setGoogleBusinessUrlDraft;
+window.setGoogleBusinessActionDraft = setGoogleBusinessActionDraft;
 window.initSeoCrawlerApp = function initSeoCrawlerApp() {
   currentProject = window.__SEO_CRAWLER_PROJECT__ || null;
+  bindGoogleBusinessMessageListener();
   applyPlanConstraints(window.__SEO_CRAWLER_SUBSCRIPTION__ || null);
 
   // Autostart runs on every call so client-side navigation doesn't miss it.

@@ -38,6 +38,8 @@ const DEFAULT_BRIEF = {
   useRecommendation: false,
 };
 
+const BLOGS_COMING_SOON = true;
+
 const SELECT_OPTIONS = {
   language: [["es", "Espanol"], ["en", "English"]],
   tone: [["profesional", "Profesional"], ["cercano", "Cercano"], ["tecnico", "Tecnico"], ["ejecutivo", "Ejecutivo"], ["comercial", "Comercial"]],
@@ -94,6 +96,11 @@ export default function BlogsPage() {
   );
 
   useEffect(() => {
+    if (BLOGS_COMING_SOON) {
+      if (!sessionHydrated) return;
+      if (!sessionUser) router.replace("/login?next=/blogs");
+      return;
+    }
     if (!sessionHydrated) return;
     if (!sessionUser) {
       router.replace("/login?next=/blogs");
@@ -121,11 +128,13 @@ export default function BlogsPage() {
   }, [sessionHydrated, sessionUser, router.query.projectId]);
 
   useEffect(() => {
+    if (BLOGS_COMING_SOON) return;
     if (!projectId) return;
     loadProject(projectId);
   }, [projectId]);
 
   useEffect(() => {
+    if (BLOGS_COMING_SOON) return;
     const onMessage = (event) => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === "seo-crawler:google-drive-connected") {
@@ -145,6 +154,7 @@ export default function BlogsPage() {
   }, [projectId, notify]);
 
   const loadProject = async (id) => {
+    if (BLOGS_COMING_SOON) return;
     setBusy(true);
     try {
       const [projectResponse, blogResponse] = await Promise.all([
@@ -176,6 +186,7 @@ export default function BlogsPage() {
   };
 
   const loadRecommendations = async () => {
+    if (BLOGS_COMING_SOON) return;
     const runId = projectRuns[0]?.id;
     if (!projectId || !runId) {
       notify({ tone: "error", title: "Falta crawl", message: "Primero ejecuta un crawl del proyecto." });
@@ -200,6 +211,7 @@ export default function BlogsPage() {
   };
 
   const openBlogConfig = (recommendation = null) => {
+    if (BLOGS_COMING_SOON) return;
     const outline = keywordString(recommendation?.suggestedH2s).replace(/, /g, "\n");
     setSelectedRecommendation(recommendation);
     setBlogBrief({
@@ -216,6 +228,7 @@ export default function BlogsPage() {
   };
 
   const submitBlog = async (generate) => {
+    if (BLOGS_COMING_SOON) return;
     const primaryKeywords = blogBrief.primaryKeywords.split(",").map((item) => item.trim()).filter(Boolean);
     const secondaryKeywords = blogBrief.secondaryKeywords.split(",").map((item) => item.trim()).filter(Boolean);
     const outline = blogBrief.outline.split("\n").map((item) => item.trim()).filter(Boolean);
@@ -267,6 +280,7 @@ export default function BlogsPage() {
   };
 
   const saveBlog = async () => {
+    if (BLOGS_COMING_SOON) return;
     if (!activeBlog) return;
     setBusy(true);
     try {
@@ -305,6 +319,7 @@ export default function BlogsPage() {
   }, [activeBlogId]);
 
   const saveWordPress = async () => {
+    if (BLOGS_COMING_SOON) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/projects/${projectId}/wordpress-connection`, {
@@ -326,6 +341,7 @@ export default function BlogsPage() {
   };
 
   const connectDrive = async () => {
+    if (BLOGS_COMING_SOON) return;
     const popup = window.open("", "seoDriveLogin", "width=520,height=720,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes");
     if (!popup) {
       notify({ tone: "error", title: "Ventana bloqueada", message: "Permite ventanas emergentes para completar Google OAuth." });
@@ -351,6 +367,7 @@ export default function BlogsPage() {
   };
 
   const exportWordPress = async (status) => {
+    if (BLOGS_COMING_SOON) return;
     if (!activeBlog) return;
     const confirmPublish = status !== "publish" || window.confirm("Publicar directamente en WordPress?");
     if (!confirmPublish) return;
@@ -361,6 +378,7 @@ export default function BlogsPage() {
   };
 
   const postExport = async (url, body = {}) => {
+    if (BLOGS_COMING_SOON) return;
     setBusy(true);
     try {
       const response = await fetch(url, {
@@ -378,6 +396,37 @@ export default function BlogsPage() {
       setBusy(false);
     }
   };
+
+  if (BLOGS_COMING_SOON) {
+    return (
+      <>
+        <Head>
+          <title>Blogs próximamente | SEO Crawler</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Head>
+        <Notifications items={notifications} onDismiss={dismiss} />
+        <AppShell
+          activeKey="blogs"
+          user={sessionUser}
+          kicker="Próximamente"
+          title="Blog bloqueado"
+          description="El módulo de blogs está en preparación y por ahora no se puede usar."
+          aside={
+            <div className="aside-stats">
+              <StatCard label="Estado" value="Coming soon" hint="Bloqueado temporalmente" tone="secondary" icon={<Icon name="plan" size={14} />} />
+            </div>
+          }
+        >
+          <Card>
+            <div className="blogs-soon">
+              <h2>Coming soon</h2>
+              <p className="muted">El generador de blogs está bloqueado por ahora.</p>
+            </div>
+          </Card>
+        </AppShell>
+      </>
+    );
+  }
 
   return (
     <>

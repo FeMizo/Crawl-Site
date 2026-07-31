@@ -1096,6 +1096,46 @@ header.is-scrolled {
   filter: brightness(1.05);
 }
 
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-card,
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-form,
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-compose {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-compose {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-field {
+  display: grid;
+  gap: 6px;
+}
+
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-field select,
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-field input,
+.workspace-row > .content-area.content-area-legacy > .tpane.content-area-googletools.on > .google-insights-panel .google-business-field textarea {
+  appearance: none;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: var(--bg2);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  min-width: 0;
+}
+
 .workspace-row > .content-area.content-area-main,
 .workspace-row > .content-area.content-area-legacy,
 .workspace-row > .content-area.content-area-google {

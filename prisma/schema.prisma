@@ -236,6 +236,13 @@ model ProjectGoogleBinding {
   projectId             String   @unique
   searchConsoleProperty  String?
   ga4PropertyId         String?
+  gbpAccountName        String?
+  gbpAccountLabel       String?
+  gbpLocationName       String?
+  gbpLocationLabel      String?
+  gbpStatus             String   @default("inactive")
+  gbpLastSyncAt         DateTime?
+  gbpLastPostAt         DateTime?
   status                String   @default("active")
   lastSyncAt            DateTime?
   createdAt             DateTime @default(now())
