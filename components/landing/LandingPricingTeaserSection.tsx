@@ -13,7 +13,7 @@ function getHighlights(plan: any): string[] {
   items.push(`${plan.maxPagesPerCrawl.toLocaleString("es-MX")} páginas/rastreo`);
   items.push(plan.maxCrawlsPerMonth >= 999 ? "Rastreos ilimitados" : `${plan.maxCrawlsPerMonth} rastreo${plan.maxCrawlsPerMonth > 1 ? "s" : ""}/mes`);
   if (plan.maxBlogs > 0) {
-    items.push(`${plan.maxBlogs} blogs SEO`);
+    items.push("Blogs SEO");
   }
   if (plan.features.length > 0) {
     items.push(FEATURE_LABELS[plan.features[0]] || plan.features[0]);

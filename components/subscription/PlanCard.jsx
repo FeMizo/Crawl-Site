@@ -177,7 +177,7 @@ export default function PlanCard({
         </li>
         <li>
           <Icon name="tasks" size={12} />
-          {fmt(plan.maxBlogs || 0)} blog{plan.maxBlogs !== 1 ? "s" : ""} SEO
+          Blogs SEO
           <span className="tip" data-tip={LIMIT_TOOLTIPS.maxBlogs}>?</span>
         </li>
       </ul>

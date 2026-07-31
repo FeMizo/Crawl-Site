@@ -77,6 +77,8 @@ export default function Sidebar({ activeKey, user, aside, lang = "es", theme, on
       key: "blogs",
       href: "/blogs",
       label: "Blogs",
+      disabled: true,
+      badge: "Próximamente",
       icon: "tasks",
     },
     {
@@ -174,22 +176,30 @@ export default function Sidebar({ activeKey, user, aside, lang = "es", theme, on
 
       <nav className={`dashboard-nav${mobileOpen ? " open" : ""}`}>
         {navItems.map((item) => (
-          <Link
-            key={item.key}
-            className={
-              activeKey === item.key
-                ? "on"
-                : pendingHref === item.href
-                  ? "pending"
-                  : ""
-            }
-            href={item.href}
-            aria-current={activeKey === item.key ? "page" : undefined}
-            onClick={() => { setPendingHref(item.href); setMobileOpen(false); }}
-          >
-            <Icon name={item.icon} size={17} className="nav-icon" />
-            {item.label}
-          </Link>
+          item.disabled ? (
+            <span key={item.key} className="disabled-nav-link" aria-disabled="true">
+              <Icon name={item.icon} size={17} className="nav-icon" />
+              {item.label}
+              <span className="coming-soon-pill">{item.badge || "Coming soon"}</span>
+            </span>
+          ) : (
+            <Link
+              key={item.key}
+              className={
+                activeKey === item.key
+                  ? "on"
+                  : pendingHref === item.href
+                    ? "pending"
+                    : ""
+              }
+              href={item.href}
+              aria-current={activeKey === item.key ? "page" : undefined}
+              onClick={() => { setPendingHref(item.href); setMobileOpen(false); }}
+            >
+              <Icon name={item.icon} size={17} className="nav-icon" />
+              {item.label}
+            </Link>
+          )
         ))}
       </nav>
 
@@ -198,6 +208,35 @@ export default function Sidebar({ activeKey, user, aside, lang = "es", theme, on
           <PlanWidget user={user} />
         </Card>
       ) : null}
+
+      <style jsx>{`
+        .disabled-nav-link {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 11px 12px;
+          border-radius: 12px;
+          color: var(--text2);
+          border: 1px dashed var(--border);
+          background: color-mix(in srgb, var(--bg2) 82%, var(--bg3));
+          cursor: not-allowed;
+          opacity: 0.9;
+        }
+        .coming-soon-pill {
+          margin-left: auto;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          padding: 3px 8px;
+          border-radius: 999px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          color: var(--text2);
+          white-space: nowrap;
+        }
+      `}</style>
     </aside>
   );
 }
