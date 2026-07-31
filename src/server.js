@@ -62,6 +62,7 @@ const {
   generateSeoRecommendations,
   normalizeBlogBrief,
 } = require("../lib/ai-seo");
+const { buildClaudeSeoReference } = require("../lib/claude-seo-reference");
 const {
   createBlogDocxBuffer,
   exchangeGoogleCode,
@@ -72,12 +73,17 @@ const {
 } = require("../lib/blog-export");
 const {
   compareMetricSnapshots,
+  buildGoogleBusinessAuthUrl,
+  createBusinessPost,
   fetchGa4Snapshot,
   fetchSearchConsoleSnapshot,
+  listBusinessAccounts,
+  listBusinessLocations,
   listGa4Properties,
   listSearchConsoleProperties,
   normalizeGa4PropertyId,
   normalizeGoogleBindingInput,
+  normalizeBusinessPostInput,
   normalizeDateKey,
   normalizeSearchConsoleProperty,
 } = require("../lib/google-workspace");
@@ -1234,6 +1240,22 @@ function dedupeStoredRunPages(pages) {
 
 function buildKeywordGuidance(page, keywordLimit, crawlLang = "es") {
   return crawlAnalysis.buildKeywordGuidance(page, keywordLimit, crawlLang);
+}
+
+function buildRunTitleDuplicates(pages) {
+  const byTitle = new Map();
+  for (const page of Array.isArray(pages) ? pages : []) {
+    const title = String(page?.title || "").trim().toLowerCase();
+    if (!title) continue;
+    if (!byTitle.has(title)) byTitle.set(title, []);
+    byTitle.get(title).push(page.finalUrl || page.url);
+  }
+  return [...byTitle.entries()]
+    .map(([title, urls]) => ({
+      title,
+      urls: normalizeStringList(urls),
+    }))
+    .filter((entry) => entry.urls.length > 1);
 }
 
 function serializeRunPageRow(page, position) {
@@ -4740,16 +4762,19 @@ app.post(
         select: { id: true, sourceUrl: true, total: true },
       });
       if (!run) return res.status(404).json({ error: "Historial no encontrado" });
+      const pages = await loadRunPagesForResponse(run.id);
+      const duplicates = buildRunTitleDuplicates(pages);
+      const architecture = buildSiteArchitecture(pages, run.sourceUrl);
+      const reference = buildClaudeSeoReference({ pages, duplicates, architecture });
 
       const existing = await prisma.aiSeoRecommendation.findMany({
         where: { runId: run.id },
         orderBy: { createdAt: "desc" },
       });
       if (existing.length && !req.body?.force) {
-        return res.json({ recommendations: existing });
+        return res.json({ recommendations: existing, reference });
       }
 
-      const pages = await loadRunPagesForResponse(run.id);
       const generated = await generateSeoRecommendations({ project, run, pages });
       const saved = await prisma.$transaction(
         generated.recommendations.map((item) => prisma.aiSeoRecommendation.upsert({
@@ -4786,7 +4811,7 @@ app.post(
           },
         })),
       );
-      res.json({ provider: generated.provider, model: generated.model, recommendations: saved });
+      res.json({ provider: generated.provider, model: generated.model, recommendations: saved, reference });
     } catch (error) {
       handleApiError(res, req, "ai/recommendations", error, "No se pudieron generar recomendaciones");
     }
@@ -5013,6 +5038,30 @@ app.get("/api/google-drive/connect", requireAuth, (req, res) => {
   res.json({ authUrl });
 });
 
+app.get("/api/google-business/connect", requireAuth, (req, res) => {
+  const state = jwt.sign({ userId: req.user.id }, getJwtSecret(), { expiresIn: "10m" });
+  const authUrl = buildGoogleBusinessAuthUrl(state);
+  if (!authUrl) return res.status(501).json({ error: "Google Business Profile no configurado" });
+  res.json({ authUrl });
+});
+
+app.get("/api/google-business/accounts/:accountName/locations", requireAuth, async (req, res) => {
+  try {
+    const connection = await prisma.googleDriveConnection.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+    if (!connection) return res.status(400).json({ error: "Google no conectado" });
+    const accountName = String(req.params.accountName || "").trim();
+    if (!accountName) return res.status(400).json({ error: "Cuenta requerida" });
+    const fullConnection = await prisma.googleDriveConnection.findUnique({ where: { userId: req.user.id } });
+    const locations = await listBusinessLocations(fullConnection, accountName);
+    res.json({ locations });
+  } catch (error) {
+    handleApiError(res, req, "google-business:locations", error, "No se pudieron cargar las ubicaciones");
+  }
+});
+
 app.get("/api/google/connect", requireAuth, (req, res) => {
   const state = jwt.sign({ userId: req.user.id }, getJwtSecret(), { expiresIn: "10m" });
   const authUrl = getGoogleAuthUrl(state);
@@ -5082,6 +5131,68 @@ app.get("/api/google-drive/callback", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/api/google-business/callback", requireAuth, async (req, res) => {
+  const sendBusinessPopupResult = (type, message = "") => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!doctype html>
+<html><head><title>Google Business Profile</title></head>
+<body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage({ type: ${JSON.stringify(type)}, message: ${JSON.stringify(message)} }, window.location.origin);
+  }
+  window.close();
+</script>
+<p>${message || "Google Business Profile procesado."}</p>
+</body></html>`);
+  };
+  try {
+    if (req.query.error) {
+      return sendBusinessPopupResult(
+        "seo-crawler:google-business-failed",
+        String(req.query.error_description || req.query.error || "Google Business Profile OAuth falló"),
+      );
+    }
+    const payload = jwt.verify(String(req.query.state || ""), getJwtSecret());
+    if (payload.userId !== req.user.id) {
+      return sendBusinessPopupResult("seo-crawler:google-business-failed", "Estado OAuth invalido");
+    }
+    const { tokens, email, scopes } = await exchangeGoogleCode(String(req.query.code || ""));
+    if (!tokens.refresh_token) {
+      return sendBusinessPopupResult("seo-crawler:google-business-failed", "Google no devolvio refresh token");
+    }
+    await prisma.googleDriveConnection.upsert({
+      where: { userId: req.user.id },
+      create: {
+        userId: req.user.id,
+        email,
+        encryptedAccessToken: tokens.access_token ? encryptSecret(tokens.access_token) : null,
+        encryptedRefreshToken: encryptSecret(tokens.refresh_token),
+        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        scopes: scopes && scopes.length ? scopes : tokens.scope ? String(tokens.scope).split(/\s+/).filter(Boolean) : [],
+        status: "connected",
+        lastSyncAt: new Date(),
+      },
+      update: {
+        email,
+        encryptedAccessToken: tokens.access_token ? encryptSecret(tokens.access_token) : undefined,
+        encryptedRefreshToken: encryptSecret(tokens.refresh_token),
+        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        scopes: scopes && scopes.length ? scopes : tokens.scope ? String(tokens.scope).split(/\s+/).filter(Boolean) : [],
+        status: "connected",
+        lastSyncAt: new Date(),
+      },
+    });
+    return sendBusinessPopupResult("seo-crawler:google-business-connected", "Google Business Profile conectado");
+  } catch (error) {
+    logServerError("google-business:callback", error, {
+      path: req.originalUrl || req.url,
+      method: req.method,
+    });
+    return sendBusinessPopupResult("seo-crawler:google-business-failed", getPublicError(error, "No se pudo conectar Google Business Profile").message);
+  }
+});
+
 app.delete("/api/google-drive/connection", requireAuth, requireEditor, async (req, res) => {
   await prisma.$transaction([
     prisma.projectGoogleBinding.deleteMany({ where: { userId: req.user.id } }),
@@ -5118,6 +5229,13 @@ app.get("/api/projects/:projectId/google-integration", requireAuth, async (req, 
           id: true,
           searchConsoleProperty: true,
           ga4PropertyId: true,
+          gbpAccountName: true,
+          gbpAccountLabel: true,
+          gbpLocationName: true,
+          gbpLocationLabel: true,
+          gbpStatus: true,
+          gbpLastSyncAt: true,
+          gbpLastPostAt: true,
           status: true,
           lastSyncAt: true,
           updatedAt: true,
@@ -5154,11 +5272,17 @@ app.get("/api/projects/:projectId/google-integration", requireAuth, async (req, 
 
     let searchConsoleProperties = [];
     let ga4Properties = [];
+    let businessAccounts = [];
+    let businessLocations = [];
     if (connection) {
       [searchConsoleProperties, ga4Properties] = await Promise.all([
         listSearchConsoleProperties(connection).catch(() => []),
         listGa4Properties(connection).catch(() => []),
       ]);
+      businessAccounts = await listBusinessAccounts(connection).catch(() => []);
+      if (binding?.gbpAccountName) {
+        businessLocations = await listBusinessLocations(connection, binding.gbpAccountName).catch(() => []);
+      }
     }
 
     const searchConsoleSnapshots = snapshots.filter((snapshot) => snapshot.source === "searchconsole");
@@ -5202,6 +5326,10 @@ app.get("/api/projects/:projectId/google-integration", requireAuth, async (req, 
       availableProperties: {
         searchConsole: searchConsoleProperties,
         ga4: ga4Properties,
+        business: {
+          accounts: businessAccounts,
+          locations: businessLocations,
+        },
       },
       insights: {
         searchConsole: buildSnapshotPayload(
@@ -5222,6 +5350,15 @@ app.get("/api/projects/:projectId/google-integration", requireAuth, async (req, 
             sourceMedium: latestGa4?.rows?.sourceMedium || [],
           },
         ),
+      },
+      businessProfile: {
+        accountName: binding?.gbpAccountName || "",
+        accountLabel: binding?.gbpAccountLabel || "",
+        locationName: binding?.gbpLocationName || "",
+        locationLabel: binding?.gbpLocationLabel || "",
+        status: binding?.gbpStatus || "inactive",
+        lastSyncAt: binding?.gbpLastSyncAt || null,
+        lastPostAt: binding?.gbpLastPostAt || null,
       },
       alerts,
     });
@@ -5246,8 +5383,12 @@ app.put("/api/projects/:projectId/google-integration", requireAuth, requireEdito
     if (!connection) return res.status(400).json({ error: "Google no conectado" });
 
     const normalized = normalizeGoogleBindingInput(req.body || {});
-    if (!normalized.searchConsoleProperty && !normalized.ga4PropertyId) {
-      return res.status(400).json({ error: "searchConsoleProperty o ga4PropertyId son requeridos" });
+    const gbpAccountName = String(req.body?.gbpAccountName || "").trim();
+    const gbpAccountLabel = String(req.body?.gbpAccountLabel || "").trim();
+    const gbpLocationName = String(req.body?.gbpLocationName || "").trim();
+    const gbpLocationLabel = String(req.body?.gbpLocationLabel || "").trim();
+    if (!normalized.searchConsoleProperty && !normalized.ga4PropertyId && !gbpLocationName) {
+      return res.status(400).json({ error: "searchConsoleProperty, ga4PropertyId o gbpLocationName son requeridos" });
     }
 
     const binding = await prisma.projectGoogleBinding.upsert({
@@ -5257,17 +5398,34 @@ app.put("/api/projects/:projectId/google-integration", requireAuth, requireEdito
         projectId: project.id,
         searchConsoleProperty: normalized.searchConsoleProperty || null,
         ga4PropertyId: normalized.ga4PropertyId || null,
+        gbpAccountName: gbpAccountName || null,
+        gbpAccountLabel: gbpAccountLabel || null,
+        gbpLocationName: gbpLocationName || null,
+        gbpLocationLabel: gbpLocationLabel || null,
+        gbpStatus: gbpLocationName ? "configured" : "inactive",
         status: "active",
       },
       update: {
         searchConsoleProperty: normalized.searchConsoleProperty || null,
         ga4PropertyId: normalized.ga4PropertyId || null,
+        gbpAccountName: gbpAccountName || null,
+        gbpAccountLabel: gbpAccountLabel || null,
+        gbpLocationName: gbpLocationName || null,
+        gbpLocationLabel: gbpLocationLabel || null,
+        gbpStatus: gbpLocationName ? "configured" : "inactive",
         status: "active",
       },
       select: {
         id: true,
         searchConsoleProperty: true,
         ga4PropertyId: true,
+        gbpAccountName: true,
+        gbpAccountLabel: true,
+        gbpLocationName: true,
+        gbpLocationLabel: true,
+        gbpStatus: true,
+        gbpLastSyncAt: true,
+        gbpLastPostAt: true,
         status: true,
         lastSyncAt: true,
         updatedAt: true,
@@ -5334,6 +5492,58 @@ app.post("/api/projects/:projectId/google-integration/sync", exportLimiter, requ
     });
   } catch (error) {
     handleApiError(res, req, "google-integration:sync", error, "No se pudo sincronizar Google");
+  }
+});
+
+app.post("/api/projects/:projectId/google-business/posts", exportLimiter, requireAuth, requireEditor, async (req, res) => {
+  try {
+    const accountOwnerId = getAccountOwnerId(req.user);
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.projectId, userId: accountOwnerId },
+      select: { id: true, name: true, targetUrl: true },
+    });
+    if (!project) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+    const [connection, binding] = await Promise.all([
+      prisma.googleDriveConnection.findUnique({ where: { userId: req.user.id } }),
+      prisma.projectGoogleBinding.findUnique({ where: { projectId: project.id } }),
+    ]);
+    if (!connection) return res.status(400).json({ error: "Google no conectado" });
+    if (!binding?.gbpLocationName) return res.status(400).json({ error: "GBP no configurado para este proyecto" });
+
+    const postInput = normalizeBusinessPostInput(req.body || {});
+    const created = await createBusinessPost(connection, binding.gbpLocationName, {
+      ...postInput,
+      summary: postInput.summary || project.name || "Nueva publicación",
+    });
+
+    const updated = await prisma.projectGoogleBinding.update({
+      where: { projectId: project.id },
+      data: {
+        gbpStatus: created?.state || "posted",
+        gbpLastSyncAt: new Date(),
+        gbpLastPostAt: new Date(),
+      },
+      select: {
+        id: true,
+        searchConsoleProperty: true,
+        ga4PropertyId: true,
+        gbpAccountName: true,
+        gbpAccountLabel: true,
+        gbpLocationName: true,
+        gbpLocationLabel: true,
+        gbpStatus: true,
+        gbpLastSyncAt: true,
+        gbpLastPostAt: true,
+        status: true,
+        lastSyncAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({ ok: true, post: created, binding: updated });
+  } catch (error) {
+    handleApiError(res, req, "google-business:post", error, "No se pudo publicar en GBP");
   }
 });
 
